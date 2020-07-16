@@ -1,19 +1,19 @@
-#
-# coadd data
+import os
+import glob
+
+import numpy as np
 
 from astropy.io import fits
-import numpy as np
-import glob
 
 from . import parameters
 
-x1dfiles = glob.glob('*_x1d.fits')
-
-grating = 'G130M'
+#
+# coadd data
+#
 
 class COSSegmentList:
 
-    def __init__(self, grating):
+    def __init__(self, grating, path='.'):
         self.grating = grating
         self.min_wavelength = None
         self.max_wavelength = None
@@ -22,7 +22,7 @@ class COSSegmentList:
         self.output_sumweight = None
         self.output_flux = None
         
-        x1dfiles = glob.glob('*_x1d.fits')
+        x1dfiles = glob.glob(os.path.join(path, '*_x1d.fits'))
 
         gratinglist = []
 
@@ -35,8 +35,12 @@ class COSSegmentList:
                 f1.close()
 
         self.members = []
+        self.primary_headers = []
 
         for hdulist in gratinglist:
+
+            self.primary_headers.append(hdulist[0].header)
+
             data = hdulist[1].data
             for segment in data:
                 self.members.append(segment)
@@ -91,3 +95,31 @@ class COSSegmentList:
         nonzeros = np.where(self.output_sumweight != 0)
         self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / self.output_sumweight[nonzeros]
         return
+
+    def write(self, filename, overwrite=False):
+
+        # Table with co-added spectrum
+        cw = fits.Column(name='WAVELENGTH', array=self.output_wavelength, format='E')
+        cf = fits.Column(name='FLUX', array=self.output_flux, format='E')
+        table = fits.BinTableHDU.from_columns([cw, cf])
+
+        # HLSP primary header
+        hdr = fits.Header()
+        hdr['COMMENT'] = "Mock HLSP file."
+        hdr['NEXTEND'] = len(self.primary_headers) + 1
+        primary = fits.PrimaryHDU(header=hdr)
+
+        # HLSP file is comprised of a list of HDUs, with only the first
+        # one being used to store the spectrum. Remaining HDUs contain
+        # the primary headers from each input spectrum. Their data sections
+        # are empty. (this will likely be needed to populate the quicklook
+        # tool reporting widgets)
+        hdul = fits.HDUList([primary, table])
+
+        for p_header in self.primary_headers:
+            extension = fits.BinTableHDU(header=p_header)
+            hdul.append(extension)
+
+        hdul.writeto(filename, overwrite=overwrite)
+
+
