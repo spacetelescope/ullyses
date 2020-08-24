@@ -5,11 +5,12 @@ import numpy as np
 
 from astropy.io import fits
 
-from . import parameters
+import parameters
 
 #
 # coadd data
 #
+
 
 class COSSegmentList:
 
@@ -121,5 +122,3 @@ class COSSegmentList:
             hdul.append(extension)
 
         hdul.writeto(filename, overwrite=overwrite)
-
-
