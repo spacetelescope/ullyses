@@ -43,15 +43,19 @@ class COSSegmentList:
             self.primary_headers.append(hdulist[0].header)
 
             data = hdulist[1].data
-            for segment in data:
+            sdqflags = hdulist[1].header['SDQFLAGS']
+            for row in data:
+                segment = Segment()
+                segment.data = row
+                segment.sdqflags = sdqflags
                 self.members.append(segment)
 
     def create_output_wavelength_grid(self):
         min_wavelength = 10000.0
         max_wavelength = 0.0
         for segment in self.members:
-            minwave = segment['wavelength'].min()
-            maxwave = segment['wavelength'].max()
+            minwave = segment.data['wavelength'].min()
+            maxwave = segment.data['wavelength'].max()
             if minwave < min_wavelength: min_wavelength = minwave
             if maxwave > max_wavelength: max_wavelength = maxwave
         self.min_wavelength = int(min_wavelength)
@@ -60,7 +64,7 @@ class COSSegmentList:
         deltasum = 0.0
     
         for segment in self.members:
-            wavediffs = segment['wavelength'][1:] - segment['wavelength'][:-1]
+            wavediffs = segment.data['wavelength'][1:] - segment.data['wavelength'][:-1]
             deltasum += wavediffs.mean()
     
         self.delta_wavelength = deltasum / len(self.members)
@@ -83,13 +87,13 @@ class COSSegmentList:
         wavelength = index * self.delta_wavelength + self.min_wavelength
         return wavelength
 
-    def coadd(self, bad_dq=parameters.COS_DQ_OMIT):
+    def coadd(self):
         for segment in self.members:
-            goodpixels = np.where((segment['dq'] & bad_dq) == 0)
-            wavelength = segment['wavelength'][goodpixels]
+            goodpixels = np.where((segment.data['dq'] & segment.sdqflags) == 0)
+            wavelength = segment.data['wavelength'][goodpixels]
             indices = self.wavelength_to_index(wavelength)
-            weight = segment['gcounts'][goodpixels]
-            flux = segment['flux'][goodpixels]
+            weight = segment.data['gcounts'][goodpixels]
+            flux = segment.data['flux'][goodpixels]
             self.output_sumweight[indices] = self.output_sumweight[indices] + weight
             self.output_sumflux[indices] = self.output_sumflux[indices] + flux * weight
         
@@ -122,3 +126,10 @@ class COSSegmentList:
             hdul.append(extension)
 
         hdul.writeto(filename, overwrite=overwrite)
+
+class Segment:
+
+    def __init__(self):
+        self.data = None
+        self.sdqflags = None
+
