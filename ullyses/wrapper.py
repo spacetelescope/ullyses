@@ -7,6 +7,8 @@ from astropy.io import fits
 
 from coadd import COSSegmentList
 
+version = 'v0.1'
+
 '''
 Currently coadd.py only works for COS and only combines obs of the same grating.
 This wrapper goes through each target folder in the ullyses data directory and find
@@ -44,16 +46,26 @@ def main(indir, outdir):
             prod = COSSegmentList(grating, path=root)
 
             # these two calls perform the main functions
-            prod.create_output_wavelength_grid()
-            prod.coadd()
+            if len(prod.members) > 0:
+                prod.create_output_wavelength_grid()
+                prod.coadd()
+                prod.target = targetname.lower()
+                # this writes the output file
+                if not os.path.exists(outdir):
+                    os.mkdir(outdir)
+                outname = create_output_file_name(prod)
+                outname = outdir + '/' + outname
+                prod.write(outname)
+                print(f"   Wrote {outname}")
+            else:
+                print(f"No valid data for grating {grating}")
 
-            # this writes the output file
-            if not os.path.exists(outdir):
-                os.mkdir(outdir)
-            outname = os.path.join(outdir, targetname + '_' + grating + '.fits')
-            prod.write(outname)
-            print(f"   Wrote {outname}")
-
+def create_output_file_name(prod):
+    instrument = prod.instrument.lower()
+    grating = prod.grating.lower()
+    target = prod.target
+    name = "hlsp_ullyses_hst_{}_{}_{}_{}_cspec.fits".format(instrument, target, grating, version)
+    return name
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
