@@ -16,7 +16,7 @@ the data and which gratings are present. This info is then fed into coadd.py.
 
 
 def main(indir, outdir, version_=version):
-
+    print(version_)
     for root, dirs, files in os.walk(indir, topdown=False):
 
         print(root)
@@ -65,7 +65,7 @@ def main(indir, outdir, version_=version):
                 # this writes the output file
                 if not os.path.exists(outdir):
                     os.mkdir(outdir)
-                outname = create_output_file_name(prod)
+                outname = create_output_file_name(prod, version_)
                 outname = outdir + '/' + outname
                 prod.write(outname)
                 print(f"   Wrote {outname}")
@@ -80,7 +80,7 @@ def main(indir, outdir, version_=version):
 #            products['stis_h'] = coadd.abut(products['e140h'], products['e230h'])
 
 
-def create_output_file_name(prod):
+def create_output_file_name(prod, version_):
     instrument = prod.instrument.lower()
     grating = prod.grating.lower()
     target = prod.target
@@ -94,7 +94,7 @@ if __name__ == '__main__':
     parser.add_argument("-o", "--outdir", default=".",
                         help="Directory for output HLSPs")
     parser.add_argument("-v", "--version", default=version, 
-    					help="Version number of the HLSP"
+    					help="Version number of the HLSP")
     args = parser.parse_args()
 
     main(args.indir, args.outdir, version_=args.version)
