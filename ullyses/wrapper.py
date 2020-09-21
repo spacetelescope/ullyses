@@ -16,7 +16,6 @@ the data and which gratings are present. This info is then fed into coadd.py.
 
 
 def main(indir, outdir, version_=version):
-    print(version_)
     for root, dirs, files in os.walk(indir, topdown=False):
 
         print(root)
