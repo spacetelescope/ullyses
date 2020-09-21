@@ -1,16 +1,18 @@
 import os
 import glob
+import datetime
 
 import numpy as np
-
+import astropy
 from astropy.io import fits
 
 #
 # coadd data
 #
 
+cal_ver = 0.1
 
-class COSSegmentList:
+class SegmentList:
 
     def __init__(self, grating, path='.'):
         self.grating = grating
@@ -20,8 +22,19 @@ class COSSegmentList:
         self.output_sumflux = None
         self.output_sumweight = None
         self.output_flux = None
-        self.output_error = None
+        self.output_errors = None
         self.instrument = None
+        self.detector = ''
+        self.disperser = ''
+        self.cenwave = ''
+        self.aperture = ''
+        self.s_region = ''
+        self.obsmode = ''
+        self.targname = ''
+        self.targ_ra = ''
+        self.targ_dec = ''
+        self.prog_id = ''
+        self.datasets = []
         
         x1dfiles = glob.glob(os.path.join(path, '*_x1d.fits'))
 
@@ -36,6 +49,7 @@ class COSSegmentList:
                     print('{} added to file list for grating {}'.format(file, grating))
                     gratinglist.append(f1)
                     self.instrument = prihdr['INSTRUME']
+                    self.datasets.append(file)
                 else:
                     print('{} has no data'.format(file))
             else:
@@ -99,12 +113,16 @@ class COSSegmentList:
         wavelength = index * self.delta_wavelength + self.min_wavelength
         return wavelength
 
+    def get_gross_counts(self, segment):
+        pass
+
     def coadd(self):
         for segment in self.members:
             goodpixels = np.where((segment.data['dq'] & segment.sdqflags) == 0)
             wavelength = segment.data['wavelength'][goodpixels]
             indices = self.wavelength_to_index(wavelength)
-            weight = segment.data['gcounts'][goodpixels]
+            gross_counts = self.get_gross_counts(segment)
+            weight = gross_counts[goodpixels]
             flux = segment.data['flux'][goodpixels]
             self.output_sumweight[indices] = self.output_sumweight[indices] + weight
             self.output_sumflux[indices] = self.output_sumflux[indices] + flux * weight
@@ -136,9 +154,40 @@ class COSSegmentList:
         table.data['EXPTIME'] = self.output_exptime.copy()
         # HLSP primary header
         hdr = fits.Header()
-        hdr['COMMENT'] = "Mock HLSP file."
+        hdr['EXTEND'] = ('T', 'FITS file may contain extensions')
         hdr['NEXTEND'] = len(self.primary_headers) + 1
-        hdr['GRATING'] = self.grating
+        hdr['FITS_VER'] = 'Definition of the Flexible Image Transport System (FITS) v4.0 https://fits.gsfc.nasa.gov/standard40/fits_standard40aa-le.pdf'
+        hdr['FITS_SW'] = ('astropy.io.fits v' + astropy.__version__, 'FITS file creation software')
+        hdr['ORIGIN'] = ('Space Telescope Science Institute', 'FITS file originator')
+        hdr['DATE'] = (str(datetime.date.today()), 'Date this file was written')
+        hdr['FILENAME'] = (filename, 'Name of this file')
+        hdr['TELESCOP'] = ('HST', 'Telescope used to acquire data')
+        hdr['INSTRUME'] = (self.instrument, 'Instrument used to acquire data')
+        hdr.add_blank('', after='TELESCOP')
+        hdr.add_blank('              / Instrument configuration information', before='INSTRUME')
+        hdr['DETECTOR'] = (self.detector, 'Detector or channel used to acquire data')
+        hdr['DISPERSR'] = (self.disperser, 'Identifier of disperser')
+        hdr['CENWAVE'] = (self.cenwave, 'Central wavelength setting for disperser')
+        hdr['APERTURE'] = (self.aperture, 'Identifier of entrance aperture')
+        hdr['S_REGION'] = (self.s_region, 'Region footprint')
+        hdr['OBSMODE'] = (self.obsmode, 'Instrument operating mode (ACCUM | TIME-TAG)')
+        hdr['TARGNAME'] = self.targname
+        hdr.add_blank(after='OBSMODE')
+        hdr.add_blank('              / Target Information', before='TARGNAME')
+        hdr['RADESYS'] = ('ICRS ','World coordinate reference frame')
+        hdr['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
+        hdr['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
+        hdr['PROG_ID'] = (self.prog_id, 'Program identifier(s)')
+        hdr.add_blank(after='TARG_DEC')
+        hdr.add_blank('           / Provenance Information', before='PROG_ID')
+        hdr['CAL_VER'] = (cal_ver, 'HLSP processing software version')
+        hdr['HLSPID']  = ('ULLYSES', 'Acronym for this HLSP collection')
+        hdr['HSLPNAME'] = 'Hubble UV Legacy Library of Young Stars as Essential Standards'
+        hdr['HLSP_VER'] = ('v1.0','HLSP data release version identifier')
+        hdr['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
+        hdr['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
+        hdr['REFERENC'] = ('(ADS bibcode)', 'Bibliographic ID of primary paper')
+        self.add_dataset_names(hdr)
         primary = fits.PrimaryHDU(header=hdr)
 
         # HLSP file is comprised of a list of HDUs, with only the first
@@ -154,9 +203,113 @@ class COSSegmentList:
 
         hdul.writeto(filename, overwrite=overwrite)
 
+    def add_dataset_names(self, hdr):
+        nsets = len(self.datasets)
+        for dataset in range(nsets):
+            keystring = f'DATA{dataset+1:02d}'
+            value = self.datasets[dataset]
+            hdr[keystring] = value
+
+class STISSegmentList(SegmentList):
+
+    def get_gross_counts(self, segment):
+       exptime = segment.exptime
+       gross = segment.data['gross']
+       return gross*exptime
+
+    def create_output_wavelength_grid(self):
+        min_wavelength = 10000.0
+        max_wavelength = 0.0
+        for segment in self.members:
+            minwave = segment.data['wavelength'].min()
+            maxwave = segment.data['wavelength'].max()
+            if minwave < min_wavelength: min_wavelength = minwave
+            if maxwave > max_wavelength: max_wavelength = maxwave
+        self.min_wavelength = int(min_wavelength)
+        self.max_wavelength = int(max_wavelength) + 1
+    
+        max_delta_wavelength = 0.0
+    
+        for segment in self.members:
+            wavediffs = segment.data['wavelength'][1:] - segment.data['wavelength'][:-1]
+            max_delta_wavelength = max(max_delta_wavelength, wavediffs.max())
+    
+        self.delta_wavelength = max_delta_wavelength
+    
+        wavegrid = np.arange(self.min_wavelength, self.max_wavelength, self.delta_wavelength)
+    
+        self.output_wavelength = wavegrid
+        self.nelements = len(wavegrid)
+        self.output_sumflux = np.zeros(self.nelements)
+        self.output_sumweight = np.zeros(self.nelements)
+        self.output_flux = np.zeros(self.nelements)
+        self.output_errors = np.zeros(self.nelements)
+        self.signal_to_noise = np.zeros(self.nelements)
+        self.output_exptime = np.zeros(self.nelements)
+
+        return wavegrid
+
+class COSSegmentList(SegmentList):
+
+    def get_gross_counts(self, segment):
+       gross = segment.data['gcounts']
+       return gross
+
 class Segment:
 
     def __init__(self):
         self.data = None
         self.sdqflags = None
         self.exptime = None
+
+def abut(product_short, product_long):
+    """Abut the spectra in 2 products.  Assumes the first argument is the shorter
+    wavelength.  If either product is None, just return the product that isn't None.
+    """
+    if product_short is not None and product_long is not None:
+        transition_wavelength = find_transition_wavelength(product_short, product_long)
+        if transition_wavelength is not None:
+            short_indices = np.where(product_short.output_wavelength < transition_wavelength)
+            transition_index_short = short_indices[-1]
+            long_indices = np.where(product_long.output_wavelength > transition_wavelength)
+            transition_index_long = long_indices[0]
+        else:
+            transition_index_short = product_short.nelements
+            transition_index_long = 0
+        output_grating = product_short.grating + '-' + product_long.grating
+        product_abutted = SegmentList(output_grating)
+        nout = len(product_short.output_wavelength[:transition_index_short])
+        nout = nout + len(product_long.output_wavelength[transition_index_long:])
+        product_abutted.output_wavelength = np.zeros(nout)
+        product_abutted.output_flux = np.zeros(nout)
+        product_abutted.output_errors = np.zeros(nout)
+        product_abutted.signal_to_noise = np.zeros(nout)
+        product_abutted.output_wavelength[:transition_index_short] = product_short[:transition_index_short]
+        product_abutted.output_wavelength[transition_index_short:] = product_long[transition_index_long:]
+        product_abutted.output_flux[:transition_index_short] = product_short[:transition_index_short]
+        product_abutted.output_flux[transition_index_short:] = product_long[transition_index_long:]
+        product_abutted.output_errors[:transition_index_short] = product_short[:transition_index_short]
+        product_abutted.output_errors[transition_index_short:] = product_long[transition_index_long:]
+        product_abutted.output_signal_to_noise[:transition_index_short] = product_short[:transition_index_short]
+        product_abutted.output_signal_to_noise[transition_index_short:] = product_long[transition_index_long:]
+        product_abutted.output_exptime[:transition_index_short] = product_short[:transition_index_short]
+        product_abutted.output_exptime[transition_index_short:] = product_long[transition_index_long:]
+
+        return product_abutted
+
+def find_transition_wavelength(product_short, product_long):
+    """Find the wavelength below which we use product_short and above
+    which we use product_long.
+    Initial implementation is to return the wavelength midway between the last good short wavelength and the first
+    good long wavelength.  If there's no overlap, return None
+    """
+
+    goodshort = np.where(product_short.output_exptime > 0.)
+    goodlong = np.where(product_long.output_exptime > 0.)
+    last_good_short = product_short.output_wavelength[goodshort][-1]
+    first_good_long = product_long.output_wavelength[goodlong][0]
+    if last_good_short > first_good_long:
+        return 0.5*(last_good_short + first_good_long)
+    else:
+        return None
+

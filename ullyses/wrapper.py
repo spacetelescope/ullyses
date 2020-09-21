@@ -5,14 +5,13 @@ import numpy as np
 
 from astropy.io import fits
 
-from coadd import COSSegmentList
+from coadd import COSSegmentList, STISSegmentList
 
 version = 'v0.1'
 
 '''
-Currently coadd.py only works for COS and only combines obs of the same grating.
 This wrapper goes through each target folder in the ullyses data directory and find
-the COS data and which gratings are present. This info is then feeded into coadd.py.
+the data and which gratings are present. This info is then fed into coadd.py.
 '''
 
 
@@ -27,23 +26,36 @@ def main(indir, outdir):
         # collect the gratings that we will loop through
         # coadd.py will find the correct files itself,
         # but we need to know which gratings are present
-        modes = []
+        uniqmodes = []
 
-        for myfile in glob.glob(os.path.join(root, 'l*_x1d.fits')):  # only grabbing COS with the l*_x1d.fits
+        for myfile in glob.glob(os.path.join(root, '*_x1d.fits')):
             f1 = fits.open(myfile)
             prihdr = f1[0].header
-            modes.append(prihdr['OPT_ELEM'])
+            obsmode = (prihdr['INSTRUME'], prihdr['OPT_ELEM'])
+            if obsmode not in uniqmodes:
+                uniqmodes.append(obsmode)
 
-        if not modes:
-            print(f'No COS data to coadd for {targetname}.')
+        if not uniqmodes:
+            print(f'No data to coadd for {targetname}.')
             continue
 
-        uniqmodes = np.unique(modes)
-
-        for grating in uniqmodes:
-
-            # this initiates the class
-            prod = COSSegmentList(grating, path=root)
+        for instrument, grating in uniqmodes:
+            products = {}
+            products['g130m'] = None
+            products['g160m'] = None
+            products['g185m'] = None
+            products['e140m'] = None
+            products['e230m'] = None
+            products['e140h'] = None
+            products['e230h'] = None
+            products['cos_uv_m'] = None
+            # this instantiates the class
+            if instrument == 'COS':
+                prod = COSSegmentList(grating, path=root)
+            elif instrument == 'STIS':
+                prod = STISSegmentList(grating, path=root)
+            else:
+                print(f'Unknown mode [{instrument}, {grating}]')
 
             # these two calls perform the main functions
             if len(prod.members) > 0:
@@ -59,6 +71,14 @@ def main(indir, outdir):
                 print(f"   Wrote {outname}")
             else:
                 print(f"No valid data for grating {grating}")
+            products[grating] = prod
+
+        # Create Level 3 products by abutting level 2 products
+#            products['cos_uv_m'] = coadd.abut(products['g130m'], products['g160m'])
+#            products['cos_m'] = coadd.abut(products['cos_m'], products['g185m'])
+#            products['stis_m'] = coadd.abut(products['e140m'], products['e230m'])
+#            products['stis_h'] = coadd.abut(products['e140h'], products['e230h'])
+
 
 def create_output_file_name(prod):
     instrument = prod.instrument.lower()
