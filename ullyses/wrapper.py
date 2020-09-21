@@ -15,7 +15,7 @@ the data and which gratings are present. This info is then fed into coadd.py.
 '''
 
 
-def main(indir, outdir):
+def main(indir, outdir, version_=version):
 
     for root, dirs, files in os.walk(indir, topdown=False):
 
@@ -84,7 +84,7 @@ def create_output_file_name(prod):
     instrument = prod.instrument.lower()
     grating = prod.grating.lower()
     target = prod.target
-    name = "hlsp_ullyses_hst_{}_{}_{}_{}_cspec.fits".format(instrument, target, grating, version)
+    name = "hlsp_ullyses_hst_{}_{}_{}_{}_cspec.fits".format(instrument, target, grating, version_)
     return name
 
 if __name__ == '__main__':
@@ -93,6 +93,8 @@ if __name__ == '__main__':
                         help="Directory(ies) with data to combine")
     parser.add_argument("-o", "--outdir", default=".",
                         help="Directory for output HLSPs")
+    parser.add_argument("-v", "--version", default=version, 
+    					help="Version number of the HLSP"
     args = parser.parse_args()
 
-    main(args.indir, args.outdir)
+    main(args.indir, args.outdir, version_=args.version)
