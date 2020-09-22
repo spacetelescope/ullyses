@@ -128,8 +128,9 @@ class SegmentList:
             self.output_sumflux[indices] = self.output_sumflux[indices] + flux * weight
             self.output_exptime[indices] = self.output_exptime[indices] + segment.exptime
         nonzeros = np.where(self.output_sumweight != 0)
-        # When the flux goes negative we get large spikes in the errors
-        self.output_sumweight[nonzeros] = np.where(self.output_sumweight[nonzeros] < 0.5, 0.5, self.output_sumweight[nonzeros])
+        if self.instrument == 'COS':
+            # Using the variances (which only COS has) gives spikes in the error when the flux goes negative.
+            self.output_sumweight[nonzeros] = np.where(self.output_sumweight[nonzeros] < 0.5, 0.5, self.output_sumweight[nonzeros])
         self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / self.output_sumweight[nonzeros]
         # For the moment calculate errors from the gross counts
         self.output_errors[nonzeros] = np.sqrt(self.output_sumweight[nonzeros])
