@@ -30,9 +30,10 @@ class SegmentList:
         self.aperture = ''
         self.s_region = ''
         self.obsmode = ''
-        self.targname = ''
+        self.targname = []
         self.targ_ra = ''
         self.targ_dec = ''
+        self.target = ''
         self.prog_id = ''
         self.datasets = []
         
@@ -50,6 +51,9 @@ class SegmentList:
                     gratinglist.append(f1)
                     self.instrument = prihdr['INSTRUME']
                     self.datasets.append(file)
+                    target = prihdr['TARGNAME']
+                    if target not in self.targname:
+                        self.targname.append(target)
                 else:
                     print('{} has no data'.format(file))
             else:
@@ -84,13 +88,13 @@ class SegmentList:
         self.min_wavelength = int(min_wavelength)
         self.max_wavelength = int(max_wavelength) + 1
     
-        deltasum = 0.0
+        max_delta_wavelength = 0.0
     
         for segment in self.members:
             wavediffs = segment.data['wavelength'][1:] - segment.data['wavelength'][:-1]
-            deltasum += wavediffs.mean()
+            max_delta_wavelength = max(max_delta_wavelength, wavediffs.max())
     
-        self.delta_wavelength = deltasum / len(self.members)
+        self.delta_wavelength = max_delta_wavelength
     
         wavegrid = np.arange(self.min_wavelength, self.max_wavelength, self.delta_wavelength)
     
@@ -171,7 +175,7 @@ class SegmentList:
         hdr['APERTURE'] = (self.aperture, 'Identifier of entrance aperture')
         hdr['S_REGION'] = (self.s_region, 'Region footprint')
         hdr['OBSMODE'] = (self.obsmode, 'Instrument operating mode (ACCUM | TIME-TAG)')
-        hdr['TARGNAME'] = self.targname
+        hdr['TARGNAME'] = self.targname[0]
         hdr.add_blank(after='OBSMODE')
         hdr.add_blank('              / Target Information', before='TARGNAME')
         hdr['RADESYS'] = ('ICRS ','World coordinate reference frame')
@@ -198,8 +202,9 @@ class SegmentList:
         hdul = fits.HDUList([primary, table])
 
         for p_header in self.primary_headers:
-            extension = fits.BinTableHDU(header=p_header)
-            hdul.append(extension)
+            if type(p_header) == astropy.io.fits.header.Header:
+                extension = fits.BinTableHDU(header=p_header)
+                hdul.append(extension)
 
         hdul.writeto(filename, overwrite=overwrite)
 
@@ -216,38 +221,6 @@ class STISSegmentList(SegmentList):
        exptime = segment.exptime
        gross = segment.data['gross']
        return gross*exptime
-
-    def create_output_wavelength_grid(self):
-        min_wavelength = 10000.0
-        max_wavelength = 0.0
-        for segment in self.members:
-            minwave = segment.data['wavelength'].min()
-            maxwave = segment.data['wavelength'].max()
-            if minwave < min_wavelength: min_wavelength = minwave
-            if maxwave > max_wavelength: max_wavelength = maxwave
-        self.min_wavelength = int(min_wavelength)
-        self.max_wavelength = int(max_wavelength) + 1
-    
-        max_delta_wavelength = 0.0
-    
-        for segment in self.members:
-            wavediffs = segment.data['wavelength'][1:] - segment.data['wavelength'][:-1]
-            max_delta_wavelength = max(max_delta_wavelength, wavediffs.max())
-    
-        self.delta_wavelength = max_delta_wavelength
-    
-        wavegrid = np.arange(self.min_wavelength, self.max_wavelength, self.delta_wavelength)
-    
-        self.output_wavelength = wavegrid
-        self.nelements = len(wavegrid)
-        self.output_sumflux = np.zeros(self.nelements)
-        self.output_sumweight = np.zeros(self.nelements)
-        self.output_flux = np.zeros(self.nelements)
-        self.output_errors = np.zeros(self.nelements)
-        self.signal_to_noise = np.zeros(self.nelements)
-        self.output_exptime = np.zeros(self.nelements)
-
-        return wavegrid
 
 class COSSegmentList(SegmentList):
 
@@ -268,34 +241,60 @@ def abut(product_short, product_long):
     """
     if product_short is not None and product_long is not None:
         transition_wavelength = find_transition_wavelength(product_short, product_long)
+        # Spectra are overlapped
         if transition_wavelength is not None:
             short_indices = np.where(product_short.output_wavelength < transition_wavelength)
-            transition_index_short = short_indices[-1]
+            transition_index_short = short_indices[0][-1]
             long_indices = np.where(product_long.output_wavelength > transition_wavelength)
-            transition_index_long = long_indices[0]
+            transition_index_long = long_indices[0][0]
         else:
+            # No overlap
             transition_index_short = product_short.nelements
             transition_index_long = 0
         output_grating = product_short.grating + '-' + product_long.grating
         product_abutted = SegmentList(output_grating)
         nout = len(product_short.output_wavelength[:transition_index_short])
         nout = nout + len(product_long.output_wavelength[transition_index_long:])
+        product_abutted.nelements = nout
         product_abutted.output_wavelength = np.zeros(nout)
         product_abutted.output_flux = np.zeros(nout)
         product_abutted.output_errors = np.zeros(nout)
         product_abutted.signal_to_noise = np.zeros(nout)
-        product_abutted.output_wavelength[:transition_index_short] = product_short[:transition_index_short]
-        product_abutted.output_wavelength[transition_index_short:] = product_long[transition_index_long:]
-        product_abutted.output_flux[:transition_index_short] = product_short[:transition_index_short]
-        product_abutted.output_flux[transition_index_short:] = product_long[transition_index_long:]
-        product_abutted.output_errors[:transition_index_short] = product_short[:transition_index_short]
-        product_abutted.output_errors[transition_index_short:] = product_long[transition_index_long:]
-        product_abutted.output_signal_to_noise[:transition_index_short] = product_short[:transition_index_short]
-        product_abutted.output_signal_to_noise[transition_index_short:] = product_long[transition_index_long:]
-        product_abutted.output_exptime[:transition_index_short] = product_short[:transition_index_short]
-        product_abutted.output_exptime[transition_index_short:] = product_long[transition_index_long:]
-
-        return product_abutted
+        product_abutted.output_exptime = np.zeros(nout)
+        product_abutted.output_wavelength[:transition_index_short] = product_short.output_wavelength[:transition_index_short]
+        product_abutted.output_wavelength[transition_index_short:] = product_long.output_wavelength[transition_index_long:]
+        product_abutted.output_flux[:transition_index_short] = product_short.output_flux[:transition_index_short]
+        product_abutted.output_flux[transition_index_short:] = product_long.output_flux[transition_index_long:]
+        product_abutted.output_errors[:transition_index_short] = product_short.output_errors[:transition_index_short]
+        product_abutted.output_errors[transition_index_short:] = product_long.output_errors[transition_index_long:]
+        product_abutted.signal_to_noise[:transition_index_short] = product_short.signal_to_noise[:transition_index_short]
+        product_abutted.signal_to_noise[transition_index_short:] = product_long.signal_to_noise[transition_index_long:]
+        product_abutted.output_exptime[:transition_index_short] = product_short.output_exptime[:transition_index_short]
+        product_abutted.output_exptime[transition_index_short:] = product_long.output_exptime[transition_index_long:]
+        product_abutted.primary_headers = product_short.primary_headers + product_long.primary_headers
+        product_abutted.grating = output_grating
+        if product_short.instrument == product_long.instrument:
+            product_abutted.instrument = product_short.instrument
+        else:
+            product_abutted.instrument = product_short.instrument + '-' + product_long.instrument
+        target_matched = False
+        for target_name in product_short.targname:
+            if target_name in product_long.targname:
+                product_abutted.target = target_name
+                target_matched = True
+                product_abutted.targname = [target_name]
+        if not target_matched:
+            product_abutted = None
+            print(f'Trying to abut spectra from 2 different targets:')
+            print(f'{product_short.target} and {product_long.target}')
+    else:
+        if product_short is not None:
+            product_abutted = product_short
+        elif product_long is not None:
+            product_abutted = product_long
+        else:
+            product_abutted = None
+    return product_abutted
 
 def find_transition_wavelength(product_short, product_long):
     """Find the wavelength below which we use product_short and above
