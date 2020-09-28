@@ -74,6 +74,14 @@ def main(indir, outdir):
                 products[grating] = prod
             else:
                 print(f"No valid data for grating {grating}")
+            products[grating] = prod
+
+        # Create Level 3 products by abutting level 2 products
+#            products['cos_uv_m'] = coadd.abut(products['g130m'], products['g160m'])
+#            products['cos_m'] = coadd.abut(products['cos_m'], products['g185m'])
+#            products['stis_m'] = coadd.abut(products['e140m'], products['e230m'])
+#            products['stis_h'] = coadd.abut(products['e140h'], products['e230h'])
+
 
         # Create Level 3 products by abutting level 2 products
         products['cos_uv_m'] = abut(products['G130M'], products['G160M'])
