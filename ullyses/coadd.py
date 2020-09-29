@@ -36,7 +36,7 @@ class SegmentList:
         self.target = ''
         self.prog_id = ''
         self.datasets = []
-        
+
         x1dfiles = glob.glob(os.path.join(path, '*_x1d.fits'))
 
         gratinglist = []
@@ -97,7 +97,7 @@ class SegmentList:
         self.delta_wavelength = max_delta_wavelength
     
         wavegrid = np.arange(self.min_wavelength, self.max_wavelength, self.delta_wavelength)
-    
+
         self.output_wavelength = wavegrid
         self.nelements = len(wavegrid)
         self.output_sumflux = np.zeros(self.nelements)
@@ -132,6 +132,9 @@ class SegmentList:
             self.output_sumflux[indices] = self.output_sumflux[indices] + flux * weight
             self.output_exptime[indices] = self.output_exptime[indices] + segment.exptime
         nonzeros = np.where(self.output_sumweight != 0)
+        if self.instrument == 'COS':
+            # Using the variances (which only COS has) gives spikes in the error when the flux goes negative.
+            self.output_sumweight[nonzeros] = np.where(self.output_sumweight[nonzeros] < 0.5, 0.5, self.output_sumweight[nonzeros])
         self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / self.output_sumweight[nonzeros]
         # For the moment calculate errors from the gross counts
         self.output_errors[nonzeros] = np.sqrt(self.output_sumweight[nonzeros])
@@ -225,8 +228,13 @@ class STISSegmentList(SegmentList):
 class COSSegmentList(SegmentList):
 
     def get_gross_counts(self, segment):
-       gross = segment.data['gcounts']
-       return gross
+        try:
+            gross = segment.data['variance_counts'] + segment.data['variance_bkg'] + segment.data['variance_flat']
+            return gross
+        except KeyError:
+            gross = segment.data['gcounts']
+            return gross
+
 
 class Segment:
 
@@ -311,4 +319,3 @@ def find_transition_wavelength(product_short, product_long):
         return 0.5*(last_good_short + first_good_long)
     else:
         return None
-
