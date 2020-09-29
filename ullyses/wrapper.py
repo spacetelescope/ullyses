@@ -6,6 +6,7 @@ import numpy as np
 from astropy.io import fits
 
 from coadd import COSSegmentList, STISSegmentList
+from coadd import abut
 
 version = 'v0.1'
 
@@ -39,16 +40,17 @@ def main(indir, outdir):
             print(f'No data to coadd for {targetname}.')
             continue
 
+        products = {}
+        products['G130M'] = None
+        products['G160M'] = None
+        products['G185M'] = None
+        products['E140M'] = None
+        products['E230M'] = None
+        products['E140H'] = None
+        products['E230H'] = None
+        products['cos_uv_m'] = None
+
         for instrument, grating in uniqmodes:
-            products = {}
-            products['g130m'] = None
-            products['g160m'] = None
-            products['g185m'] = None
-            products['e140m'] = None
-            products['e230m'] = None
-            products['e140h'] = None
-            products['e230h'] = None
-            products['cos_uv_m'] = None
             # this instantiates the class
             if instrument == 'COS':
                 prod = COSSegmentList(grating, path=root)
@@ -69,6 +71,7 @@ def main(indir, outdir):
                 outname = outdir + '/' + outname
                 prod.write(outname)
                 print(f"   Wrote {outname}")
+                products[grating] = prod
             else:
                 print(f"No valid data for grating {grating}")
             products[grating] = prod
@@ -80,10 +83,40 @@ def main(indir, outdir):
 #            products['stis_h'] = coadd.abut(products['e140h'], products['e230h'])
 
 
+        # Create Level 3 products by abutting level 2 products
+        products['cos_uv_m'] = abut(products['G130M'], products['G160M'])
+        if products['G130M'] is not None and products['G160M'] is not None:
+            filename = create_output_file_name(products['cos_uv_m'])
+            filename = outdir + '/' + filename
+            products['cos_uv_m'].write(filename)
+            print(f"   Wrote {filename}")
+        if products['G185M'] is not None:
+            products['cos_m'] = abut(products['cos_uv_m'], products['G185M'])
+            if products['cos_m'] is not None:
+                filename = create_output_file_name(products['cos_m'])
+                filename = outdir + '/' + filename
+                products['cos_m'].write(filename)
+                print(f"   Wrote {filename}")
+        if products['E140M'] is not None and products['E230M'] is not None:
+            products['stis_m'] = abut(products['E140M'], products['E230M'])
+            if products['stis_m'] is not None:
+                filename = create_output_file_name(products['stis_m'])
+                filename = outdir + '/' + filename
+                products['stis_m'].write(filename)
+                print(f"   Wrote {filename}")
+        if products['E140H'] is not None and products['E230H'] is not None:
+            products['stis_h'] = abut(products['E140H'], products['E230H'])
+            if products['stis_h'] is not None:
+                filename = create_output_file_name(products['stis_h'])
+                filename = outdir + '/' + filename
+                products['stis_h'].write(filename)
+                print(f"   Wrote {filename}")
+
+
 def create_output_file_name(prod):
     instrument = prod.instrument.lower()
     grating = prod.grating.lower()
-    target = prod.target
+    target = prod.target.lower()
     name = "hlsp_ullyses_hst_{}_{}_{}_{}_cspec.fits".format(instrument, target, grating, version)
     return name
 
