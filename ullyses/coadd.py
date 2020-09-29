@@ -59,6 +59,10 @@ class SegmentList:
             else:
                 f1.close()
 
+        try:
+            self.target = self.targname[0]
+        except:
+            pass
         self.members = []
         self.primary_headers = []
         self.first_headers = []
@@ -356,6 +360,7 @@ def abut(product_short, product_long):
         product_abutted.output_exptime[:transition_index_short] = product_short.output_exptime[:transition_index_short]
         product_abutted.output_exptime[transition_index_short:] = product_long.output_exptime[transition_index_long:]
         product_abutted.primary_headers = product_short.primary_headers + product_long.primary_headers
+        product_abutted.first_headers = product_short.first_headers + product_long.first_headers
         product_abutted.grating = output_grating
         if product_short.instrument == product_long.instrument:
             product_abutted.instrument = product_short.instrument
