@@ -116,7 +116,8 @@ class SegmentList:
 
     def wavelength_to_index(self, wavelength):
         index = (wavelength - self.min_wavelength) / self.delta_wavelength
-        return index.astype(np.int)
+        indices = [round(x) for x in index]
+        return indices
 
     def index_to_wavelength(self, index):
         wavelength = index * self.delta_wavelength + self.min_wavelength
