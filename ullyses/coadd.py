@@ -2,9 +2,12 @@ import os
 import glob
 import datetime
 
+import pandas as pd
 import numpy as np
 import astropy
 from astropy.io import fits
+from astropy.time import Time
+from datetime import datetime as dt
 
 #
 # coadd data
@@ -59,10 +62,6 @@ class SegmentList:
             else:
                 f1.close()
 
-        try:
-            self.target = self.targname[0]
-        except:
-            pass
         self.members = []
         self.primary_headers = []
         self.first_headers = []
@@ -82,7 +81,7 @@ class SegmentList:
                         segment.sdqflags = sdqflags
                         segment.exptime = exptime
                         self.members.append(segment)
-
+        
     def create_output_wavelength_grid(self):
         min_wavelength = 10000.0
         max_wavelength = 0.0
@@ -149,6 +148,9 @@ class SegmentList:
         return
 
     def write(self, filename, overwrite=False):
+        self.target = self.ull_targname()
+        self.targ_ra, self.targ_dec = self.ull_coords()
+        
         # Table 1 - HLSP data
     
         # set up the header
@@ -157,14 +159,18 @@ class SegmentList:
         hdr1['TIMESYS'] = ('UTC', 'Time system in use')
         hdr1['TIMEUNIT'] = ('s', 'Time unit for durations')
         hdr1['TREFPOS'] = ('GEOCENTER', 'Time reference position')
-    
-        hdr1['DATE-BEG'] = ('', 'Date-time of first observation start') ######
+
+        mjd_beg = self.combine_keys("expstart", 1, "min")
+        mjd_end = self.combine_keys("expend", 1, "max")
+        dt_beg = Time(mjd_beg, format="mjd").datetime
+        dt_end = Time(mjd_end, format="mjd").datetime
+        hdr1['DATE-BEG'] = (dt.strftime(dt_beg, "%Y-%m-%dT%H:%M:%S"), 'Date-time of first observation start')
         hdr1.add_blank('', after='TREFPOS')
         hdr1.add_blank('              / FITS TIME COORDINATE KEYWORDS', before='DATE-BEG')
     
-        hdr1['DATE-END'] = ('', 'Date-time of last observation end')  ######
-        hdr1['MJD-BEG'] = ('', 'MJD of first exposure start')  ######
-        hdr1['MJD-END'] = ('', 'MJD of last exposure end')  ######
+        hdr1['DATE-END'] = (dt.strftime(dt_end, "%Y-%m-%dT%H:%M:%S"), 'Date-time of last observation end')
+        hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
+        hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
         hdr1['XPOSURE'] = (self.combine_keys("exptime", 1, "sum"), '[s] Sum of exposure durations')
     
         # set up the table columns
@@ -203,15 +209,15 @@ class SegmentList:
         hdr0['DISPERSR'] = (self.combine_keys("opt_elem", 0, "multi"), 'Identifier of disperser')
         hdr0['CENWAVE'] = (self.combine_keys("cenwave", 0, "multi"), 'Central wavelength setting for disperser')
         hdr0['APERTURE'] = (self.combine_keys("aperture", 0, "multi"), 'Identifier of entrance aperture')
-        hdr0['S_REGION'] = ('', 'Region footprint')  ######
+        hdr0['S_REGION'] = (self.obs_footprint(), 'Region footprint')
         hdr0['OBSMODE'] = (self.combine_keys("obsmode", 0, "multi"), 'Instrument operating mode (ACCUM | TIME-TAG)')
         hdr0['TARGNAME'] = self.targname[0]
         hdr0.add_blank(after='OBSMODE')
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
         hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
-        hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension') ######
-        hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination') ######
+        hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
+        hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
         hdr0['PROPOSID'] = (self.combine_keys("proposid", 0, "multi"), 'Program identifier')
         hdr0.add_blank(after='TARG_DEC')
         hdr0.add_blank('           / PROVENANCE INFORMATION', before='PROPOSID')
@@ -283,6 +289,56 @@ class SegmentList:
             value = self.datasets[dataset]
             hdr[keystring] = value
 
+    def obs_footprint(self):
+        # Not using WCS at the moment
+        # This is a placeholder, need to figure out polygon
+#        apertures = list(set([h["aperture"] for h in self.primary_headers]))
+#        ras = list(set([h["ra_targ"] for h in self.primary_headers]))
+#        ra_diff = max(np.abs(ras)) - min(np.abs(ras))
+#        decs = list(set([h["dec_targ"] for h in self.primary_headers]))
+#        dec_diff = max(np.abs(decs)) - min(np.abs(decs))
+#        center_ra = np.average(ras)
+#        center_dec = np.average(decs)
+#        extent_ra = (2.5 / 2 / 3600) + ra_diff
+#        extent_dec = (2.5 / 2 / 3600) + dec_diff
+#        radius = max([extent_ra, extent_dec])
+        radius = (2.5 / 2 / 3600)
+        center_ra = self.targ_ra
+        center_dec = self.targ_dec
+
+        s_region = f"CIRCLE {center_ra} {center_dec} {radius}"
+        return s_region
+
+    def ull_targname(self):
+        aliases = pd.read_csv("alias_file_dp.csv")
+        ull_targname = ""
+        for targ in self.targname:
+            mask = aliases.apply(lambda row: row.astype(str).str.contains(targ).any(), axis=1)
+            if set(mask) != {False}:
+                ull_targname = aliases[mask]["ULL_name"].values[0]
+                break
+        return ull_targname
+
+    def ull_coords(self):
+        ras = list(set([h["ra_targ"] for h in self.primary_headers]))
+        decs = list(set([h["dec_targ"] for h in self.primary_headers]))
+        avg_ra = np.average(ras)
+        avg_dec = np.average(decs)
+        import pdb; pdb.set_trace()
+        if self.target == "":
+            print(f"!!!!! no self.target, {avg_ra} {avg_dec}")
+            return avg_ra, avg_dec
+        
+        master_list = pd.read_pickle("pd_targetinfo.pkl")
+        coords = master_list.loc[master_list["mast_targname"] == self.target][["ra", "dec"]].values
+        if len(coords) != 0:
+            print(f"!!!!!! self.target match {coords[0]} {coords[1]}")
+            return coords[0], coords[1]
+        else:
+            print(f"!!!!!! no self.target match, {avg_ra} {avg_dec}")
+            return avg_ra, avg_dec    
+                                      
+                                      
     def combine_keys(self, key, hdrno, method):
         # Allowable methods are min, max, average, sum, multi
         if hdrno == 0:
