@@ -324,18 +324,14 @@ class SegmentList:
         decs = list(set([h["dec_targ"] for h in self.primary_headers]))
         avg_ra = np.average(ras)
         avg_dec = np.average(decs)
-        import pdb; pdb.set_trace()
         if self.target == "":
-            print(f"!!!!! no self.target, {avg_ra} {avg_dec}")
             return avg_ra, avg_dec
         
         master_list = pd.read_pickle("pd_targetinfo.pkl")
         coords = master_list.loc[master_list["mast_targname"] == self.target][["ra", "dec"]].values
         if len(coords) != 0:
-            print(f"!!!!!! self.target match {coords[0]} {coords[1]}")
             return coords[0], coords[1]
         else:
-            print(f"!!!!!! no self.target match, {avg_ra} {avg_dec}")
             return avg_ra, avg_dec    
                                       
                                       
