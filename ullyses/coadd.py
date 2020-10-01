@@ -331,7 +331,7 @@ class SegmentList:
         master_list = pd.read_pickle("pd_targetinfo.pkl")
         coords = master_list.loc[master_list["mast_targname"] == self.target][["ra", "dec"]].values
         if len(coords) != 0:
-            return coords[0], coords[1]
+            return coords[0][0], coords[0][1]
         else:
             return avg_ra, avg_dec    
                                       
