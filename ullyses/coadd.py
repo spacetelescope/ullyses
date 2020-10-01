@@ -313,7 +313,7 @@ class SegmentList:
         return s_region
 
     def ull_targname(self):
-        aliases = pd.read_csv("alias_file_dp.csv")
+        aliases = pd.read_pickle("pd_all_aliases.pkl")
         ull_targname = ""
         for targ in self.targname:
             mask = aliases.apply(lambda row: row.astype(str).str.contains(targ).any(), axis=1)
