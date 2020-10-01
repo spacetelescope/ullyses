@@ -74,6 +74,8 @@ class SegmentList:
                     self.primary_headers.append(hdulist[0].header)
                     self.first_headers.append(hdulist[1].header)
                     sdqflags = hdulist[1].header['SDQFLAGS']
+                    if self.instrument == "STIS":
+                        sdqflags -= 16
                     exptime = hdulist[1].header['EXPTIME']
                     for row in data:
                         segment = Segment()
