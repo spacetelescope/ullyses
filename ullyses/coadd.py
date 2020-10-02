@@ -74,7 +74,7 @@ class SegmentList:
                     self.primary_headers.append(hdulist[0].header)
                     self.first_headers.append(hdulist[1].header)
                     sdqflags = hdulist[1].header['SDQFLAGS']
-                    if self.instrument == "STIS":
+                    if self.instrument == "STIS" and (sdqflags&16) == 16:
                         sdqflags -= 16
                     exptime = hdulist[1].header['EXPTIME']
                     for row in data:
@@ -313,7 +313,7 @@ class SegmentList:
         return s_region
 
     def ull_targname(self):
-        aliases = pd.read_pickle("pd_all_aliases.pkl")
+        aliases = pd.read_json("pd_all_aliases.json", orient="split")
         ull_targname = ""
         for targ in self.targname:
             mask = aliases.apply(lambda row: row.astype(str).str.contains(targ).any(), axis=1)
@@ -330,7 +330,7 @@ class SegmentList:
         if self.target == "":
             return avg_ra, avg_dec
         
-        master_list = pd.read_pickle("pd_targetinfo.pkl")
+        master_list = pd.read_json("pd_targetinfo.json", orient="split")
         coords = master_list.loc[master_list["mast_targname"] == self.target][["ra", "dec"]].values
         if len(coords) != 0:
             return coords[0][0], coords[0][1]
