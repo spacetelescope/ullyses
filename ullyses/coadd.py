@@ -129,6 +129,9 @@ class SegmentList:
         pass
 
     def coadd(self):
+        self.target = self.ull_targname()
+        self.targ_ra, self.targ_dec = self.ull_coords()
+        
         for segment in self.members:
             goodpixels = np.where((segment.data['dq'] & segment.sdqflags) == 0)
             wavelength = segment.data['wavelength'][goodpixels]
@@ -151,8 +154,6 @@ class SegmentList:
         return
 
     def write(self, filename, overwrite=False):
-        self.target = self.ull_targname()
-        self.targ_ra, self.targ_dec = self.ull_coords()
         
         # Table 1 - HLSP data
     
@@ -318,7 +319,7 @@ class SegmentList:
 
     def ull_targname(self):
         aliases = pd.read_json("pd_all_aliases.json", orient="split")
-        ull_targname = ""
+        ull_targname = self.primary_headers[0]["targname"]
         for targ in self.targname:
             mask = aliases.apply(lambda row: row.astype(str).str.contains(targ).any(), axis=1)
             if set(mask) != {False}:
@@ -436,7 +437,7 @@ def abut(product_short, product_long):
         target_matched = False
         for target_name in product_short.targname:
             if target_name in product_long.targname:
-                product_abutted.target = target_name
+                product_abutted.target = product_abutted.ull_targname()
                 target_matched = True
                 product_abutted.targname = [target_name]
         if not target_matched:
@@ -450,6 +451,8 @@ def abut(product_short, product_long):
             product_abutted = product_long
         else:
             product_abutted = None
+    
+    product_abutted.targ_ra, product_abutted.targ_dec = product_abutted.ull_coords()
     return product_abutted
 
 def find_transition_wavelength(product_short, product_long):
