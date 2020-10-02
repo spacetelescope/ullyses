@@ -8,7 +8,7 @@ from astropy.io import fits
 from coadd import COSSegmentList, STISSegmentList
 from coadd import abut
 
-version = 'v0.1'
+default_version = 'v0.1'
 
 '''
 This wrapper goes through each target folder in the ullyses data directory and find
@@ -16,7 +16,7 @@ the data and which gratings are present. This info is then fed into coadd.py.
 '''
 
 
-def main(indir, outdir, version_=version):
+def main(indir, outdir, version=default_version):
     for root, dirs, files in os.walk(indir, topdown=False):
 
         print(root)
@@ -69,7 +69,7 @@ def main(indir, outdir, version_=version):
                 # this writes the output file
                 if not os.path.exists(outdir):
                     os.mkdir(outdir)
-                outname = create_output_file_name(prod, version_)
+                outname = create_output_file_name(prod, version)
                 outname = outdir + '/' + outname
                 prod.write(outname)
                 print(f"   Wrote {outname}")
@@ -87,7 +87,7 @@ def main(indir, outdir, version_=version):
         # Create Level 3 products by abutting level 2 products
         if products['G130M'] is not None and products['G160M'] is not None:
             products['cos_fuv_m'] = abut(products['G130M'], products['G160M'])
-            filename = create_output_file_name(products['cos_fuv_m'])
+            filename = create_output_file_name(products['cos_fuv_m'], version)
             filename = outdir + '/' + filename
             products['cos_fuv_m'].write(filename)
             print(f"   Wrote {filename}")
@@ -99,7 +99,7 @@ def main(indir, outdir, version_=version):
         if products['cos_fuv_m'] is not None and products['G185M'] is not None:
             products['cos_m'] = abut(products['cos_fuv_m'], products['G185M'])
             if products['cos_m'] is not None:
-                filename = create_output_file_name(products['cos_m'])
+                filename = create_output_file_name(products['cos_m'], version)
                 filename = outdir + '/' + filename
                 products['cos_m'].write(filename)
                 print(f"   Wrote {filename}")
@@ -111,7 +111,7 @@ def main(indir, outdir, version_=version):
         if products['E140M'] is not None and products['E230M'] is not None:
             products['stis_m'] = abut(products['E140M'], products['E230M'])
             if products['stis_m'] is not None:
-                filename = create_output_file_name(products['stis_m'])
+                filename = create_output_file_name(products['stis_m'], version)
                 filename = outdir + '/' + filename
                 products['stis_m'].write(filename)
                 print(f"   Wrote {filename}")
@@ -123,7 +123,7 @@ def main(indir, outdir, version_=version):
         if products['E140H'] is not None and products['E230H'] is not None:
             products['stis_h'] = abut(products['E140H'], products['E230H'])
             if products['stis_h'] is not None:
-                filename = create_output_file_name(products['stis_h'])
+                filename = create_output_file_name(products['stis_h'], version)
                 filename = outdir + '/' + filename
                 products['stis_h'].write(filename)
                 print(f"   Wrote {filename}")
@@ -137,13 +137,13 @@ def main(indir, outdir, version_=version):
         elif products['cos_m'] is not None and products['stis_m'] is not None:
             products['all'] = abut(products['cos_m'], products['stis_m'])
         if products['all'] is not None:
-            filename = create_output_file_name(products['all'])
+            filename = create_output_file_name(products['all'], version)
             filename = outdir + '/' + filename
             products['all'].write(filename)
             print(f"   Wrote {filename}")
 
 
-def create_output_file_name(prod):
+def create_output_file_name(prod, version=default_version):
     instrument = prod.instrument.lower()
     grating = prod.grating.lower()
     target = prod.target.lower()
@@ -156,8 +156,8 @@ if __name__ == '__main__':
                         help="Directory(ies) with data to combine")
     parser.add_argument("-o", "--outdir", default=".",
                         help="Directory for output HLSPs")
-    parser.add_argument("-v", "--version", default=version, 
+    parser.add_argument("-v", "--version", default=default_version, 
     					help="Version number of the HLSP")
     args = parser.parse_args()
 
-    main(args.indir, args.outdir, version_=args.version)
+    main(args.indir, args.outdir, version=args.version)
