@@ -181,11 +181,11 @@ class SegmentList:
         rpt = str(nelements)
         
         # Table with co-added spectrum
-        cw = fits.Column(name='WAVELENGTH', format=rpt+'E')
-        cf = fits.Column(name='FLUX', format=rpt+'E')
-        ce = fits.Column(name='ERROR', format=rpt+'E')
-        cs = fits.Column(name='S/N', format=rpt+'E')
-        ct = fits.Column(name='EXPTIME', format=rpt+'E')
+        cw = fits.Column(name='WAVELENGTH', format=rpt+'E', unit="Angstroms")
+        cf = fits.Column(name='FLUX', format=rpt+'E', unit="erg /s /cm**2 /angstrom")
+        ce = fits.Column(name='ERROR', format=rpt+'E', unit="erg /s /cm**2 /angstrom")
+        cs = fits.Column(name='SNR', format=rpt+'E')
+        ct = fits.Column(name='EFF_EXPTIME', format=rpt+'E', unit="Seconds")
         cd = fits.ColDefs([cw, cf, ce, cs, ct])
         table1 = fits.BinTableHDU.from_columns(cd, nrows=1, header=hdr1)
 
@@ -193,8 +193,8 @@ class SegmentList:
         table1.data['WAVELENGTH'] = self.output_wavelength.copy()
         table1.data['FLUX'] = self.output_flux.copy()
         table1.data['ERROR'] = self.output_errors.copy()
-        table1.data['S/N'] = self.signal_to_noise.copy()
-        table1.data['EXPTIME'] = self.output_exptime.copy()
+        table1.data['SNR'] = self.signal_to_noise.copy()
+        table1.data['EFF_EXPTIME'] = self.output_exptime.copy()
         # HLSP primary header
         hdr0 = fits.Header()
         hdr0['EXTEND'] = ('T', 'FITS file may contain extensions')
@@ -228,7 +228,7 @@ class SegmentList:
         hdr0['HLSPID'] = ('ULLYSES', 'Name ID of this HLSP collection')
         hdr0['HSLPNAME'] = ('Hubble UV Legacy Library of Young Stars as Essential Standards',
                         'Name ID of this HLSP collection')
-        
+        hdr0['HLSPLEAD'] = ('Julia Roman-Duval', 'Full name of HLSP project lead') 
         hdr0['HLSP_VER'] = ('v1.0','HLSP data release version identifier')
         hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
@@ -259,13 +259,17 @@ class SegmentList:
         cap = fits.Column(name='APERTURE', array=np.array([h["aperture"] for h in self.primary_headers]), format='A32')
         csr = fits.Column(name='SPECRES', array=np.array([h["specres"] for h in self.primary_headers]), format='F8.1')
         ccv = fits.Column(name='CAL_VER', array=np.array([h["cal_ver"] for h in self.primary_headers]), format='A32')
-        cdb = fits.Column(name='DATE-BEG', array=np.array([h["expstart"] for h in self.first_headers]), format='F15.9', unit='MJD')
-        cde = fits.Column(name='DATE-END', array=np.array([h["expend"] for h in self.first_headers]), format='F15.9', unit='MJD')
-        cexp = fits.Column(name='EXPTIME', array=np.array([h["exptime"] for h in self.first_headers]), format='F15.9', unit='seconds')
+        mjd_begs = np.array([h["expstart"] for h in self.first_headers])
+        mjd_ends = np.array([h["expend"] for h in self.first_headers])
+        mjd_mids = (mjd_ends - mjd_begs) / 2.
+        cdb = fits.Column(name='MJD_BEG', array=mjd_begs, format='F15.9', unit='Modified Julian Date')
+        cdm = fits.Column(name='MJD_MID', array=mjd_mids, format='F15.9', unit='Modified Julian Date')
+        cde = fits.Column(name='MJD_END', array=mjd_ends, format='F15.9', unit='Modified Julian Date')
+        cexp = fits.Column(name='XPOSURE', array=np.array([h["exptime"] for h in self.first_headers]), format='F15.9', unit='Seconds')
         cmin = fits.Column(name='MINWAVE', array=np.array([h["minwave"] for h in self.primary_headers]), format='F9.4', unit='Angstroms')
         cmax = fits.Column(name='MAXWAVE', array=np.array([h["maxwave"] for h in self.primary_headers]), format='F9.4', unit='Angstroms')
     
-        cd2 = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv, cdb, cde, cexp, cmin ,cmax])
+        cd2 = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv, cdb, cdm, cde, cexp, cmin ,cmax])
     
         table2 = fits.BinTableHDU.from_columns(cd2, header=hdr2)
     
