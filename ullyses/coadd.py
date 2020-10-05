@@ -153,7 +153,7 @@ class SegmentList:
         self.output_errors[nonzeros] = self.output_flux[nonzeros] / self.signal_to_noise[nonzeros]
         return
 
-    def write(self, filename, overwrite=False):
+    def write(self, filename, overwrite=False, level=""):
         
         # Table 1 - HLSP data
     
@@ -204,7 +204,7 @@ class SegmentList:
         hdr0['FITS_SW'] = ('astropy.io.fits v' + astropy.__version__, 'FITS file creation software')
         hdr0['ORIGIN'] = ('Space Telescope Science Institute', 'FITS file originator')
         hdr0['DATE'] = (str(datetime.date.today()), 'Date this file was written')
-        hdr0['FILENAME'] = (filename, 'Name of this file')
+        hdr0['FILENAME'] = (os.path.basename(filename), 'Name of this file')
         hdr0['TELESCOP'] = (self.combine_keys("telescop", 0, "multi"), 'Telescope used to acquire data')
         hdr0['INSTRUME'] = (self.combine_keys("instrume", 0, "multi"), 'Instrument used to acquire data')
         hdr0.add_blank('', after='TELESCOP')
@@ -231,6 +231,7 @@ class SegmentList:
                         'Name ID of this HLSP collection')
         hdr0['HLSPLEAD'] = ('Julia Roman-Duval', 'Full name of HLSP project lead') 
         hdr0['HLSP_VER'] = ('v1.0','HLSP data release version identifier')
+        hdr0['HLSP_LVL'] = (level, 'ULLYSES HLSP Level')
         hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
         hdr0['REFERENC'] = ('TBD', 'Bibliographic ID of primary paper')
@@ -263,9 +264,9 @@ class SegmentList:
         mjd_begs = np.array([h["expstart"] for h in self.first_headers])
         mjd_ends = np.array([h["expend"] for h in self.first_headers])
         mjd_mids = (mjd_ends - mjd_begs) / 2.
-        cdb = fits.Column(name='MJD_BEG', array=mjd_begs, format='F15.9', unit='Modified Julian Date')
-        cdm = fits.Column(name='MJD_MID', array=mjd_mids, format='F15.9', unit='Modified Julian Date')
-        cde = fits.Column(name='MJD_END', array=mjd_ends, format='F15.9', unit='Modified Julian Date')
+        cdb = fits.Column(name='MJD_BEG', array=mjd_begs, format='F15.9', unit='')
+        cdm = fits.Column(name='MJD_MID', array=mjd_mids, format='F15.9', unit='d')
+        cde = fits.Column(name='MJD_END', array=mjd_ends, format='F15.9', unit='d')
         cexp = fits.Column(name='XPOSURE', array=np.array([h["exptime"] for h in self.first_headers]), format='F15.9', unit='Seconds')
         cmin = fits.Column(name='MINWAVE', array=np.array([h["minwave"] for h in self.primary_headers]), format='F9.4', unit='Angstroms')
         cmax = fits.Column(name='MAXWAVE', array=np.array([h["maxwave"] for h in self.primary_headers]), format='F9.4', unit='Angstroms')
