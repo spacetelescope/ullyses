@@ -9,6 +9,7 @@ from coadd import COSSegmentList, STISSegmentList
 from coadd import abut
 
 default_version = 'v0.1'
+PROD_DIR = "/astro/ullyses/ULLYSES_HLSP"
 
 '''
 This wrapper goes through each target folder in the ullyses data directory and find
@@ -28,11 +29,13 @@ def main(indir, outdir, version=default_version, clobber=False):
         depth = 2
         if root[len(indir):].count(os.sep) >= depth:
             continue 
-        if outdir_inplace is True:
-            outdir = os.path.join(root, f"HLSP_{version}")
+        
         print(root)
         targetname = root.split('/')[-1]
         print(f"   {targetname}")
+        # If making HLSPs for a DR, put them in the official folder
+        if outdir_inplace is True:
+            outdir = os.path.join(PROD_DIR, targetname.lower())
 
         # collect the gratings that we will loop through
         # coadd.py will find the correct files itself,
@@ -80,7 +83,7 @@ def main(indir, outdir, version=default_version, clobber=False):
                 prod.coadd()
                 # this writes the output file
                 if not os.path.exists(outdir):
-                    os.mkdir(outdir)
+                    os.makedirs(outdir)
                 outname = create_output_file_name(prod, version)
                 outname = os.path.join(outdir, outname)
                 prod.write(outname, clobber, level=level)
