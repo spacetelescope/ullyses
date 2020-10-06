@@ -320,12 +320,20 @@ class SegmentList:
 
     def ull_targname(self):
         aliases = pd.read_json("pd_all_aliases.json", orient="split")
-        ull_targname = self.primary_headers[0]["targname"]
+        targ_set = list(set([h["targname"] for h in self.primary_headers]))
+        if len(targ_set) == 1:
+            ull_targname = targ_set[0]
+        else:
+            ull_targname = self.primary_headers[0]["targname"]
+        targ_matched = False
         for targ in self.targname:
             mask = aliases.apply(lambda row: row.astype(str).str.contains(targ).any(), axis=1)
             if set(mask) != {False}:
+                targ_matched = True
                 ull_targname = aliases[mask]["ULL_name"].values[0]
                 break
+        if targ_matched is False:
+            print(f"WARNING: Could not match target name {ull_targname} to ULLYSES alias list")
         return ull_targname
 
     def ull_coords(self):
@@ -398,6 +406,8 @@ def abut(product_short, product_long):
     """
     if product_short is not None and product_long is not None:
         transition_wavelength = find_transition_wavelength(product_short, product_long)
+        if transition_wavelength == "bad":
+            return None
         # Spectra are overlapped
         if transition_wavelength is not None:
             short_indices = np.where(product_short.output_wavelength < transition_wavelength)
@@ -431,16 +441,23 @@ def abut(product_short, product_long):
         product_abutted.primary_headers = product_short.primary_headers + product_long.primary_headers
         product_abutted.first_headers = product_short.first_headers + product_long.first_headers
         product_abutted.grating = output_grating
+        product_short.target = product_short.ull_targname()
+        product_long.target = product_long.ull_targname()
         if product_short.instrument == product_long.instrument:
             product_abutted.instrument = product_short.instrument
         else:
             product_abutted.instrument = product_short.instrument + '-' + product_long.instrument
         target_matched = False
-        for target_name in product_short.targname:
-            if target_name in product_long.targname:
-                product_abutted.target = product_abutted.ull_targname()
-                target_matched = True
-                product_abutted.targname = [target_name]
+        if product_short.target == product_long.target:
+            product_abutted.target = product_short.target
+            target_matched = True
+            product_abutted.targname = [product_short.target, product_long.target]
+        else:
+            for target_name in product_short.targname:
+                if target_name in product_long.targname:
+                    product_abutted.target = product_abutted.ull_targname()
+                    target_matched = True
+                    product_abutted.targname = [target_name]
         if not target_matched:
             product_abutted = None
             print(f'Trying to abut spectra from 2 different targets:')
@@ -461,12 +478,17 @@ def find_transition_wavelength(product_short, product_long):
     which we use product_long.
     Initial implementation is to return the wavelength midway between the last good short wavelength and the first
     good long wavelength.  If there's no overlap, return None
+    If the long product is totally encompassed in the short product's
+    wavelength range, return 'bad' so no abutting is attempted.
     """
 
     goodshort = np.where(product_short.output_exptime > 0.)
     goodlong = np.where(product_long.output_exptime > 0.)
     last_good_short = product_short.output_wavelength[goodshort][-1]
     first_good_long = product_long.output_wavelength[goodlong][0]
+    last_good_long = product_long.output_wavelength[goodlong][-1]
+    if last_good_long < last_good_short: # long product is entirely in short spectrum
+        return "bad"
     if last_good_short > first_good_long:
         return 0.5*(last_good_short + first_good_long)
     else:
