@@ -31,11 +31,8 @@ def main(indir, outdir, version=default_version, clobber=False):
             continue 
         
         print(root)
-        targetname = root.split('/')[-1]
-        print(f"   {targetname}")
-        # If making HLSPs for a DR, put them in the official folder
-        if outdir_inplace is True:
-            outdir = os.path.join(PROD_DIR, targetname.lower())
+        dirname = root.split('/')[-1]
+        print(f"   {dirname}")
 
         # collect the gratings that we will loop through
         # coadd.py will find the correct files itself,
@@ -50,7 +47,7 @@ def main(indir, outdir, version=default_version, clobber=False):
                 uniqmodes.append(obsmode)
 
         if not uniqmodes:
-            print(f'No data to coadd for {targetname}.')
+            print(f'No data to coadd for {dirname}.')
             continue
 
         products = {}
@@ -82,6 +79,10 @@ def main(indir, outdir, version=default_version, clobber=False):
                 prod.create_output_wavelength_grid()
                 prod.coadd()
                 # this writes the output file
+                # If making HLSPs for a DR, put them in the official folder
+                target = prod.target.lower()
+                if outdir_inplace is True:
+                    outdir = os.path.join(PROD_DIR, target)
                 if not os.path.exists(outdir):
                     os.makedirs(outdir)
                 outname = create_output_file_name(prod, version)
@@ -164,6 +165,7 @@ def create_output_file_name(prod, version=default_version):
     instrument = prod.instrument.lower()
     grating = prod.grating.lower()
     target = prod.target.lower()
+    version = version.lower()
     name = "hlsp_ullyses_hst_{}_{}_{}_{}_cspec.fits".format(instrument, target, grating, version)
     return name
 
