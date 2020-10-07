@@ -1,19 +1,22 @@
 import os
 import glob
 import datetime
+from datetime import datetime as dt
+import re
 
 import pandas as pd
 import numpy as np
 import astropy
 from astropy.io import fits
 from astropy.time import Time
-from datetime import datetime as dt
 
 #
 # coadd data
 #
 
-cal_ver = 0.1
+CAL_VER = 0.1
+RED = "\033[1;31m"
+RESET = "\033[0;0m"
 
 class SegmentList:
 
@@ -56,7 +59,7 @@ class SegmentList:
                     self.datasets.append(file)
                     target = prihdr['TARGNAME']
                     if target not in self.targname:
-                        self.targname.append(target)
+                        self.targname.append(target.strip())
                 else:
                     print('{} has no data'.format(file))
             else:
@@ -225,7 +228,7 @@ class SegmentList:
         hdr0['PROPOSID'] = (self.combine_keys("proposid", 0, "multi"), 'Program identifier')
         hdr0.add_blank(after='TARG_DEC')
         hdr0.add_blank('           / PROVENANCE INFORMATION', before='PROPOSID')
-        hdr0['CAL_VER'] = (f'ULLYSES Cal {cal_ver}', 'HLSP processing software version')
+        hdr0['CAL_VER'] = (f'ULLYSES Cal {CAL_VER}', 'HLSP processing software version')
         hdr0['HLSPID'] = ('ULLYSES', 'Name ID of this HLSP collection')
         hdr0['HSLPNAME'] = ('Hubble UV Legacy Library of Young Stars as Essential Standards',
                         'Name ID of this HLSP collection')
@@ -327,13 +330,13 @@ class SegmentList:
             ull_targname = self.primary_headers[0]["targname"]
         targ_matched = False
         for targ in self.targname:
-            mask = aliases.apply(lambda row: row.astype(str).str.contains(targ).any(), axis=1)
+            mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ)).any(), axis=1)
             if set(mask) != {False}:
                 targ_matched = True
-                ull_targname = aliases[mask]["ULL_name"].values[0]
+                ull_targname = aliases[mask]["ULL_MAST_name"].values[0]
                 break
         if targ_matched is False:
-            print(f"WARNING: Could not match target name {ull_targname} to ULLYSES alias list")
+            print(f"{RED}WARNING: Could not match target name {ull_targname} to ULLYSES alias list{RESET}")
         return ull_targname
 
     def ull_coords(self):
