@@ -82,7 +82,7 @@ def main(indir, outdir, version=default_version, clobber=False):
                 # If making HLSPs for a DR, put them in the official folder
                 target = prod.target.lower()
                 if outdir_inplace is True:
-                    outdir = os.path.join(PROD_DIR, target)
+                    outdir = os.path.join(PROD_DIR, target, version)
                 if not os.path.exists(outdir):
                     os.makedirs(outdir)
                 outname = create_output_file_name(prod, version)
