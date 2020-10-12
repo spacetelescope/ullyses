@@ -2,9 +2,12 @@ import os
 import glob
 import datetime
 
+import pandas as pd
 import numpy as np
 import astropy
 from astropy.io import fits
+from astropy.time import Time
+from datetime import datetime as dt
 
 #
 # coadd data
@@ -36,7 +39,7 @@ class SegmentList:
         self.target = ''
         self.prog_id = ''
         self.datasets = []
-        
+
         x1dfiles = glob.glob(os.path.join(path, '*_x1d.fits'))
 
         gratinglist = []
@@ -61,6 +64,7 @@ class SegmentList:
 
         self.members = []
         self.primary_headers = []
+        self.first_headers = []
 
         if len(gratinglist) > 0:
             for hdulist in gratinglist:
@@ -68,7 +72,10 @@ class SegmentList:
                 data = hdulist[1].data
                 if len(data) > 0:
                     self.primary_headers.append(hdulist[0].header)
+                    self.first_headers.append(hdulist[1].header)
                     sdqflags = hdulist[1].header['SDQFLAGS']
+                    if self.instrument == "STIS" and (sdqflags&16) == 16:
+                        sdqflags -= 16
                     exptime = hdulist[1].header['EXPTIME']
                     for row in data:
                         segment = Segment()
@@ -76,7 +83,7 @@ class SegmentList:
                         segment.sdqflags = sdqflags
                         segment.exptime = exptime
                         self.members.append(segment)
-
+        
     def create_output_wavelength_grid(self):
         min_wavelength = 10000.0
         max_wavelength = 0.0
@@ -97,7 +104,7 @@ class SegmentList:
         self.delta_wavelength = max_delta_wavelength
     
         wavegrid = np.arange(self.min_wavelength, self.max_wavelength, self.delta_wavelength)
-    
+
         self.output_wavelength = wavegrid
         self.nelements = len(wavegrid)
         self.output_sumflux = np.zeros(self.nelements)
@@ -111,7 +118,8 @@ class SegmentList:
 
     def wavelength_to_index(self, wavelength):
         index = (wavelength - self.min_wavelength) / self.delta_wavelength
-        return index.astype(np.int)
+        indices = [int(round(x)) for x in index]
+        return indices
 
     def index_to_wavelength(self, index):
         wavelength = index * self.delta_wavelength + self.min_wavelength
@@ -132,6 +140,9 @@ class SegmentList:
             self.output_sumflux[indices] = self.output_sumflux[indices] + flux * weight
             self.output_exptime[indices] = self.output_exptime[indices] + segment.exptime
         nonzeros = np.where(self.output_sumweight != 0)
+        if self.instrument == 'COS':
+            # Using the variances (which only COS has) gives spikes in the error when the flux goes negative.
+            self.output_sumweight[nonzeros] = np.where(self.output_sumweight[nonzeros] < 0.5, 0.5, self.output_sumweight[nonzeros])
         self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / self.output_sumweight[nonzeros]
         # For the moment calculate errors from the gross counts
         self.output_errors[nonzeros] = np.sqrt(self.output_sumweight[nonzeros])
@@ -140,8 +151,35 @@ class SegmentList:
         return
 
     def write(self, filename, overwrite=False):
+        self.target = self.ull_targname()
+        self.targ_ra, self.targ_dec = self.ull_coords()
+        
+        # Table 1 - HLSP data
+    
+        # set up the header
+        hdr1 = fits.Header()
+        hdr1['EXTNAME'] = ('SCIENCE', 'Spectrum science arrays')
+        hdr1['TIMESYS'] = ('UTC', 'Time system in use')
+        hdr1['TIMEUNIT'] = ('s', 'Time unit for durations')
+        hdr1['TREFPOS'] = ('GEOCENTER', 'Time reference position')
+
+        mjd_beg = self.combine_keys("expstart", 1, "min")
+        mjd_end = self.combine_keys("expend", 1, "max")
+        dt_beg = Time(mjd_beg, format="mjd").datetime
+        dt_end = Time(mjd_end, format="mjd").datetime
+        hdr1['DATE-BEG'] = (dt.strftime(dt_beg, "%Y-%m-%dT%H:%M:%S"), 'Date-time of first observation start')
+        hdr1.add_blank('', after='TREFPOS')
+        hdr1.add_blank('              / FITS TIME COORDINATE KEYWORDS', before='DATE-BEG')
+    
+        hdr1['DATE-END'] = (dt.strftime(dt_end, "%Y-%m-%dT%H:%M:%S"), 'Date-time of last observation end')
+        hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
+        hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
+        hdr1['XPOSURE'] = (self.combine_keys("exptime", 1, "sum"), '[s] Sum of exposure durations')
+    
+        # set up the table columns
         nelements = len(self.output_wavelength)
         rpt = str(nelements)
+        
         # Table with co-added spectrum
         cw = fits.Column(name='WAVELENGTH', format=rpt+'E')
         cf = fits.Column(name='FLUX', format=rpt+'E')
@@ -149,64 +187,103 @@ class SegmentList:
         cs = fits.Column(name='S/N', format=rpt+'E')
         ct = fits.Column(name='EXPTIME', format=rpt+'E')
         cd = fits.ColDefs([cw, cf, ce, cs, ct])
-        table = fits.BinTableHDU.from_columns(cd, nrows=1)
+        table1 = fits.BinTableHDU.from_columns(cd, nrows=1, header=hdr1)
 
-        table.data['WAVELENGTH'] = self.output_wavelength.copy()
-        table.data['FLUX'] = self.output_flux.copy()
-        table.data['ERROR'] = self.output_errors.copy()
-        table.data['S/N'] = self.signal_to_noise.copy()
-        table.data['EXPTIME'] = self.output_exptime.copy()
+        # populate the table
+        table1.data['WAVELENGTH'] = self.output_wavelength.copy()
+        table1.data['FLUX'] = self.output_flux.copy()
+        table1.data['ERROR'] = self.output_errors.copy()
+        table1.data['S/N'] = self.signal_to_noise.copy()
+        table1.data['EXPTIME'] = self.output_exptime.copy()
         # HLSP primary header
-        hdr = fits.Header()
-        hdr['EXTEND'] = ('T', 'FITS file may contain extensions')
-        hdr['NEXTEND'] = len(self.primary_headers) + 1
-        hdr['FITS_VER'] = 'Definition of the Flexible Image Transport System (FITS) v4.0 https://fits.gsfc.nasa.gov/standard40/fits_standard40aa-le.pdf'
-        hdr['FITS_SW'] = ('astropy.io.fits v' + astropy.__version__, 'FITS file creation software')
-        hdr['ORIGIN'] = ('Space Telescope Science Institute', 'FITS file originator')
-        hdr['DATE'] = (str(datetime.date.today()), 'Date this file was written')
-        hdr['FILENAME'] = (filename, 'Name of this file')
-        hdr['TELESCOP'] = ('HST', 'Telescope used to acquire data')
-        hdr['INSTRUME'] = (self.instrument, 'Instrument used to acquire data')
-        hdr.add_blank('', after='TELESCOP')
-        hdr.add_blank('              / Instrument configuration information', before='INSTRUME')
-        hdr['DETECTOR'] = (self.detector, 'Detector or channel used to acquire data')
-        hdr['DISPERSR'] = (self.disperser, 'Identifier of disperser')
-        hdr['CENWAVE'] = (self.cenwave, 'Central wavelength setting for disperser')
-        hdr['APERTURE'] = (self.aperture, 'Identifier of entrance aperture')
-        hdr['S_REGION'] = (self.s_region, 'Region footprint')
-        hdr['OBSMODE'] = (self.obsmode, 'Instrument operating mode (ACCUM | TIME-TAG)')
-        hdr['TARGNAME'] = self.targname[0]
-        hdr.add_blank(after='OBSMODE')
-        hdr.add_blank('              / Target Information', before='TARGNAME')
-        hdr['RADESYS'] = ('ICRS ','World coordinate reference frame')
-        hdr['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
-        hdr['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
-        hdr['PROG_ID'] = (self.prog_id, 'Program identifier(s)')
-        hdr.add_blank(after='TARG_DEC')
-        hdr.add_blank('           / Provenance Information', before='PROG_ID')
-        hdr['CAL_VER'] = (cal_ver, 'HLSP processing software version')
-        hdr['HLSPID']  = ('ULLYSES', 'Acronym for this HLSP collection')
-        hdr['HSLPNAME'] = 'Hubble UV Legacy Library of Young Stars as Essential Standards'
-        hdr['HLSP_VER'] = ('v1.0','HLSP data release version identifier')
-        hdr['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
-        hdr['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
-        hdr['REFERENC'] = ('(ADS bibcode)', 'Bibliographic ID of primary paper')
-        self.add_dataset_names(hdr)
-        primary = fits.PrimaryHDU(header=hdr)
+        hdr0 = fits.Header()
+        hdr0['EXTEND'] = ('T', 'FITS file may contain extensions')
+        hdr0['NEXTEND'] = 3
+        hdr0['FITS_VER'] = 'Definition of the Flexible Image Transport System (FITS) v4.0 https://fits.gsfc.nasa.gov/standard40/fits_standard40aa-le.pdf'
+        hdr0['FITS_SW'] = ('astropy.io.fits v' + astropy.__version__, 'FITS file creation software')
+        hdr0['ORIGIN'] = ('Space Telescope Science Institute', 'FITS file originator')
+        hdr0['DATE'] = (str(datetime.date.today()), 'Date this file was written')
+        hdr0['FILENAME'] = (filename, 'Name of this file')
+        hdr0['TELESCOP'] = (self.combine_keys("telescop", 0, "multi"), 'Telescope used to acquire data')
+        hdr0['INSTRUME'] = (self.combine_keys("instrume", 0, "multi"), 'Instrument used to acquire data')
+        hdr0.add_blank('', after='TELESCOP')
+        hdr0.add_blank('              / SCIENCE INSTRUMENT CONFIGURATION', before='INSTRUME')
+        hdr0['DETECTOR'] = (self.combine_keys("detector", 0, "multi"), 'Detector or channel used to acquire data')
+        hdr0['DISPERSR'] = (self.combine_keys("opt_elem", 0, "multi"), 'Identifier of disperser')
+        hdr0['CENWAVE'] = (self.combine_keys("cenwave", 0, "multi"), 'Central wavelength setting for disperser')
+        hdr0['APERTURE'] = (self.combine_keys("aperture", 0, "multi"), 'Identifier of entrance aperture')
+        hdr0['S_REGION'] = (self.obs_footprint(), 'Region footprint')
+        hdr0['OBSMODE'] = (self.combine_keys("obsmode", 0, "multi"), 'Instrument operating mode (ACCUM | TIME-TAG)')
+        hdr0['TARGNAME'] = self.targname[0]
+        hdr0.add_blank(after='OBSMODE')
+        hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
-        # HLSP file is comprised of a list of HDUs, with only the first
-        # one being used to store the spectrum. Remaining HDUs contain
-        # the primary headers from each input spectrum. Their data sections
-        # are empty. (this will likely be needed to populate the quicklook
-        # tool reporting widgets)
-        hdul = fits.HDUList([primary, table])
+        hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
+        hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
+        hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
+        hdr0['PROPOSID'] = (self.combine_keys("proposid", 0, "multi"), 'Program identifier')
+        hdr0.add_blank(after='TARG_DEC')
+        hdr0.add_blank('           / PROVENANCE INFORMATION', before='PROPOSID')
+        hdr0['CAL_VER'] = (f'ULLYSES Cal {cal_ver}', 'HLSP processing software version')
+        hdr0['HLSPID'] = ('ULLYSES', 'Name ID of this HLSP collection')
+        hdr0['HSLPNAME'] = ('Hubble UV Legacy Library of Young Stars as Essential Standards',
+                        'Name ID of this HLSP collection')
+        
+        hdr0['HLSP_VER'] = ('v1.0','HLSP data release version identifier')
+        hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
+        hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
+        hdr0['REFERENC'] = ('TBD', 'Bibliographic ID of primary paper')
+    
+        hdr0['CENTRWV'] = (self.combine_keys("centrwv", 0, "average"), 'Central wavelength of the data')
+        hdr0.add_blank(after='REFERENC')
+        hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')
+        hdr0['MINWAVE'] = (self.combine_keys("minwave", 0, "min"), 'Minimum wavelength in spectrum')
+        hdr0['MAXWAVE'] = (self.combine_keys("maxwave", 0, "max"), 'Maximum wavelength in spectrum')
 
-        for p_header in self.primary_headers:
-            if type(p_header) == astropy.io.fits.header.Header:
-                extension = fits.BinTableHDU(header=p_header)
-                hdul.append(extension)
+        self.add_dataset_names(hdr0)
+        primary = fits.PrimaryHDU(header=hdr0)
 
+        # Table 2 - individual product info
+    
+        # first set up header
+        hdr2 = fits.Header()
+        hdr2['EXTNAME'] = ('PROVENANCE', 'Metadata for contributing observations')
+        # set up the table columns
+        cfn = fits.Column(name='FILENAME', array=np.array([h["filename"] for h in self.primary_headers]), format='A32')
+        cpid = fits.Column(name='PROPOSID', array=np.array([h["proposid"] for h in self.primary_headers]), format='A32')
+        ctel = fits.Column(name='TELESCOPE', array=np.array([h["telescop"] for h in self.primary_headers]), format='A32')
+        cins = fits.Column(name='INSTRUMENT', array=np.array([h["instrume"] for h in self.primary_headers]), format='A32')
+        cdet = fits.Column(name='DETECTOR', array=np.array([h["detector"] for h in self.primary_headers]), format='A32')
+        cdis = fits.Column(name='DISPERSER', array=np.array([h["opt_elem"] for h in self.primary_headers]), format='A32')
+        ccen = fits.Column(name='CENWAVE', array=np.array([h["cenwave"] for h in self.primary_headers]), format='A32')
+        cap = fits.Column(name='APERTURE', array=np.array([h["aperture"] for h in self.primary_headers]), format='A32')
+        csr = fits.Column(name='SPECRES', array=np.array([h["specres"] for h in self.primary_headers]), format='F8.1')
+        ccv = fits.Column(name='CAL_VER', array=np.array([h["cal_ver"] for h in self.primary_headers]), format='A32')
+        cdb = fits.Column(name='DATE-BEG', array=np.array([h["expstart"] for h in self.first_headers]), format='F15.9', unit='MJD')
+        cde = fits.Column(name='DATE-END', array=np.array([h["expend"] for h in self.first_headers]), format='F15.9', unit='MJD')
+        cexp = fits.Column(name='EXPTIME', array=np.array([h["exptime"] for h in self.first_headers]), format='F15.9', unit='seconds')
+        cmin = fits.Column(name='MINWAVE', array=np.array([h["minwave"] for h in self.primary_headers]), format='F9.4', unit='Angstroms')
+        cmax = fits.Column(name='MAXWAVE', array=np.array([h["maxwave"] for h in self.primary_headers]), format='F9.4', unit='Angstroms')
+    
+        cd2 = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv, cdb, cde, cexp, cmin ,cmax])
+    
+        table2 = fits.BinTableHDU.from_columns(cd2, header=hdr2)
+    
+        # the HDUList:
+        # 0 - empty data - 0th ext header
+        # 1 - HLSP data - 1st ext header
+        # 2 - individual product info - 2nd ext header
+    
+        hdul = fits.HDUList([primary, table1, table2])
+    
         hdul.writeto(filename, overwrite=overwrite)
+    
+        # from ullyses_jira.parse_csv import parse_name_csv
+        # name_mapping = {}
+        # for ttype in ['lmc', 'smc', 'tts']:
+        #     names_dict = parse_name_csv(ttype)
+        #     name_mapping = {**name_mapping, **names_dict}
+
 
     def add_dataset_names(self, hdr):
         nsets = len(self.datasets)
@@ -214,6 +291,75 @@ class SegmentList:
             keystring = f'DATA{dataset+1:02d}'
             value = self.datasets[dataset]
             hdr[keystring] = value
+
+    def obs_footprint(self):
+        # Not using WCS at the moment
+        # This is a placeholder, need to figure out polygon
+#        apertures = list(set([h["aperture"] for h in self.primary_headers]))
+#        ras = list(set([h["ra_targ"] for h in self.primary_headers]))
+#        ra_diff = max(np.abs(ras)) - min(np.abs(ras))
+#        decs = list(set([h["dec_targ"] for h in self.primary_headers]))
+#        dec_diff = max(np.abs(decs)) - min(np.abs(decs))
+#        center_ra = np.average(ras)
+#        center_dec = np.average(decs)
+#        extent_ra = (2.5 / 2 / 3600) + ra_diff
+#        extent_dec = (2.5 / 2 / 3600) + dec_diff
+#        radius = max([extent_ra, extent_dec])
+        radius = (2.5 / 2 / 3600)
+        center_ra = self.targ_ra
+        center_dec = self.targ_dec
+
+        s_region = f"CIRCLE {center_ra} {center_dec} {radius}"
+        return s_region
+
+    def ull_targname(self):
+        aliases = pd.read_json("pd_all_aliases.json", orient="split")
+        ull_targname = ""
+        for targ in self.targname:
+            mask = aliases.apply(lambda row: row.astype(str).str.contains(targ).any(), axis=1)
+            if set(mask) != {False}:
+                ull_targname = aliases[mask]["ULL_name"].values[0]
+                break
+        return ull_targname
+
+    def ull_coords(self):
+        ras = list(set([h["ra_targ"] for h in self.primary_headers]))
+        decs = list(set([h["dec_targ"] for h in self.primary_headers]))
+        avg_ra = np.average(ras)
+        avg_dec = np.average(decs)
+        if self.target == "":
+            return avg_ra, avg_dec
+        
+        master_list = pd.read_json("pd_targetinfo.json", orient="split")
+        coords = master_list.loc[master_list["mast_targname"] == self.target][["ra", "dec"]].values
+        if len(coords) != 0:
+            return coords[0][0], coords[0][1]
+        else:
+            return avg_ra, avg_dec    
+                                      
+                                      
+    def combine_keys(self, key, hdrno, method):
+        # Allowable methods are min, max, average, sum, multi
+        if hdrno == 0:
+            hdrs = self.primary_headers
+        else:
+            hdrs = self.first_headers
+
+        vals = [h[key] for h in hdrs]
+        if method == "multi":
+            keys_set = list(set(vals))
+            if len(keys_set) > 1:
+                return "MULTI"
+            else:
+                return keys_set[0]
+        elif method == "min":
+            return min(vals)
+        elif method == "max":
+            return max(vals)
+        elif method == "average":
+            return np.average(vals)
+        elif method == "sum":
+            return np.sum(vals)
 
 class STISSegmentList(SegmentList):
 
@@ -225,8 +371,13 @@ class STISSegmentList(SegmentList):
 class COSSegmentList(SegmentList):
 
     def get_gross_counts(self, segment):
-       gross = segment.data['gcounts']
-       return gross
+        try:
+            gross = segment.data['variance_counts'] + segment.data['variance_bkg'] + segment.data['variance_flat']
+            return gross
+        except KeyError:
+            gross = segment.data['gcounts']
+            return gross
+
 
 class Segment:
 
@@ -272,6 +423,7 @@ def abut(product_short, product_long):
         product_abutted.output_exptime[:transition_index_short] = product_short.output_exptime[:transition_index_short]
         product_abutted.output_exptime[transition_index_short:] = product_long.output_exptime[transition_index_long:]
         product_abutted.primary_headers = product_short.primary_headers + product_long.primary_headers
+        product_abutted.first_headers = product_short.first_headers + product_long.first_headers
         product_abutted.grating = output_grating
         if product_short.instrument == product_long.instrument:
             product_abutted.instrument = product_short.instrument
@@ -311,4 +463,3 @@ def find_transition_wavelength(product_short, product_long):
         return 0.5*(last_good_short + first_good_long)
     else:
         return None
-

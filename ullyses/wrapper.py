@@ -48,7 +48,11 @@ def main(indir, outdir):
         products['E230M'] = None
         products['E140H'] = None
         products['E230H'] = None
-        products['cos_uv_m'] = None
+        products['cos_fuv_m'] = None
+        products['cos_m'] = None
+        products['stis_m'] = None
+        products['stis_h'] = None
+        products['all'] = None
 
         for instrument, grating in uniqmodes:
             # this instantiates the class
@@ -63,7 +67,6 @@ def main(indir, outdir):
             if len(prod.members) > 0:
                 prod.create_output_wavelength_grid()
                 prod.coadd()
-                prod.target = targetname.lower()
                 # this writes the output file
                 if not os.path.exists(outdir):
                     os.mkdir(outdir)
@@ -77,26 +80,36 @@ def main(indir, outdir):
             products[grating] = prod
 
         # Create Level 3 products by abutting level 2 products
-#            products['cos_uv_m'] = coadd.abut(products['g130m'], products['g160m'])
+#            products['cos_fuv_m'] = coadd.abut(products['g130m'], products['g160m'])
 #            products['cos_m'] = coadd.abut(products['cos_m'], products['g185m'])
 #            products['stis_m'] = coadd.abut(products['e140m'], products['e230m'])
 #            products['stis_h'] = coadd.abut(products['e140h'], products['e230h'])
 
 
         # Create Level 3 products by abutting level 2 products
-        products['cos_uv_m'] = abut(products['G130M'], products['G160M'])
         if products['G130M'] is not None and products['G160M'] is not None:
-            filename = create_output_file_name(products['cos_uv_m'])
+            products['cos_fuv_m'] = abut(products['G130M'], products['G160M'])
+            filename = create_output_file_name(products['cos_fuv_m'])
             filename = outdir + '/' + filename
-            products['cos_uv_m'].write(filename)
+            products['cos_fuv_m'].write(filename)
             print(f"   Wrote {filename}")
-        if products['G185M'] is not None:
-            products['cos_m'] = abut(products['cos_uv_m'], products['G185M'])
+        elif products['G130M'] is not None:
+            products['cos_fuv_m'] = products['G130M']
+        elif products['G160M'] is not None:
+            products['cos_fuv_m'] = products['G160M']
+
+        if products['cos_fuv_m'] is not None and products['G185M'] is not None:
+            products['cos_m'] = abut(products['cos_fuv_m'], products['G185M'])
             if products['cos_m'] is not None:
                 filename = create_output_file_name(products['cos_m'])
                 filename = outdir + '/' + filename
                 products['cos_m'].write(filename)
                 print(f"   Wrote {filename}")
+        elif products['cos_fuv_m'] is not None:
+            products['cos_m'] = products['cos_fuv_m']
+        elif products['G185M'] is not None:
+            products['cos_m'] = products['G185M']
+        
         if products['E140M'] is not None and products['E230M'] is not None:
             products['stis_m'] = abut(products['E140M'], products['E230M'])
             if products['stis_m'] is not None:
@@ -104,6 +117,11 @@ def main(indir, outdir):
                 filename = outdir + '/' + filename
                 products['stis_m'].write(filename)
                 print(f"   Wrote {filename}")
+        elif products['E140M'] is not None:
+            products['stis_m'] = products['E140M']
+        elif products['E230M'] is not None:
+            products['stis_m'] = products['E230M']
+        
         if products['E140H'] is not None and products['E230H'] is not None:
             products['stis_h'] = abut(products['E140H'], products['E230H'])
             if products['stis_h'] is not None:
@@ -111,6 +129,20 @@ def main(indir, outdir):
                 filename = outdir + '/' + filename
                 products['stis_h'].write(filename)
                 print(f"   Wrote {filename}")
+        elif products['E140H'] is not None:
+            products['stis_h'] = products['E140H']
+        elif products['E230H'] is not None:
+            products['stis_h'] = products['E230H']
+
+        if products['cos_m'] is not None and products['stis_h'] is not None:
+            products['all'] = abut(products['cos_m'], products['stis_h'])
+        elif products['cos_m'] is not None and products['stis_m'] is not None:
+            products['all'] = abut(products['cos_m'], products['stis_m'])
+        if products['all'] is not None:
+            filename = create_output_file_name(products['all'])
+            filename = outdir + '/' + filename
+            products['all'].write(filename)
+            print(f"   Wrote {filename}")
 
 
 def create_output_file_name(prod):
