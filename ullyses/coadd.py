@@ -366,7 +366,7 @@ class STISSegmentList(SegmentList):
     def get_gross_counts(self, segment):
        exptime = segment.exptime
        gross = segment.data['gross']
-       return gross*exptime
+       return np.abs(gross*exptime)
 
 class COSSegmentList(SegmentList):
 
