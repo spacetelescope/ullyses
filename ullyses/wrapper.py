@@ -8,7 +8,8 @@ from astropy.io import fits
 from coadd import COSSegmentList, STISSegmentList
 from coadd import abut
 
-version = 'v0.1'
+default_version = 'v0.1'
+PROD_DIR = "/astro/ullyses/ULLYSES_HLSP"
 
 '''
 This wrapper goes through each target folder in the ullyses data directory and find
@@ -16,13 +17,22 @@ the data and which gratings are present. This info is then fed into coadd.py.
 '''
 
 
-def main(indir, outdir):
-
+def main(indir, outdir, version=default_version, clobber=False):
+    if outdir is None:
+        outdir_inplace = True
     for root, dirs, files in os.walk(indir, topdown=False):
-
+        # Given a dir structure as follow, setting depth=2 ensure subdir/ will not be read
+        # ULLYSES_DATA/
+        # |___targ1/
+        #     |___subdir/
+        # 
+        depth = 2
+        if root[len(indir):].count(os.sep) >= depth:
+            continue 
+        
         print(root)
-        targetname = root.split('/')[-1]
-        print(f"   {targetname}")
+        dirname = root.split('/')[-1]
+        print(f"   {dirname}")
 
         # collect the gratings that we will loop through
         # coadd.py will find the correct files itself,
@@ -37,7 +47,7 @@ def main(indir, outdir):
                 uniqmodes.append(obsmode)
 
         if not uniqmodes:
-            print(f'No data to coadd for {targetname}.')
+            print(f'No data to coadd for {dirname}.')
             continue
 
         products = {}
@@ -54,6 +64,7 @@ def main(indir, outdir):
         products['stis_h'] = None
         products['all'] = None
 
+        level = 2
         for instrument, grating in uniqmodes:
             # this instantiates the class
             if instrument == 'COS':
@@ -68,11 +79,15 @@ def main(indir, outdir):
                 prod.create_output_wavelength_grid()
                 prod.coadd()
                 # this writes the output file
+                # If making HLSPs for a DR, put them in the official folder
+                target = prod.target.lower()
+                if outdir_inplace is True:
+                    outdir = os.path.join(PROD_DIR, target, version)
                 if not os.path.exists(outdir):
-                    os.mkdir(outdir)
-                outname = create_output_file_name(prod)
-                outname = outdir + '/' + outname
-                prod.write(outname)
+                    os.makedirs(outdir)
+                outname = create_output_file_name(prod, version)
+                outname = os.path.join(outdir, outname)
+                prod.write(outname, clobber, level=level)
                 print(f"   Wrote {outname}")
                 products[grating] = prod
             else:
@@ -85,13 +100,13 @@ def main(indir, outdir):
 #            products['stis_m'] = coadd.abut(products['e140m'], products['e230m'])
 #            products['stis_h'] = coadd.abut(products['e140h'], products['e230h'])
 
-
         # Create Level 3 products by abutting level 2 products
+        level = 3
         if products['G130M'] is not None and products['G160M'] is not None:
             products['cos_fuv_m'] = abut(products['G130M'], products['G160M'])
-            filename = create_output_file_name(products['cos_fuv_m'])
-            filename = outdir + '/' + filename
-            products['cos_fuv_m'].write(filename)
+            filename = create_output_file_name(products['cos_fuv_m'], version)
+            filename = os.path.join(outdir, filename)
+            products['cos_fuv_m'].write(filename, clobber, level=level)
             print(f"   Wrote {filename}")
         elif products['G130M'] is not None:
             products['cos_fuv_m'] = products['G130M']
@@ -101,9 +116,9 @@ def main(indir, outdir):
         if products['cos_fuv_m'] is not None and products['G185M'] is not None:
             products['cos_m'] = abut(products['cos_fuv_m'], products['G185M'])
             if products['cos_m'] is not None:
-                filename = create_output_file_name(products['cos_m'])
-                filename = outdir + '/' + filename
-                products['cos_m'].write(filename)
+                filename = create_output_file_name(products['cos_m'], version)
+                filename = os.path.join(outdir, filename)
+                products['cos_m'].write(filename, clobber, level=level)
                 print(f"   Wrote {filename}")
         elif products['cos_fuv_m'] is not None:
             products['cos_m'] = products['cos_fuv_m']
@@ -113,9 +128,9 @@ def main(indir, outdir):
         if products['E140M'] is not None and products['E230M'] is not None:
             products['stis_m'] = abut(products['E140M'], products['E230M'])
             if products['stis_m'] is not None:
-                filename = create_output_file_name(products['stis_m'])
-                filename = outdir + '/' + filename
-                products['stis_m'].write(filename)
+                filename = create_output_file_name(products['stis_m'], version)
+                filename = os.path.join(outdir, filename)
+                products['stis_m'].write(filename, clobber, level=level)
                 print(f"   Wrote {filename}")
         elif products['E140M'] is not None:
             products['stis_m'] = products['E140M']
@@ -125,30 +140,32 @@ def main(indir, outdir):
         if products['E140H'] is not None and products['E230H'] is not None:
             products['stis_h'] = abut(products['E140H'], products['E230H'])
             if products['stis_h'] is not None:
-                filename = create_output_file_name(products['stis_h'])
-                filename = outdir + '/' + filename
-                products['stis_h'].write(filename)
+                filename = create_output_file_name(products['stis_h'], version)
+                filename = os.path.join(outdir, filename)
+                products['stis_h'].write(filename, clobber, level=level)
                 print(f"   Wrote {filename}")
         elif products['E140H'] is not None:
             products['stis_h'] = products['E140H']
         elif products['E230H'] is not None:
             products['stis_h'] = products['E230H']
 
+        level = 4
         if products['cos_m'] is not None and products['stis_h'] is not None:
             products['all'] = abut(products['cos_m'], products['stis_h'])
         elif products['cos_m'] is not None and products['stis_m'] is not None:
             products['all'] = abut(products['cos_m'], products['stis_m'])
         if products['all'] is not None:
-            filename = create_output_file_name(products['all'])
-            filename = outdir + '/' + filename
-            products['all'].write(filename)
+            filename = create_output_file_name(products['all'], version)
+            filename = os.path.join(outdir, filename)
+            products['all'].write(filename, clobber, level=level)
             print(f"   Wrote {filename}")
 
 
-def create_output_file_name(prod):
+def create_output_file_name(prod, version=default_version):
     instrument = prod.instrument.lower()
     grating = prod.grating.lower()
     target = prod.target.lower()
+    version = version.lower()
     name = "hlsp_ullyses_hst_{}_{}_{}_{}_cspec.fits".format(instrument, target, grating, version)
     return name
 
@@ -156,8 +173,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--indir", default="/astro/ullyses/ULLYSES_DATA/",
                         help="Directory(ies) with data to combine")
-    parser.add_argument("-o", "--outdir", default=".",
+    parser.add_argument("-o", "--outdir", default=None,
                         help="Directory for output HLSPs")
+    parser.add_argument("-v", "--version", default=default_version, 
+    					help="Version number of the HLSP")
+    parser.add_argument("-c", "--clobber", default=False,
+                        action="store_true",
+                        help="If True, overwrite existing products")
     args = parser.parse_args()
 
-    main(args.indir, args.outdir)
+    main(args.indir, args.outdir, args.version, args.clobber)
