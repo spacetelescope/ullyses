@@ -8,7 +8,7 @@ from astropy.io import fits
 from coadd import COSSegmentList, STISSegmentList
 from coadd import abut
 
-default_version = 'v0.1'
+default_version = 'dr1'
 PROD_DIR = "/astro/ullyses/ULLYSES_HLSP"
 
 '''
