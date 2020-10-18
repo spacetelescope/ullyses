@@ -267,10 +267,10 @@ class SegmentList:
         mjd_begs = np.array([h["expstart"] for h in self.first_headers])
         mjd_ends = np.array([h["expend"] for h in self.first_headers])
         mjd_mids = (mjd_ends - mjd_begs) / 2.
-        cdb = fits.Column(name='MJD_BEG', array=mjd_begs, format='F15.9', unit='')
+        cdb = fits.Column(name='MJD_BEG', array=mjd_begs, format='F15.9', unit='d')
         cdm = fits.Column(name='MJD_MID', array=mjd_mids, format='F15.9', unit='d')
         cde = fits.Column(name='MJD_END', array=mjd_ends, format='F15.9', unit='d')
-        cexp = fits.Column(name='XPOSURE', array=np.array([h["exptime"] for h in self.first_headers]), format='F15.9', unit='Seconds')
+        cexp = fits.Column(name='XPOSURE', array=np.array([h["exptime"] for h in self.first_headers]), format='F15.9', unit='s')
         cmin = fits.Column(name='MINWAVE', array=np.array([h["minwave"] for h in self.primary_headers]), format='F9.4', unit='Angstroms')
         cmax = fits.Column(name='MAXWAVE', array=np.array([h["maxwave"] for h in self.primary_headers]), format='F9.4', unit='Angstroms')
     
