@@ -153,7 +153,7 @@ class SegmentList:
         # For the moment calculate errors from the gross counts
         self.output_errors[nonzeros] = np.sqrt(self.output_sumweight[nonzeros])
         self.signal_to_noise[nonzeros] = self.output_sumweight[nonzeros] / self.output_errors[nonzeros]
-        self.output_errors[nonzeros] = self.output_flux[nonzeros] / self.signal_to_noise[nonzeros]
+        self.output_errors[nonzeros] = np.abs(self.output_flux[nonzeros] / self.signal_to_noise[nonzeros])
         return
 
     def write(self, filename, overwrite=False, level=""):
@@ -435,8 +435,8 @@ def abut(product_short, product_long):
         product_abutted.output_wavelength[transition_index_short:] = product_long.output_wavelength[transition_index_long:]
         product_abutted.output_flux[:transition_index_short] = product_short.output_flux[:transition_index_short]
         product_abutted.output_flux[transition_index_short:] = product_long.output_flux[transition_index_long:]
-        product_abutted.output_errors[:transition_index_short] = product_short.output_errors[:transition_index_short]
-        product_abutted.output_errors[transition_index_short:] = product_long.output_errors[transition_index_long:]
+        product_abutted.output_errors[:transition_index_short] = np.abs(product_short.output_errors[:transition_index_short])
+        product_abutted.output_errors[transition_index_short:] = np.abs(product_long.output_errors[transition_index_long:])
         product_abutted.signal_to_noise[:transition_index_short] = product_short.signal_to_noise[:transition_index_short]
         product_abutted.signal_to_noise[transition_index_short:] = product_long.signal_to_noise[transition_index_long:]
         product_abutted.output_exptime[:transition_index_short] = product_short.output_exptime[:transition_index_short]
