@@ -8,7 +8,7 @@ from astropy.io import fits
 from coadd import COSSegmentList, STISSegmentList
 from coadd import abut
 
-default_version = 'v0.1'
+default_version = 'dr1'
 PROD_DIR = "/astro/ullyses/ULLYSES_HLSP"
 
 '''
@@ -18,6 +18,7 @@ the data and which gratings are present. This info is then fed into coadd.py.
 
 
 def main(indir, outdir, version=default_version, clobber=False):
+    outdir_inplace = False
     if outdir is None:
         outdir_inplace = True
     for root, dirs, files in os.walk(indir, topdown=False):

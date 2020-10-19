@@ -153,7 +153,7 @@ class SegmentList:
         # For the moment calculate errors from the gross counts
         self.output_errors[nonzeros] = np.sqrt(self.output_sumweight[nonzeros])
         self.signal_to_noise[nonzeros] = self.output_sumweight[nonzeros] / self.output_errors[nonzeros]
-        self.output_errors[nonzeros] = self.output_flux[nonzeros] / self.signal_to_noise[nonzeros]
+        self.output_errors[nonzeros] = np.abs(self.output_flux[nonzeros] / self.signal_to_noise[nonzeros])
         return
 
     def write(self, filename, overwrite=False, level=""):
@@ -185,9 +185,9 @@ class SegmentList:
         rpt = str(nelements)
         
         # Table with co-added spectrum
-        cw = fits.Column(name='WAVELENGTH', format=rpt+'E', unit="Angstroms")
-        cf = fits.Column(name='FLUX', format=rpt+'E', unit="erg /s /cm**2 /angstrom")
-        ce = fits.Column(name='ERROR', format=rpt+'E', unit="erg /s /cm**2 /angstrom")
+        cw = fits.Column(name='WAVELENGTH', format=rpt+'E', unit="Angstrom")
+        cf = fits.Column(name='FLUX', format=rpt+'E', unit="erg /s /cm**2 /Angstrom")
+        ce = fits.Column(name='ERROR', format=rpt+'E', unit="erg /s /cm**2 /Angstrom")
         cs = fits.Column(name='SNR', format=rpt+'E')
         ct = fits.Column(name='EFF_EXPTIME', format=rpt+'E', unit="Seconds")
         cd = fits.ColDefs([cw, cf, ce, cs, ct])
@@ -267,12 +267,12 @@ class SegmentList:
         mjd_begs = np.array([h["expstart"] for h in self.first_headers])
         mjd_ends = np.array([h["expend"] for h in self.first_headers])
         mjd_mids = (mjd_ends - mjd_begs) / 2.
-        cdb = fits.Column(name='MJD_BEG', array=mjd_begs, format='F15.9', unit='')
+        cdb = fits.Column(name='MJD_BEG', array=mjd_begs, format='F15.9', unit='d')
         cdm = fits.Column(name='MJD_MID', array=mjd_mids, format='F15.9', unit='d')
         cde = fits.Column(name='MJD_END', array=mjd_ends, format='F15.9', unit='d')
-        cexp = fits.Column(name='XPOSURE', array=np.array([h["exptime"] for h in self.first_headers]), format='F15.9', unit='Seconds')
-        cmin = fits.Column(name='MINWAVE', array=np.array([h["minwave"] for h in self.primary_headers]), format='F9.4', unit='Angstroms')
-        cmax = fits.Column(name='MAXWAVE', array=np.array([h["maxwave"] for h in self.primary_headers]), format='F9.4', unit='Angstroms')
+        cexp = fits.Column(name='XPOSURE', array=np.array([h["exptime"] for h in self.first_headers]), format='F15.9', unit='s')
+        cmin = fits.Column(name='MINWAVE', array=np.array([h["minwave"] for h in self.primary_headers]), format='F9.4', unit='Angstrom')
+        cmax = fits.Column(name='MAXWAVE', array=np.array([h["maxwave"] for h in self.primary_headers]), format='F9.4', unit='Angstrom')
     
         cd2 = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv, cdb, cdm, cde, cexp, cmin ,cmax])
     
@@ -383,7 +383,7 @@ class STISSegmentList(SegmentList):
     def get_gross_counts(self, segment):
        exptime = segment.exptime
        gross = segment.data['gross']
-       return gross*exptime
+       return np.abs(gross*exptime)
 
 class COSSegmentList(SegmentList):
 
@@ -435,8 +435,8 @@ def abut(product_short, product_long):
         product_abutted.output_wavelength[transition_index_short:] = product_long.output_wavelength[transition_index_long:]
         product_abutted.output_flux[:transition_index_short] = product_short.output_flux[:transition_index_short]
         product_abutted.output_flux[transition_index_short:] = product_long.output_flux[transition_index_long:]
-        product_abutted.output_errors[:transition_index_short] = product_short.output_errors[:transition_index_short]
-        product_abutted.output_errors[transition_index_short:] = product_long.output_errors[transition_index_long:]
+        product_abutted.output_errors[:transition_index_short] = np.abs(product_short.output_errors[:transition_index_short])
+        product_abutted.output_errors[transition_index_short:] = np.abs(product_long.output_errors[transition_index_long:])
         product_abutted.signal_to_noise[:transition_index_short] = product_short.signal_to_noise[:transition_index_short]
         product_abutted.signal_to_noise[transition_index_short:] = product_long.signal_to_noise[transition_index_long:]
         product_abutted.output_exptime[:transition_index_short] = product_short.output_exptime[:transition_index_short]
