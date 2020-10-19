@@ -185,9 +185,9 @@ class SegmentList:
         rpt = str(nelements)
         
         # Table with co-added spectrum
-        cw = fits.Column(name='WAVELENGTH', format=rpt+'E', unit="Angstroms")
-        cf = fits.Column(name='FLUX', format=rpt+'E', unit="erg /s /cm**2 /angstrom")
-        ce = fits.Column(name='ERROR', format=rpt+'E', unit="erg /s /cm**2 /angstrom")
+        cw = fits.Column(name='WAVELENGTH', format=rpt+'E', unit="Angstrom")
+        cf = fits.Column(name='FLUX', format=rpt+'E', unit="erg /s /cm**2 /Angstrom")
+        ce = fits.Column(name='ERROR', format=rpt+'E', unit="erg /s /cm**2 /Angstrom")
         cs = fits.Column(name='SNR', format=rpt+'E')
         ct = fits.Column(name='EFF_EXPTIME', format=rpt+'E', unit="Seconds")
         cd = fits.ColDefs([cw, cf, ce, cs, ct])
@@ -271,8 +271,8 @@ class SegmentList:
         cdm = fits.Column(name='MJD_MID', array=mjd_mids, format='F15.9', unit='d')
         cde = fits.Column(name='MJD_END', array=mjd_ends, format='F15.9', unit='d')
         cexp = fits.Column(name='XPOSURE', array=np.array([h["exptime"] for h in self.first_headers]), format='F15.9', unit='s')
-        cmin = fits.Column(name='MINWAVE', array=np.array([h["minwave"] for h in self.primary_headers]), format='F9.4', unit='Angstroms')
-        cmax = fits.Column(name='MAXWAVE', array=np.array([h["maxwave"] for h in self.primary_headers]), format='F9.4', unit='Angstroms')
+        cmin = fits.Column(name='MINWAVE', array=np.array([h["minwave"] for h in self.primary_headers]), format='F9.4', unit='Angstrom')
+        cmax = fits.Column(name='MAXWAVE', array=np.array([h["maxwave"] for h in self.primary_headers]), format='F9.4', unit='Angstrom')
     
         cd2 = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv, cdb, cdm, cde, cexp, cmin ,cmax])
     
