@@ -245,7 +245,6 @@ class SegmentList:
         hdr0['MINWAVE'] = (self.combine_keys("minwave", 0, "min"), 'Minimum wavelength in spectrum')
         hdr0['MAXWAVE'] = (self.combine_keys("maxwave", 0, "max"), 'Maximum wavelength in spectrum')
 
-        self.add_dataset_names(hdr0)
         primary = fits.PrimaryHDU(header=hdr0)
 
         # Table 2 - individual product info
@@ -266,7 +265,7 @@ class SegmentList:
         ccv = fits.Column(name='CAL_VER', array=np.array([h["cal_ver"] for h in self.primary_headers]), format='A32')
         mjd_begs = np.array([h["expstart"] for h in self.first_headers])
         mjd_ends = np.array([h["expend"] for h in self.first_headers])
-        mjd_mids = (mjd_ends - mjd_begs) / 2.
+        mjd_mids = (mjd_ends + mjd_begs) / 2.
         cdb = fits.Column(name='MJD_BEG', array=mjd_begs, format='F15.9', unit='d')
         cdm = fits.Column(name='MJD_MID', array=mjd_mids, format='F15.9', unit='d')
         cde = fits.Column(name='MJD_END', array=mjd_ends, format='F15.9', unit='d')
@@ -293,13 +292,6 @@ class SegmentList:
         #     names_dict = parse_name_csv(ttype)
         #     name_mapping = {**name_mapping, **names_dict}
 
-
-    def add_dataset_names(self, hdr):
-        nsets = len(self.datasets)
-        for dataset in range(nsets):
-            keystring = f'DATA{dataset+1:02d}'
-            value = self.datasets[dataset]
-            hdr[keystring] = value
 
     def obs_footprint(self):
         # Not using WCS at the moment
