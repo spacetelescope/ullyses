@@ -88,7 +88,7 @@ def main(indir, outdir, version=default_version, clobber=False):
                     os.makedirs(outdir)
                 outname = create_output_file_name(prod, version)
                 outname = os.path.join(outdir, outname)
-                prod.write(outname, clobber, level=level)
+                prod.write(outname, clobber, level=level, version=version)
                 print(f"   Wrote {outname}")
                 products[grating] = prod
             else:
@@ -107,7 +107,7 @@ def main(indir, outdir, version=default_version, clobber=False):
             products['cos_fuv_m'] = abut(products['G130M'], products['G160M'])
             filename = create_output_file_name(products['cos_fuv_m'], version)
             filename = os.path.join(outdir, filename)
-            products['cos_fuv_m'].write(filename, clobber, level=level)
+            products['cos_fuv_m'].write(filename, clobber, level=level, version=version)
             print(f"   Wrote {filename}")
         elif products['G130M'] is not None:
             products['cos_fuv_m'] = products['G130M']
@@ -119,7 +119,7 @@ def main(indir, outdir, version=default_version, clobber=False):
             if products['cos_m'] is not None:
                 filename = create_output_file_name(products['cos_m'], version)
                 filename = os.path.join(outdir, filename)
-                products['cos_m'].write(filename, clobber, level=level)
+                products['cos_m'].write(filename, clobber, level=level, version=version)
                 print(f"   Wrote {filename}")
         elif products['cos_fuv_m'] is not None:
             products['cos_m'] = products['cos_fuv_m']
@@ -131,7 +131,7 @@ def main(indir, outdir, version=default_version, clobber=False):
             if products['stis_m'] is not None:
                 filename = create_output_file_name(products['stis_m'], version)
                 filename = os.path.join(outdir, filename)
-                products['stis_m'].write(filename, clobber, level=level)
+                products['stis_m'].write(filename, clobber, level=level, version=version)
                 print(f"   Wrote {filename}")
         elif products['E140M'] is not None:
             products['stis_m'] = products['E140M']
@@ -143,7 +143,7 @@ def main(indir, outdir, version=default_version, clobber=False):
             if products['stis_h'] is not None:
                 filename = create_output_file_name(products['stis_h'], version)
                 filename = os.path.join(outdir, filename)
-                products['stis_h'].write(filename, clobber, level=level)
+                products['stis_h'].write(filename, clobber, level=level, version=version)
                 print(f"   Wrote {filename}")
         elif products['E140H'] is not None:
             products['stis_h'] = products['E140H']
@@ -158,7 +158,7 @@ def main(indir, outdir, version=default_version, clobber=False):
         if products['all'] is not None:
             filename = create_output_file_name(products['all'], version)
             filename = os.path.join(outdir, filename)
-            products['all'].write(filename, clobber, level=level)
+            products['all'].write(filename, clobber, level=level, version=version)
             print(f"   Wrote {filename}")
 
 
