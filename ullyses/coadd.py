@@ -156,7 +156,7 @@ class SegmentList:
         self.output_errors[nonzeros] = np.abs(self.output_flux[nonzeros] / self.signal_to_noise[nonzeros])
         return
 
-    def write(self, filename, overwrite=False, level=""):
+    def write(self, filename, overwrite=False, level="", version=""):
         
         # Table 1 - HLSP data
     
@@ -233,7 +233,7 @@ class SegmentList:
         hdr0['HSLPNAME'] = ('Hubble UV Legacy Library of Young Stars as Essential Standards',
                         'Name ID of this HLSP collection')
         hdr0['HLSPLEAD'] = ('Julia Roman-Duval', 'Full name of HLSP project lead') 
-        hdr0['HLSP_VER'] = ('v1.0','HLSP data release version identifier')
+        hdr0['HLSP_VER'] = (version,'HLSP data release version identifier')
         hdr0['HLSP_LVL'] = (level, 'ULLYSES HLSP Level')
         hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
