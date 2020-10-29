@@ -204,7 +204,7 @@ class SegmentList:
         cf = fits.Column(name='FLUX', format=rpt+'E', unit="erg /s /cm**2 /Angstrom")
         ce = fits.Column(name='ERROR', format=rpt+'E', unit="erg /s /cm**2 /Angstrom")
         cs = fits.Column(name='SNR', format=rpt+'E')
-        ct = fits.Column(name='EFF_EXPTIME', format=rpt+'E', unit="Seconds")
+        ct = fits.Column(name='EFF_EXPTIME', format=rpt+'E', unit="s")
         cd = fits.ColDefs([cw, cf, ce, cs, ct])
         table1 = fits.BinTableHDU.from_columns(cd, nrows=1, header=hdr1)
 
