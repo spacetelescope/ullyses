@@ -151,10 +151,10 @@ def main(indir, outdir, version=default_version, clobber=False):
             products['stis_h'] = products['E230H']
 
         level = 4
-        if products['cos_m'] is not None and products['stis_h'] is not None:
-            products['all'] = abut(products['cos_m'], products['stis_h'])
-        elif products['cos_m'] is not None and products['stis_m'] is not None:
+        if products['cos_m'] is not None and products['stis_m'] is not None:
             products['all'] = abut(products['cos_m'], products['stis_m'])
+        elif products['cos_m'] is not None and products['stis_h'] is not None:
+            products['all'] = abut(products['cos_m'], products['stis_h'])
         if products['all'] is not None:
             filename = create_output_file_name(products['all'], version)
             filename = os.path.join(outdir, filename)

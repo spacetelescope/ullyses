@@ -494,10 +494,13 @@ def find_transition_wavelength(product_short, product_long):
 
     goodshort = np.where(product_short.output_exptime > 0.)
     goodlong = np.where(product_long.output_exptime > 0.)
+    first_good_short = product_short.output_wavelength[goodshort][0]
     last_good_short = product_short.output_wavelength[goodshort][-1]
     first_good_long = product_long.output_wavelength[goodlong][0]
     last_good_long = product_long.output_wavelength[goodlong][-1]
     if last_good_long < last_good_short: # long product is entirely in short spectrum
+        return "bad"
+    if first_good_short > first_good_long and last_good_short < last_good_long: # short is entirely in long
         return "bad"
     if last_good_short > first_good_long:
         return 0.5*(last_good_short + first_good_long)
