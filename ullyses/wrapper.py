@@ -86,7 +86,7 @@ def main(indir, outdir, version=default_version, clobber=False):
                     outdir = os.path.join(PROD_DIR, target, version)
                 if not os.path.exists(outdir):
                     os.makedirs(outdir)
-                outname = create_output_file_name(prod, version)
+                outname = create_output_file_name(prod, version, level=level)
                 outname = os.path.join(outdir, outname)
                 prod.write(outname, clobber, level=level, version=version)
                 print(f"   Wrote {outname}")
@@ -105,7 +105,7 @@ def main(indir, outdir, version=default_version, clobber=False):
         level = 3
         if products['G130M'] is not None and products['G160M'] is not None:
             products['cos_fuv_m'] = abut(products['G130M'], products['G160M'])
-            filename = create_output_file_name(products['cos_fuv_m'], version)
+            filename = create_output_file_name(products['cos_fuv_m'], version, level=level)
             filename = os.path.join(outdir, filename)
             products['cos_fuv_m'].write(filename, clobber, level=level, version=version)
             print(f"   Wrote {filename}")
@@ -117,7 +117,7 @@ def main(indir, outdir, version=default_version, clobber=False):
         if products['cos_fuv_m'] is not None and products['G185M'] is not None:
             products['cos_m'] = abut(products['cos_fuv_m'], products['G185M'])
             if products['cos_m'] is not None:
-                filename = create_output_file_name(products['cos_m'], version)
+                filename = create_output_file_name(products['cos_m'], version, level=level)
                 filename = os.path.join(outdir, filename)
                 products['cos_m'].write(filename, clobber, level=level, version=version)
                 print(f"   Wrote {filename}")
@@ -129,7 +129,7 @@ def main(indir, outdir, version=default_version, clobber=False):
         if products['E140M'] is not None and products['E230M'] is not None:
             products['stis_m'] = abut(products['E140M'], products['E230M'])
             if products['stis_m'] is not None:
-                filename = create_output_file_name(products['stis_m'], version)
+                filename = create_output_file_name(products['stis_m'], version, level=level)
                 filename = os.path.join(outdir, filename)
                 products['stis_m'].write(filename, clobber, level=level, version=version)
                 print(f"   Wrote {filename}")
@@ -141,7 +141,7 @@ def main(indir, outdir, version=default_version, clobber=False):
         if products['E140H'] is not None and products['E230H'] is not None:
             products['stis_h'] = abut(products['E140H'], products['E230H'])
             if products['stis_h'] is not None:
-                filename = create_output_file_name(products['stis_h'], version)
+                filename = create_output_file_name(products['stis_h'], version, level=level)
                 filename = os.path.join(outdir, filename)
                 products['stis_h'].write(filename, clobber, level=level, version=version)
                 print(f"   Wrote {filename}")
@@ -156,7 +156,7 @@ def main(indir, outdir, version=default_version, clobber=False):
         elif products['cos_m'] is not None and products['stis_h'] is not None:
             products['all'] = abut(products['cos_m'], products['stis_h'])
         if products['all'] is not None:
-            filename = create_output_file_name(products['all'], version, level=4)
+            filename = create_output_file_name(products['all'], version, level=level)
             filename = os.path.join(outdir, filename)
             products['all'].write(filename, clobber, level=level, version=version)
             print(f"   Wrote {filename}")
@@ -169,7 +169,7 @@ def create_output_file_name(prod, version=default_version, level=3):
     version = version.lower()
     if level == 1:
         suffix = "mspec"
-    elif level == 3:
+    elif level == 3 or level == 2:
         suffix = "cspec"
     elif level == 4:
         suffix = "sed"
