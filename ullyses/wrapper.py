@@ -156,18 +156,26 @@ def main(indir, outdir, version=default_version, clobber=False):
         elif products['cos_m'] is not None and products['stis_h'] is not None:
             products['all'] = abut(products['cos_m'], products['stis_h'])
         if products['all'] is not None:
-            filename = create_output_file_name(products['all'], version)
+            filename = create_output_file_name(products['all'], version, level=4)
             filename = os.path.join(outdir, filename)
             products['all'].write(filename, clobber, level=level, version=version)
             print(f"   Wrote {filename}")
 
 
-def create_output_file_name(prod, version=default_version):
+def create_output_file_name(prod, version=default_version, level=3):
     instrument = prod.instrument.lower()
     grating = prod.grating.lower()
     target = prod.target.lower()
     version = version.lower()
-    name = "hlsp_ullyses_hst_{}_{}_{}_{}_cspec.fits".format(instrument, target, grating, version)
+    if level == 1:
+        suffix = "mspec"
+    elif level == 3:
+        suffix = "cspec"
+    elif level == 4:
+        suffix = "sed"
+        grating = "uv"
+        # Need to add logic for uv-opt here
+    name = f"hlsp_ullyses_hst_{instrument}_{target}_{grating}_{version}_{suffix}.fits"
     return name
 
 if __name__ == '__main__':
