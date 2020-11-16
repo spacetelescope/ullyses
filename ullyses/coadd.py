@@ -1,19 +1,22 @@
 import os
 import glob
 import datetime
+from datetime import datetime as dt
+import re
 
 import pandas as pd
 import numpy as np
 import astropy
 from astropy.io import fits
 from astropy.time import Time
-from datetime import datetime as dt
 
 #
 # coadd data
 #
 
-cal_ver = 0.1
+CAL_VER = 0.1
+RED = "\033[1;31m"
+RESET = "\033[0;0m"
 
 class SegmentList:
 
@@ -56,7 +59,7 @@ class SegmentList:
                     self.datasets.append(file)
                     target = prihdr['TARGNAME']
                     if target not in self.targname:
-                        self.targname.append(target)
+                        self.targname.append(target.strip())
                 else:
                     print('{} has no data'.format(file))
             else:
@@ -82,7 +85,22 @@ class SegmentList:
                         segment.data = row
                         segment.sdqflags = sdqflags
                         segment.exptime = exptime
+                        if self.instrument == 'COS':
+                            cenwave = hdulist[0].header['CENWAVE']
+                            fppos = hdulist[0].header['FPPOS']
+                            if cenwave == 1096 and fppos == 1:
+                                self.fix_cos_1096_dq(segment)
                         self.members.append(segment)
+
+    def fix_cos_1096_dq(self, segment):
+        print('Fixing COS 1096 FPPOS=1 data')
+        segmentname = segment.data['segment']
+        lastgoodwavelength = {'FUVA': 1239.75, 'FUVB': 1085.75}
+        wavelength = segment.data['wavelength']
+        good_indices = np.where(wavelength <= lastgoodwavelength[segmentname])
+        lastgoodindex = good_indices[0][-1]
+        segment.data['dq'][lastgoodindex+1:] |= 8
+        return
         
     def create_output_wavelength_grid(self):
         min_wavelength = 10000.0
@@ -129,6 +147,9 @@ class SegmentList:
         pass
 
     def coadd(self):
+        self.target = self.ull_targname()
+        self.targ_ra, self.targ_dec = self.ull_coords()
+        
         for segment in self.members:
             goodpixels = np.where((segment.data['dq'] & segment.sdqflags) == 0)
             wavelength = segment.data['wavelength'][goodpixels]
@@ -147,12 +168,10 @@ class SegmentList:
         # For the moment calculate errors from the gross counts
         self.output_errors[nonzeros] = np.sqrt(self.output_sumweight[nonzeros])
         self.signal_to_noise[nonzeros] = self.output_sumweight[nonzeros] / self.output_errors[nonzeros]
-        self.output_errors[nonzeros] = self.output_flux[nonzeros] / self.signal_to_noise[nonzeros]
+        self.output_errors[nonzeros] = np.abs(self.output_flux[nonzeros] / self.signal_to_noise[nonzeros])
         return
 
-    def write(self, filename, overwrite=False):
-        self.target = self.ull_targname()
-        self.targ_ra, self.targ_dec = self.ull_coords()
+    def write(self, filename, overwrite=False, level="", version=""):
         
         # Table 1 - HLSP data
     
@@ -181,11 +200,11 @@ class SegmentList:
         rpt = str(nelements)
         
         # Table with co-added spectrum
-        cw = fits.Column(name='WAVELENGTH', format=rpt+'E')
-        cf = fits.Column(name='FLUX', format=rpt+'E')
-        ce = fits.Column(name='ERROR', format=rpt+'E')
-        cs = fits.Column(name='S/N', format=rpt+'E')
-        ct = fits.Column(name='EXPTIME', format=rpt+'E')
+        cw = fits.Column(name='WAVELENGTH', format=rpt+'E', unit="Angstrom")
+        cf = fits.Column(name='FLUX', format=rpt+'E', unit="erg /s /cm**2 /Angstrom")
+        ce = fits.Column(name='ERROR', format=rpt+'E', unit="erg /s /cm**2 /Angstrom")
+        cs = fits.Column(name='SNR', format=rpt+'E')
+        ct = fits.Column(name='EFF_EXPTIME', format=rpt+'E', unit="s")
         cd = fits.ColDefs([cw, cf, ce, cs, ct])
         table1 = fits.BinTableHDU.from_columns(cd, nrows=1, header=hdr1)
 
@@ -193,8 +212,8 @@ class SegmentList:
         table1.data['WAVELENGTH'] = self.output_wavelength.copy()
         table1.data['FLUX'] = self.output_flux.copy()
         table1.data['ERROR'] = self.output_errors.copy()
-        table1.data['S/N'] = self.signal_to_noise.copy()
-        table1.data['EXPTIME'] = self.output_exptime.copy()
+        table1.data['SNR'] = self.signal_to_noise.copy()
+        table1.data['EFF_EXPTIME'] = self.output_exptime.copy()
         # HLSP primary header
         hdr0 = fits.Header()
         hdr0['EXTEND'] = ('T', 'FITS file may contain extensions')
@@ -203,7 +222,7 @@ class SegmentList:
         hdr0['FITS_SW'] = ('astropy.io.fits v' + astropy.__version__, 'FITS file creation software')
         hdr0['ORIGIN'] = ('Space Telescope Science Institute', 'FITS file originator')
         hdr0['DATE'] = (str(datetime.date.today()), 'Date this file was written')
-        hdr0['FILENAME'] = (filename, 'Name of this file')
+        hdr0['FILENAME'] = (os.path.basename(filename), 'Name of this file')
         hdr0['TELESCOP'] = (self.combine_keys("telescop", 0, "multi"), 'Telescope used to acquire data')
         hdr0['INSTRUME'] = (self.combine_keys("instrume", 0, "multi"), 'Instrument used to acquire data')
         hdr0.add_blank('', after='TELESCOP')
@@ -224,12 +243,13 @@ class SegmentList:
         hdr0['PROPOSID'] = (self.combine_keys("proposid", 0, "multi"), 'Program identifier')
         hdr0.add_blank(after='TARG_DEC')
         hdr0.add_blank('           / PROVENANCE INFORMATION', before='PROPOSID')
-        hdr0['CAL_VER'] = (f'ULLYSES Cal {cal_ver}', 'HLSP processing software version')
+        hdr0['CAL_VER'] = (f'ULLYSES Cal {CAL_VER}', 'HLSP processing software version')
         hdr0['HLSPID'] = ('ULLYSES', 'Name ID of this HLSP collection')
         hdr0['HSLPNAME'] = ('Hubble UV Legacy Library of Young Stars as Essential Standards',
                         'Name ID of this HLSP collection')
-        
-        hdr0['HLSP_VER'] = ('v1.0','HLSP data release version identifier')
+        hdr0['HLSPLEAD'] = ('Julia Roman-Duval', 'Full name of HLSP project lead') 
+        hdr0['HLSP_VER'] = (version,'HLSP data release version identifier')
+        hdr0['HLSP_LVL'] = (level, 'ULLYSES HLSP Level')
         hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
         hdr0['REFERENC'] = ('TBD', 'Bibliographic ID of primary paper')
@@ -240,7 +260,6 @@ class SegmentList:
         hdr0['MINWAVE'] = (self.combine_keys("minwave", 0, "min"), 'Minimum wavelength in spectrum')
         hdr0['MAXWAVE'] = (self.combine_keys("maxwave", 0, "max"), 'Maximum wavelength in spectrum')
 
-        self.add_dataset_names(hdr0)
         primary = fits.PrimaryHDU(header=hdr0)
 
         # Table 2 - individual product info
@@ -259,13 +278,17 @@ class SegmentList:
         cap = fits.Column(name='APERTURE', array=np.array([h["aperture"] for h in self.primary_headers]), format='A32')
         csr = fits.Column(name='SPECRES', array=np.array([h["specres"] for h in self.primary_headers]), format='F8.1')
         ccv = fits.Column(name='CAL_VER', array=np.array([h["cal_ver"] for h in self.primary_headers]), format='A32')
-        cdb = fits.Column(name='DATE-BEG', array=np.array([h["expstart"] for h in self.first_headers]), format='F15.9', unit='MJD')
-        cde = fits.Column(name='DATE-END', array=np.array([h["expend"] for h in self.first_headers]), format='F15.9', unit='MJD')
-        cexp = fits.Column(name='EXPTIME', array=np.array([h["exptime"] for h in self.first_headers]), format='F15.9', unit='seconds')
-        cmin = fits.Column(name='MINWAVE', array=np.array([h["minwave"] for h in self.primary_headers]), format='F9.4', unit='Angstroms')
-        cmax = fits.Column(name='MAXWAVE', array=np.array([h["maxwave"] for h in self.primary_headers]), format='F9.4', unit='Angstroms')
+        mjd_begs = np.array([h["expstart"] for h in self.first_headers])
+        mjd_ends = np.array([h["expend"] for h in self.first_headers])
+        mjd_mids = (mjd_ends + mjd_begs) / 2.
+        cdb = fits.Column(name='MJD_BEG', array=mjd_begs, format='F15.9', unit='d')
+        cdm = fits.Column(name='MJD_MID', array=mjd_mids, format='F15.9', unit='d')
+        cde = fits.Column(name='MJD_END', array=mjd_ends, format='F15.9', unit='d')
+        cexp = fits.Column(name='XPOSURE', array=np.array([h["exptime"] for h in self.first_headers]), format='F15.9', unit='s')
+        cmin = fits.Column(name='MINWAVE', array=np.array([h["minwave"] for h in self.primary_headers]), format='F9.4', unit='Angstrom')
+        cmax = fits.Column(name='MAXWAVE', array=np.array([h["maxwave"] for h in self.primary_headers]), format='F9.4', unit='Angstrom')
     
-        cd2 = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv, cdb, cde, cexp, cmin ,cmax])
+        cd2 = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv, cdb, cdm, cde, cexp, cmin ,cmax])
     
         table2 = fits.BinTableHDU.from_columns(cd2, header=hdr2)
     
@@ -284,13 +307,6 @@ class SegmentList:
         #     names_dict = parse_name_csv(ttype)
         #     name_mapping = {**name_mapping, **names_dict}
 
-
-    def add_dataset_names(self, hdr):
-        nsets = len(self.datasets)
-        for dataset in range(nsets):
-            keystring = f'DATA{dataset+1:02d}'
-            value = self.datasets[dataset]
-            hdr[keystring] = value
 
     def obs_footprint(self):
         # Not using WCS at the moment
@@ -314,12 +330,20 @@ class SegmentList:
 
     def ull_targname(self):
         aliases = pd.read_json("pd_all_aliases.json", orient="split")
-        ull_targname = ""
+        targ_set = list(set([h["targname"] for h in self.primary_headers]))
+        if len(targ_set) == 1:
+            ull_targname = targ_set[0]
+        else:
+            ull_targname = self.primary_headers[0]["targname"]
+        targ_matched = False
         for targ in self.targname:
-            mask = aliases.apply(lambda row: row.astype(str).str.contains(targ).any(), axis=1)
+            mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ)).any(), axis=1)
             if set(mask) != {False}:
-                ull_targname = aliases[mask]["ULL_name"].values[0]
+                targ_matched = True
+                ull_targname = aliases[mask]["ULL_MAST_name"].values[0]
                 break
+        if targ_matched is False:
+            print(f"{RED}WARNING: Could not match target name {ull_targname} to ULLYSES alias list{RESET}")
         return ull_targname
 
     def ull_coords(self):
@@ -366,7 +390,7 @@ class STISSegmentList(SegmentList):
     def get_gross_counts(self, segment):
        exptime = segment.exptime
        gross = segment.data['gross']
-       return gross*exptime
+       return np.abs(gross*exptime)
 
 class COSSegmentList(SegmentList):
 
@@ -392,6 +416,8 @@ def abut(product_short, product_long):
     """
     if product_short is not None and product_long is not None:
         transition_wavelength = find_transition_wavelength(product_short, product_long)
+        if transition_wavelength == "bad":
+            return None
         # Spectra are overlapped
         if transition_wavelength is not None:
             short_indices = np.where(product_short.output_wavelength < transition_wavelength)
@@ -416,8 +442,8 @@ def abut(product_short, product_long):
         product_abutted.output_wavelength[transition_index_short:] = product_long.output_wavelength[transition_index_long:]
         product_abutted.output_flux[:transition_index_short] = product_short.output_flux[:transition_index_short]
         product_abutted.output_flux[transition_index_short:] = product_long.output_flux[transition_index_long:]
-        product_abutted.output_errors[:transition_index_short] = product_short.output_errors[:transition_index_short]
-        product_abutted.output_errors[transition_index_short:] = product_long.output_errors[transition_index_long:]
+        product_abutted.output_errors[:transition_index_short] = np.abs(product_short.output_errors[:transition_index_short])
+        product_abutted.output_errors[transition_index_short:] = np.abs(product_long.output_errors[transition_index_long:])
         product_abutted.signal_to_noise[:transition_index_short] = product_short.signal_to_noise[:transition_index_short]
         product_abutted.signal_to_noise[transition_index_short:] = product_long.signal_to_noise[transition_index_long:]
         product_abutted.output_exptime[:transition_index_short] = product_short.output_exptime[:transition_index_short]
@@ -425,16 +451,23 @@ def abut(product_short, product_long):
         product_abutted.primary_headers = product_short.primary_headers + product_long.primary_headers
         product_abutted.first_headers = product_short.first_headers + product_long.first_headers
         product_abutted.grating = output_grating
+        product_short.target = product_short.ull_targname()
+        product_long.target = product_long.ull_targname()
         if product_short.instrument == product_long.instrument:
             product_abutted.instrument = product_short.instrument
         else:
             product_abutted.instrument = product_short.instrument + '-' + product_long.instrument
         target_matched = False
-        for target_name in product_short.targname:
-            if target_name in product_long.targname:
-                product_abutted.target = target_name
-                target_matched = True
-                product_abutted.targname = [target_name]
+        if product_short.target == product_long.target:
+            product_abutted.target = product_short.target
+            target_matched = True
+            product_abutted.targname = [product_short.target, product_long.target]
+        else:
+            for target_name in product_short.targname:
+                if target_name in product_long.targname:
+                    product_abutted.target = product_abutted.ull_targname()
+                    target_matched = True
+                    product_abutted.targname = [target_name]
         if not target_matched:
             product_abutted = None
             print(f'Trying to abut spectra from 2 different targets:')
@@ -446,6 +479,8 @@ def abut(product_short, product_long):
             product_abutted = product_long
         else:
             product_abutted = None
+    
+    product_abutted.targ_ra, product_abutted.targ_dec = product_abutted.ull_coords()
     return product_abutted
 
 def find_transition_wavelength(product_short, product_long):
@@ -453,12 +488,20 @@ def find_transition_wavelength(product_short, product_long):
     which we use product_long.
     Initial implementation is to return the wavelength midway between the last good short wavelength and the first
     good long wavelength.  If there's no overlap, return None
+    If the long product is totally encompassed in the short product's
+    wavelength range, return 'bad' so no abutting is attempted.
     """
 
     goodshort = np.where(product_short.output_exptime > 0.)
     goodlong = np.where(product_long.output_exptime > 0.)
+    first_good_short = product_short.output_wavelength[goodshort][0]
     last_good_short = product_short.output_wavelength[goodshort][-1]
     first_good_long = product_long.output_wavelength[goodlong][0]
+    last_good_long = product_long.output_wavelength[goodlong][-1]
+    if last_good_long < last_good_short: # long product is entirely in short spectrum
+        return "bad"
+    if first_good_short > first_good_long and last_good_short < last_good_long: # short is entirely in long
+        return "bad"
     if last_good_short > first_good_long:
         return 0.5*(last_good_short + first_good_long)
     else:
