@@ -59,9 +59,9 @@ class Stisdata():
         self.visit = self.rootname[4:6]
         self.target = fits.getval(scifile, "targname")
         if yamlfile is None:
-            self.x1d_c, self.crrej_c, self.defringe_c = read_config(target=self.target)
+            self.x1d_c, self.crrej_c, self.defringe_c, self.cti_proc = read_config(target=self.target)
         else:
-            self.x1d_c, self.crrej_c, self.defringe_c = read_config(yamlfile=yamlfile)
+            self.x1d_c, self.crrej_c, self.defringe_c, self.cti_proc = read_config(yamlfile=yamlfile)
         self.fringeflat = self.defringe_c["fringeflat"]
         self.opt_elem = opt_elem
 
@@ -186,12 +186,9 @@ class Stisdata():
                     
 #-----------------------------------------------------------------------------#
 
-    def perform_cti(self, processes=15):
+    def perform_cti(self):
         """
         Run the STIS CTI code on STIS CCD data.
-
-        Args:
-            processes (int): Number of processes to use while running stis_cti.
         """
         
         import stis_cti
@@ -218,7 +215,7 @@ class Stisdata():
             shutil.copy(item, self._sci_dir)
     
         # Run stis_cti
-        stis_cti.stis_cti(self._sci_dir, self._dark_dir, self._ref_dir, processes, verbose=True)
+        stis_cti.stis_cti(self._sci_dir, self._dark_dir, self._ref_dir, self.cti_proc, verbose=True)
 
         self.copy_products()
         
