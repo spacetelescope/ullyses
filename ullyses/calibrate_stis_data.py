@@ -14,7 +14,7 @@ import stistools
 from read_config import read_config
 os.environ["oref"] = "/grp/hst/cdbs/oref/"
 
-class stisdata():
+class Stisdata():
     """
     A class to describe STIS data throughout the calibration process.
 
@@ -70,7 +70,6 @@ class stisdata():
 
     def run_all(self):
         self.perform_cti()
-        self.copy_products()
         self.analyze_dark()
         self.flag_negatives()
         self.crrej()
@@ -220,6 +219,8 @@ class stisdata():
     
         # Run stis_cti
         stis_cti.stis_cti(self._sci_dir, self._dark_dir, self._ref_dir, processes, verbose=True)
+
+        self.copy_products()
         
 #-----------------------------------------------------------------------------#
 
