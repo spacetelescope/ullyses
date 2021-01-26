@@ -56,12 +56,24 @@ class Stisdata():
             outdir = os.path.join(self.basedir, nowdt.strftime("%Y%m%d_%H%M"))
         self.outdir = outdir
         self.rootname = fits.getval(scifile, "rootname")
-        try:
-            self.flt = glob.glob(os.path.join(self.basedir, "*flc.fits"))[0]
-            self.x1d = glob.glob(os.path.join(self.basedir, "*x1d.fits"))[0]
-        except:
-            self.flt = None
-            self.x1d = None
+        self.flt = None
+        self.crj = None
+        self.x1d = None
+        flt = os.path.join(self.basedir, self.rootname+"_flc.fits") 
+        if not os.path.exists(flt):
+            flt = os.path.join(self.basedir, self.rootname+"_flt.fits") 
+            if os.path.exists(flt):
+                self.flt = flt
+        crj = os.path.join(self.basedir, self.rootname+"_crc.fits")
+        if not os.path.exists(crj):
+            crj = os.path.join(self.basedir, self.rootname+"_crj.fits")
+            if os.path.exists(crj):
+                self.crj = crj
+        x1d = os.path.join(self.basedir, self.rootname+"_x1d.fits")
+        if not os.path.exists(x1d):
+            x1d = os.path.join(self.basedir, self.rootname+"_sx1.fits")
+            if os.path.exists(x1d):
+                self.x1d = x1d
         self.visit = self.rootname[4:6]
         self.target = fits.getval(scifile, "targname")
         if yamlfile is None:
@@ -110,6 +122,8 @@ class Stisdata():
             if change_val:
                 print("Changing large negative values to large positive values...")
                 sci_hdu[1].data[neg] = 10000
+        
+        print(f"#{'-'*70}#\n")
 
 #-----------------------------------------------------------------------------#
 
@@ -127,7 +141,6 @@ class Stisdata():
             None 
         """
 
-        print(f"Manually creating superdarks and setting DQ={dq} values...")
         customdark_dir = os.path.join(self.basedir, "custom_darks")
         if not os.path.isdir(customdark_dir):
             os.mkdir(customdark_dir)
@@ -142,11 +155,15 @@ class Stisdata():
         # DQ=512 is "bad pixel in reference file"
         sci_dq16 = np.where((sci_dq&dq == dq) & (sci_dq&512 == 0))
         n_flagged = len(sci_dq16) * len(sci_dq16[0])
-        total = len(sci_sq) * len(sci_dq[0])
+        total = len(sci_dq) * len(sci_dq[0])
         perc_flagged = n_flagged / total
         if perc_flagged <= 0.06:
             print(f"Less than 6% of pixels flagged with DQ=16, not performing custom dark correction")
             return
+            print(f"#{'-'*70}#\n")
+        else:
+            print(f"More than 6% of pixels ({perc_flagged*100.}) flagged with DQ=16")
+            print(f"Manually creating superdarks and setting DQ={dq} values...")
     
         # Determine DARKFILE filename.
         if "/" in darkfile0:
@@ -199,6 +216,8 @@ class Stisdata():
         
             print(f"Wrote new darkfile: {outfile}")
                     
+        print(f"#{'-'*70}#\n")
+
 #-----------------------------------------------------------------------------#
 
     def perform_cti(self):
@@ -230,10 +249,12 @@ class Stisdata():
             shutil.copy(item, self._sci_dir)
     
         # Run stis_cti
-        stis_cti.stis_cti(self._sci_dir, self._dark_dir, self._ref_dir, self.cti_proc, verbose=True)
+        stis_cti.stis_cti(self._sci_dir, self._dark_dir, self._ref_dir, self.cti_proc, verbose=True, clean=True)
+        
+        print(f"#{'-'*70}#\n")
 
         self.copy_products()
-        
+
 #-----------------------------------------------------------------------------#
 
     def copy_products(self):
@@ -256,12 +277,16 @@ class Stisdata():
        
         # For CCD data, copy FLCs. For MAMA data, copy FLTs.
         flc_files = glob.glob(os.path.join(self._sci_dir, "*flc.fits"))
-        for item in flc_files:
+        crc_files = glob.glob(os.path.join(self._sci_dir, "*crc.fits"))
+        for item in flc_files+crc_files:
             shutil.copy(item, self.outdir)
         
-        print(f"Copied FLC files to {self.outdir}")
+        print(f"Copied FLC and CRC files to {self.outdir}")
         self.flt = os.path.join(self.outdir, self.rootname+"_flc.fits")
+        self.crj = os.path.join(self.outdir, self.rootname+"_crc.fits")
         
+        print(f"#{'-'*70}#\n")
+
 #-----------------------------------------------------------------------------#
 
     def extract_spectra(self):
@@ -294,6 +319,8 @@ class Stisdata():
 
         self.x1d = sci_x1d
 
+        print(f"#{'-'*70}#\n")
+
 #-----------------------------------------------------------------------------#
 
     def crrej(self):
@@ -303,8 +330,11 @@ class Stisdata():
         """
        
         if self.x1d is None:
+            print("No x1d files specified")
+            print(f"#{'-'*70}#\n")
             return
-        x1d_data = fits.getdata(self.x1d)
+
+        x1d_data = fits.getdata(self.x1d)[0]
         extr_mask = np.zeros((1024, 1024))
         del_pix = x1d_data["EXTRSIZE"]/2.
         for column in range(1024):
@@ -315,10 +345,11 @@ class Stisdata():
         n_tot = np.count_nonzero(extr_mask) * self.crsplit
 
         n_rej = []
-        for i in range(3,len(flt_hdu)+1 ,3):
-            flt_data = fits.getdata(self.flt, i)
-            rej = flt_data[ (extr_mask == 1) & (flt_data & 8192 != 0)] #Data quality flag 8192 (2^13) used for CR rejected pixels
-            n_rej.append(np.count_nonzero(rej))
+        with fits.open(self.flt) as flt_hdu:
+            for i in range(3,len(flt_hdu)+1 ,3):
+                flt_data = flt_hdu[i].data
+                rej = flt_data[ (extr_mask == 1) & (flt_data & 8192 != 0)] #Data quality flag 8192 (2^13) used for CR rejected pixels
+                n_rej.append(np.count_nonzero(rej))
 
         t_exp = float(fits.getval(self.x1d, "texptime"))
         rej_rate = float(fits.getval(self.x1d, "rej_rate"))
@@ -329,17 +360,24 @@ class Stisdata():
         rej_rate = n_pix_rej * 1024.0**2 / (t_exp * n_tot)
 
         # Calculate the expected rejection fraction rate given the rate in header
-        # This is the rej_rate * ratio of number of pixels in full CCD vs extract region (n_tot /split_num)
-        frac_rej_expec =  rej_rate * t_exp /(1024.*1024.*split_num)
-        
+        # This is the rej_rate * ratio of number of pixels in full CCD vs extract region (n_tot /CRSPLIT)
+        frac_rej_expec =  rej_rate * t_exp /(1024.*1024.*self.crsplit)
+
         print('Percentage of Pixels Rejected as CRs')          
-        print(f'   Extraction Region: {frac_rej:.1f}')
-        print(f'   Full CCD Frame: {frac_rej_expec:.1f} \n')
+        print(f'   Extraction Region: {frac_rej:.2f}')
+        print(f'   Full CCD Frame: {frac_rej_expec:.2f} \n')
+
+        if frac_rej < (frac_rej_expec * 5):
+            print("Extraction region rejection rate is not high enough for custom CR rejection")
+            print(f"#{'-'*70}#\n")
+            return
 
         from stistools.ocrreject import ocrreject
         print("Performing cosmic ray rejection...")
         
         outfile = os.path.join(self.outdir, self.rootname+"_crc.fits")
+        if os.path.exists(outfile):
+            os.remove(outfile)
         
         # Look up crrej parameters given the target config file.
         ocrreject(self.flt,
@@ -353,6 +391,8 @@ class Stisdata():
 
         print(f"Wrote crj file: {outfile}")
         self.crj = outfile
+
+        print(f"#{'-'*70}#\n")
 
 #-----------------------------------------------------------------------------#
 
@@ -386,3 +426,5 @@ class Stisdata():
         print(f"Wrote defringed crj file: {outfile}")
         self.drj = outfile
         
+        print(f"#{'-'*70}#\n")
+
