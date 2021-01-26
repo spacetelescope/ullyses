@@ -130,6 +130,16 @@ class Stisdata():
         sci_hdu = fits.open(self.flt, mode="update")
         sci_dq = sci_hdu[3].data
         darkfile0 = sci_hdu[0].header["darkfile"]
+
+        # Check how many pixels are flagged.
+        # DQ=512 is "bad pixel in reference file"
+        sci_dq16 = np.where((sci_dq&dq == dq) & (sci_dq&512 == 0))
+        n_flagged = len(sci_dq16) * len(sci_dq16[0])
+        total = len(sci_sq) * len(sci_dq[0])
+        perc_flagged = n_flagged / total
+        if perc_flagged <= 0.06:
+            print(f"Less than 6% of pixels flagged with DQ=16, not performing custom dark correction")
+            return
     
         # Determine DARKFILE filename.
         if "/" in darkfile0:
@@ -143,8 +153,6 @@ class Stisdata():
         # inherently wrong.
         outfile = os.path.join(customdark_dir, darkname)
         sci_hdu[0].header["DARKFILE"] = outfile
-        # DQ=512 is "bad pixel in reference file"
-        sci_dq16 = np.where((sci_dq&dq == dq) & (sci_dq&512 == 0))
         sci_hdu[3].data[sci_dq16] -= dq
         
         written_darks = [os.path.basename(x) for x in 
