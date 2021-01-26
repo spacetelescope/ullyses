@@ -56,6 +56,12 @@ class Stisdata():
             outdir = os.path.join(self.basedir, nowdt.strftime("%Y%m%d_%H%M"))
         self.outdir = outdir
         self.rootname = fits.getval(scifile, "rootname")
+        try:
+            self.flt = glob.glob(os.path.join(self.basedir, "*flc.fits"))[0]
+            self.x1d = glob.glob(os.path.join(self.basedir, "*x1d.fits"))[0]
+        except:
+            self.flt = None
+            self.x1d = None
         self.visit = self.rootname[4:6]
         self.target = fits.getval(scifile, "targname")
         if yamlfile is None:
@@ -63,6 +69,7 @@ class Stisdata():
         else:
             self.x1d_c, self.crrej_c, self.defringe_c, self.cti_proc = read_config(yamlfile=yamlfile)
         self.fringeflat = self.defringe_c["fringeflat"]
+        self.crsplit = fits.getval(scifile, "crsplit")
         self.opt_elem = opt_elem
 
 
@@ -290,6 +297,45 @@ class Stisdata():
 #-----------------------------------------------------------------------------#
 
     def crrej(self):
+        """
+        Check on CR rejection rate comes from Joleen Carlberg's code: 
+        https://github.com/spacetelescope/stistools/blob/jkc_cr_analysis/stistools/crrej_exam.py
+        """
+       
+        if self.x1d is None:
+            return
+        x1d_data = fits.getdata(self.x1d)
+        extr_mask = np.zeros((1024, 1024))
+        del_pix = x1d_data["EXTRSIZE"]/2.
+        for column in range(1024):
+            row_mid =  x1d_data['EXTRLOCY'][column] - 1 #EXTRLOCY is 1-indexed.
+            gd_row_low = int(np.ceil( row_mid - del_pix))
+            gd_row_high = int(np.floor(row_mid + del_pix))
+            extr_mask[gd_row_low:gd_row_high+1,column] = 1
+        n_tot = np.count_nonzero(extr_mask) * self.crsplit
+
+        n_rej = []
+        for i in range(3,len(flt_hdu)+1 ,3):
+            flt_data = fits.getdata(self.flt, i)
+            rej = flt_data[ (extr_mask == 1) & (flt_data & 8192 != 0)] #Data quality flag 8192 (2^13) used for CR rejected pixels
+            n_rej.append(np.count_nonzero(rej))
+
+        t_exp = float(fits.getval(self.x1d, "texptime"))
+        rej_rate = float(fits.getval(self.x1d, "rej_rate"))
+
+        # Calculate the rejection fraction and the rate of rejected pixels per sec
+        n_pix_rej = np.sum(np.array(n_rej))
+        frac_rej = n_pix_rej/float(n_tot)
+        rej_rate = n_pix_rej * 1024.0**2 / (t_exp * n_tot)
+
+        # Calculate the expected rejection fraction rate given the rate in header
+        # This is the rej_rate * ratio of number of pixels in full CCD vs extract region (n_tot /split_num)
+        frac_rej_expec =  rej_rate * t_exp /(1024.*1024.*split_num)
+        
+        print('Percentage of Pixels Rejected as CRs')          
+        print(f'   Extraction Region: {frac_rej:.1f}')
+        print(f'   Full CCD Frame: {frac_rej_expec:.1f} \n')
+
         from stistools.ocrreject import ocrreject
         print("Performing cosmic ray rejection...")
         
