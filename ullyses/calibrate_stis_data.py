@@ -10,6 +10,9 @@ import itertools
 import numpy as np
 import sys
 import stistools
+from stistools import x1d
+from stistools.ocrreject import ocrreject
+import stis_cti
 
 from read_config import read_config
 os.environ["oref"] = "/grp/hst/cdbs/oref/"
@@ -225,7 +228,6 @@ class Stisdata():
         Run the STIS CTI code on STIS CCD data.
         """
         
-        import stis_cti
         print("Performing CTI correction on data...") 
         
         self._sci_dir = os.path.join(self.basedir, "science")
@@ -294,7 +296,6 @@ class Stisdata():
         Extract the spectra using stistools.x1d.
         """
 
-        from stistools import x1d
         print("Extracting spectra...")
         
         # Look up extraction parameters given the target config file.
@@ -372,7 +373,6 @@ class Stisdata():
             print(f"#{'-'*70}#\n")
             return
 
-        from stistools.ocrreject import ocrreject
         print("Performing cosmic ray rejection...")
         
         outfile = os.path.join(self.outdir, self.rootname+"_crc.fits")
