@@ -14,8 +14,13 @@ from stistools import x1d
 from stistools.ocrreject import ocrreject
 import stis_cti
 
-from read_config import read_config
+from read_config import read_config, write_config
 os.environ["oref"] = "/grp/hst/cdbs/oref/"
+
+OREF_DIR = "/grp/hst/cdbs/oref"
+SYM = "~"
+NCOLS = 72
+SEP = f"\n!{'~'*70}!\n"
 
 class Stisdata():
     """
@@ -42,7 +47,7 @@ class Stisdata():
         x1d (list): List of final x1d products. 
         
     """
-    def __init__(self, scifile, outdir=None, yamlfile=None):
+    def __init__(self, scifile, yamlfile, outdir=None):
         """
         Args:
             infiles: List or wildcard describing all input files.
@@ -58,45 +63,41 @@ class Stisdata():
             nowdt = datetime.datetime.now()
             outdir = os.path.join(self.basedir, nowdt.strftime("%Y%m%d_%H%M"))
         self.outdir = outdir
+        if not os.path.exists(outdir):
+            os.mkdir(outdir)
         self.rootname = fits.getval(scifile, "rootname")
         self.flt = None
         self.crj = None
         self.x1d = None
-        flt = os.path.join(self.basedir, self.rootname+"_flc.fits") 
-        if not os.path.exists(flt):
-            flt = os.path.join(self.basedir, self.rootname+"_flt.fits") 
-            if os.path.exists(flt):
-                self.flt = flt
-        crj = os.path.join(self.basedir, self.rootname+"_crc.fits")
-        if not os.path.exists(crj):
-            crj = os.path.join(self.basedir, self.rootname+"_crj.fits")
-            if os.path.exists(crj):
-                self.crj = crj
-        x1d = os.path.join(self.basedir, self.rootname+"_x1d.fits")
-        if not os.path.exists(x1d):
-            x1d = os.path.join(self.basedir, self.rootname+"_sx1.fits")
-            if os.path.exists(x1d):
-                self.x1d = x1d
         self.visit = self.rootname[4:6]
         self.target = fits.getval(scifile, "targname")
-        if yamlfile is None:
-            self.x1d_c, self.crrej_c, self.defringe_c, self.cti_proc = read_config(target=self.target)
-        else:
-            self.x1d_c, self.crrej_c, self.defringe_c, self.cti_proc = read_config(yamlfile=yamlfile)
+        self.flt = self.find_product("flc") 
+        self.crj = self.find_product("crc") 
+        self.x1d = self.find_product("x1d") 
+        self.yamlfile = yamlfile
+        self.config = read_config(yamlfile)
+        self.x1d_c, self.fix_dq16, self.crrej_c, self.defringe_c, self.cti_proc = self.config["x1d"], self.config["fix_dq16"], self.config["crrej"], self.config["defringe"], self.config["processes"]
         self.fringeflat = self.defringe_c["fringeflat"]
         self.crsplit = fits.getval(scifile, "crsplit")
         self.opt_elem = opt_elem
-
+        self._sci_dir = self.outdir
+        self._dark_dir = "/astro/ullyses/stis_ccd_data/darks"
+        self._ref_dir = "/astro/ullyses/stis_ccd_data/cti_refs"
 
 #-----------------------------------------------------------------------------#
 
     def run_all(self):
-        self.perform_cti()
+        if self.flt is None:
+            self.perform_cti()
         self.analyze_dark()
-        self.flag_negatives()
-        self.crrej()
+        #self.flag_negatives()
+        self.check_crrej()
+        if self.do_crrej is True:
+            self.crrej()
         self.defringe()
         self.extract_spectra()
+        write_config(self.config, self.yamlfile)
+        self.help()
 
 #-----------------------------------------------------------------------------#
 
@@ -117,6 +118,7 @@ class Stisdata():
             None
         """
 
+        print("\n", f" FLAGGING NEGATIVES ".center(NCOLS, SYM), "\n")
         print(f"Flagging pixels with counts below {thresh} with DQ={dq}...")
         with fits.open(self.flt, mode="update") as sci_hdu: 
             sci_data = sci_hdu[1].data
@@ -126,8 +128,6 @@ class Stisdata():
                 print("Changing large negative values to large positive values...")
                 sci_hdu[1].data[neg] = 10000
         
-        print(f"#{'-'*70}#\n")
-
 #-----------------------------------------------------------------------------#
 
     def analyze_dark(self, dq=16):
@@ -144,6 +144,9 @@ class Stisdata():
             None 
         """
 
+        self.fix_dq16 = False
+
+        print("\n", f" CHECKING DQ=16 FLAGS ".center(NCOLS, SYM), "\n")
         customdark_dir = os.path.join(self.basedir, "custom_darks")
         if not os.path.isdir(customdark_dir):
             os.mkdir(customdark_dir)
@@ -163,9 +166,11 @@ class Stisdata():
         if perc_flagged <= 0.06:
             print(f"Less than 6% of pixels flagged with DQ=16, not performing custom dark correction")
             return
-            print(f"#{'-'*70}#\n")
         else:
-            print(f"More than 6% of pixels ({perc_flagged*100.}) flagged with DQ=16")
+            self.fix_dq16 = True
+            self.config["fix_dq16"] = True
+
+            print(f"More than 6% of pixels ({perc_flagged*100.:.2f}) flagged with DQ=16")
             print(f"Manually creating superdarks and setting DQ={dq} values...")
     
         # Determine DARKFILE filename.
@@ -191,7 +196,7 @@ class Stisdata():
             dark_dq16 = np.where(dark_dq&dq == dq)
             sci_hdu[3].data[dark_dq16] |= dq
             sci_hdu.close()
-            print(f"Already wrote {darkname}")
+            print(f"Already wrote custom dark: {darkname}")
         
         # Create custom darkfile, flag high dark values with dq={dq} 
         else:
@@ -219,8 +224,6 @@ class Stisdata():
         
             print(f"Wrote new darkfile: {outfile}")
                     
-        print(f"#{'-'*70}#\n")
-
 #-----------------------------------------------------------------------------#
 
     def perform_cti(self):
@@ -228,11 +231,7 @@ class Stisdata():
         Run the STIS CTI code on STIS CCD data.
         """
         
-        print("Performing CTI correction on data...") 
-        
-        self._sci_dir = os.path.join(self.basedir, "science")
-        self._dark_dir = os.path.join(self.basedir, "darks")
-        self._ref_dir = os.path.join(self.basedir, "ref")
+        print("\n", f" PERFORMING CTI ".center(NCOLS, SYM), "\n")
         
         # These directories need to exist for stis_cti to run. 
         for direc in [self._dark_dir, self._ref_dir, self._sci_dir]:
@@ -240,22 +239,22 @@ class Stisdata():
                 os.mkdir(direc)
                 print(f"Made directory: {direc}")
 
-        # stis_cti needs raw, epc, spt, asn, and wav files as input.
-        print("Copying CCD datasets to science directory...")
-        allfiles = glob.glob(os.path.join(self.basedir, "*_raw.fits")) + \
-                   glob.glob(os.path.join(self.basedir, "*_epc.fits")) + \
-                   glob.glob(os.path.join(self.basedir, "*_spt.fits")) + \
-                   glob.glob(os.path.join(self.basedir, "*_asn.fits")) + \
-                   glob.glob(os.path.join(self.basedir, "*_wav.fits"))
-        for item in allfiles:
-            shutil.copy(item, self._sci_dir)
+#        # stis_cti needs raw, epc, spt, asn, and wav files as input.
+#        print("Copying CCD datasets to science directory...")
+#        allfiles = glob.glob(os.path.join(self.basedir, "*_raw.fits")) + \
+#                   glob.glob(os.path.join(self.basedir, "*_epc.fits")) + \
+#                   glob.glob(os.path.join(self.basedir, "*_spt.fits")) + \
+#                   glob.glob(os.path.join(self.basedir, "*_asn.fits")) + \
+#                   glob.glob(os.path.join(self.basedir, "*_wav.fits"))
+#        for item in allfiles:
+#            shutil.copy(item, self._sci_dir)
     
         # Run stis_cti
         stis_cti.stis_cti(self._sci_dir, self._dark_dir, self._ref_dir, self.cti_proc, verbose=True, clean=True)
+        self.flt = os.path.join(self.outdir, self.rootname+"_flc.fits")
+        self.crj = os.path.join(self.outdir, self.rootname+"_crc.fits")
         
-        print(f"#{'-'*70}#\n")
-
-        self.copy_products()
+#        self.copy_products()
 
 #-----------------------------------------------------------------------------#
 
@@ -287,8 +286,6 @@ class Stisdata():
         self.flt = os.path.join(self.outdir, self.rootname+"_flc.fits")
         self.crj = os.path.join(self.outdir, self.rootname+"_crc.fits")
         
-        print(f"#{'-'*70}#\n")
-
 #-----------------------------------------------------------------------------#
 
     def extract_spectra(self):
@@ -296,15 +293,19 @@ class Stisdata():
         Extract the spectra using stistools.x1d.
         """
 
-        print("Extracting spectra...")
+        print("\n", f" EXTRACTING SPECTRA ".center(NCOLS, SYM), "\n")
         
         # Look up extraction parameters given the target config file.
+        self.nonsci_x1d = []
         for targ, pars in self.x1d_c.items():
             if targ == "sci":
                 outfile = os.path.join(self.outdir, self.rootname+"_x1d.fits")
-                sci_x1d = outfile
+                self.x1d = outfile
             else:
                 outfile = os.path.join(self.outdir, f"{self.rootname}_{targ}_x1d.fits")
+                self.nonsci_x1d.append(outfile)
+            if os.path.exists(outfile):
+                os.remove(outfile)
             x1d.x1d(self.drj, 
                 output = outfile, 
                 a2center = pars["yloc"], 
@@ -318,21 +319,15 @@ class Stisdata():
                 verbose=True)
             print(f"Wrote x1d file: {outfile}")
 
-        self.x1d = sci_x1d
-
-        print(f"#{'-'*70}#\n")
-
 #-----------------------------------------------------------------------------#
 
-    def crrej(self):
-        """
-        Check on CR rejection rate comes from Joleen Carlberg's code: 
-        https://github.com/spacetelescope/stistools/blob/jkc_cr_analysis/stistools/crrej_exam.py
-        """
-       
+    def check_crrej(self):
+        
+        print("\n", f" CHECKING CR REJECTION ".center(NCOLS, SYM), "\n")
+        
+        self.do_crrej = False
         if self.x1d is None:
             print("No x1d files specified")
-            print(f"#{'-'*70}#\n")
             return
 
         x1d_data = fits.getdata(self.x1d)[0]
@@ -364,17 +359,31 @@ class Stisdata():
         # This is the rej_rate * ratio of number of pixels in full CCD vs extract region (n_tot /CRSPLIT)
         frac_rej_expec =  rej_rate * t_exp /(1024.*1024.*self.crsplit)
 
-        print('Percentage of Pixels Rejected as CRs')          
+        print('Percentage of pixels rejected as CRs')          
         print(f'   Extraction Region: {frac_rej:.2f}')
         print(f'   Full CCD Frame: {frac_rej_expec:.2f} \n')
 
-        if frac_rej < (frac_rej_expec * 5):
+        if frac_rej < (frac_rej_expec * 5) or frac_rej < .05:
             print("Extraction region rejection rate is not high enough for custom CR rejection")
-            print(f"#{'-'*70}#\n")
+            return
+        else:
+            self.do_crrej = True
+            self.config["do_crrej"] = True
+
+#-----------------------------------------------------------------------------#
+
+    def crrej(self):
+        """
+        Check on CR rejection rate comes from Joleen Carlberg's code: 
+        https://github.com/spacetelescope/stistools/blob/jkc_cr_analysis/stistools/crrej_exam.py
+        """
+       
+        print("\n", f" PERFORMING CR REJECTION ".center(NCOLS, SYM), "\n")
+        
+        if self.x1d is None:
+            print("No x1d files specified")
             return
 
-        print("Performing cosmic ray rejection...")
-        
         outfile = os.path.join(self.outdir, self.rootname+"_crc.fits")
         if os.path.exists(outfile):
             os.remove(outfile)
@@ -392,22 +401,25 @@ class Stisdata():
         print(f"Wrote crj file: {outfile}")
         self.crj = outfile
 
-        print(f"#{'-'*70}#\n")
 
 #-----------------------------------------------------------------------------#
 
     def defringe(self):
 
+        print("\n", f" DEFRINGING DATA ".center(NCOLS, SYM), "\n")
+        
         fringeflat = self.defringe_c["fringeflat"]
         rawfringe = os.path.join(self.basedir, fringeflat)
         fringeroot = os.path.basename(fringeflat)[:9]
         outnorm = os.path.join(self.outdir, fringeroot+"_nsp.fits")
+        if os.path.exists(outnorm):
+            os.remove(outnorm)
         stistools.defringe.normspflat(inflat=rawfringe,
                    do_cal=True,
-                   outflat=outnorm,
-                   biasfile=self.defringe_c["normspflat"]["biasfile"],
-                   darkfile=self.defringe_c["normspflat"]["darkfile"])
+                   outflat=outnorm)
         outmk = os.path.join(self.outdir, fringeroot+"_mff.fits")
+        if os.path.exists(outmk):
+            os.remove(outmk)
         stistools.defringe.mkfringeflat(inspec=self.crj,
                      inflat=outnorm,
                      outflat=outmk,
@@ -421,10 +433,54 @@ class Stisdata():
                      scale_step=self.defringe_c["mkfringeflat"]["scale_step"])
         outfile = stistools.defringe.defringe(science_file=self.crj,
                            fringe_flat=outmk,
+                           overwrite=True,
                            verbose=True)
 
         print(f"Wrote defringed crj file: {outfile}")
-        self.drj = outfile
+        shutil.copy(outfile, self.outdir)
+        self.drj = os.path.join(self.outdir, os.path.basename(outfile))
         
-        print(f"#{'-'*70}#\n")
+
+#-----------------------------------------------------------------------------#
+
+    def find_product(self, ext):
+        ext2 = {"x1d": "sx1", "sx1": "x1d", 
+                "flt": "flc", "flc": "flt", 
+                "crj": "crc", "crc": "crj"}
+        prod = os.path.join(self.basedir, self.rootname+"_"+ext+".fits")
+        if not os.path.exists(prod):
+            prod = os.path.join(self.outdir, self.rootname+"_"+ext+".fits")
+            if not os.path.exists(prod):
+                prod = os.path.join(self.basedir, self.rootname+"_"+ext2[ext]+".fits")
+                if not os.path.exists(prod):
+                    prod = os.path.join(self.outdir, self.rootname+"_"+ext2[ext]+".fits")
+                    if not os.path.exists(prod):
+                        prod = None
+    
+        return prod
+
+#-----------------------------------------------------------------------------#
+
+    def help(self):
+        print("\n", f" RECALIBRATION SUMMARY ".center(NCOLS, SYM), "\n")
+        print(f"Raw file: {self.scifile}")
+        print(f"FLT/FLC: {self.flt}")
+        print(f"CRJ/CRC: {self.crj}")
+        print(f"Science X1D: {self.x1d}")
+        if len(self.nonsci_x1d) > 0:
+            print(f"Non-science X1D(s): {self.nonsci_x1d}")
+
+        print("")
+        if self.flt is not None:
+            print("CTI correction already performed")
+        else:
+            print("WARNING!!! CTI correction needs to be performed")
+        if self.do_crrej is True:
+            print("WARNING!!! CR rejection should be performed again. Edit yaml file and re-run.")
+        else:
+            print("Default CR rejection parameters were used")
+        if self.fix_dq16 is True:
+            print("Custom DQ=16 flagging has been applied")
+        else:
+            print("Default DQ=16 flagging was used")
 
