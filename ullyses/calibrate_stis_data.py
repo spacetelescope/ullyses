@@ -247,7 +247,10 @@ class Stisdata():
                    glob.glob(os.path.join(self.basedir, "*_asn.fits")) + \
                    glob.glob(os.path.join(self.basedir, "*_wav.fits"))
         for item in allfiles:
-            shutil.copy(item, self._sci_dir)
+            try:
+                shutil.copy(item, self._sci_dir)
+            except shutil.SameFileError:
+                pass
     
         # Run stis_cti
         stis_cti.stis_cti(self._sci_dir, self._dark_dir, self._ref_dir, self.cti_proc, verbose=True, clean=True)
