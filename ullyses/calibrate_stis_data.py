@@ -97,8 +97,7 @@ class Stisdata():
         self.analyze_dark()
         #self.flag_negatives()
         self.check_crrej()
-        if self.do_crrej is True:
-            self.crrej()
+        self.crrej()
         self.defringe()
         self.extract_spectra()
         write_config(self.config, self.yamlfile)
@@ -320,7 +319,11 @@ class Stisdata():
                 self.nonsci_x1d.append(outfile)
             if os.path.exists(outfile):
                 os.remove(outfile)
-            x1d.x1d(self.drj, 
+            if self.drj is None:
+                infile = self.crc
+            else:
+                infile = self.drj
+            x1d.x1d(infile, 
                 output = outfile, 
                 a2center = pars["yloc"], 
                 maxsrch = pars["maxsrch"],
@@ -425,6 +428,9 @@ class Stisdata():
 
     def defringe(self):
 
+        if self.opt_elem not in ["G750L", "G750M"]:
+            self.drj = None
+            return
         print("\n", f" DEFRINGING DATA ".center(NCOLS, SYM), "\n")
         
         fringeflat = self.defringe_c["fringeflat"]
@@ -441,6 +447,9 @@ class Stisdata():
         stistools.defringe.normspflat(inflat=rawfringe,
                    do_cal=True,
                    outflat=outnorm)
+        with fits.open(outnorm, mode="update") as hdulist:
+            hdulist[1].data[:,:250] = 1
+
         outmk = os.path.join(self.outdir, fringeroot+"_mff.fits")
         if os.path.exists(outmk):
             os.remove(outmk)
