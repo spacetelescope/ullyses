@@ -73,6 +73,10 @@ class Stisdata():
         self.flc = None
         self.crc = None
         self.sx1 = None
+        self.sx1_mast = None
+        prod = os.path.join(self.basedir, "mast_products", self.rootname+"_sx1.fits")
+        if os.path.exists(prod):
+            self.sx1_mast = prod
         self.visit = self.rootname[4:6]
         self.target = fits.getval(scifile, "targname")
         self.flc = self.find_product("flc") 
@@ -81,15 +85,7 @@ class Stisdata():
         self.yamlfile = yamlfile
         self.config = read_config(yamlfile)
         self.sx1_c, self.fix_dq16, self.crrej_c, self.defringe_c, self.cti_proc = self.config["x1d"], self.config["fix_dq16"], self.config["crrej"], self.config["defringe"], self.config["processes"]
-        self.fringeflat = self.defringe_c["fringeflat"]
         self.fringeflat = os.path.join(self.basedir, self.defringe_c["fringeflat"])
-        with fits.open(self.fringeflat, mode="update") as hdulist:
-            hdr0 = hdulist[0].header
-            darkfile = hdr0["darkfile"]
-            if "ctiref" in darkfile:
-                darkfile.replace("$ctirefs/", self._ref_dir)
-                hdr0.set("DARKFILE", darkfile)
-
         self.crsplit = fits.getval(scifile, "crsplit")
         self.opt_elem = opt_elem
 
@@ -323,8 +319,8 @@ class Stisdata():
                 a2center = pars["yloc"], 
                 maxsrch = pars["maxsrch"],
                 extrsize = pars["height"],
-                bk1offst = pars["b_bkg1"] - pars["yloc"],
-                bk2offst = pars["b_bkg2"] - pars["yloc"],
+                bk1offst = (pars["b_bkg1"] - pars["yloc"]) if pars["b_bkg1"] is not None else None,
+                bk2offst = (pars["b_bkg2"] - pars["yloc"]) if pars["b_bkg2"] is not None else None,
                 bk1size = pars["b_hgt1"],
                 bk2size = pars["b_hgt2"],
                 ctecorr="omit",
@@ -424,6 +420,11 @@ class Stisdata():
         rawfringe = os.path.join(self.basedir, fringeflat)
         fringeroot = os.path.basename(fringeflat)[:9]
         outnorm = os.path.join(self.outdir, fringeroot+"_nsp.fits")
+        with fits.open(rawfringe, mode="update") as hdulist:
+            hdr0 = hdulist[0].header
+            darkfile = fits.getval(self.scifile, "darkfile")
+            hdr0.set("DARKFILE", darkfile)
+
         if os.path.exists(outnorm):
             os.remove(outnorm)
         stistools.defringe.normspflat(inflat=rawfringe,
@@ -477,7 +478,8 @@ class Stisdata():
         print(f"Raw file: {self.scifile}")
         print(f"FLT/FLC: {self.flc}")
         print(f"CRJ/CRC: {self.crc}")
-        print(f"Science X1D: {self.sx1}")
+        print(f"Fringe-corrected science X1D: {self.sx1}")
+        print(f"NON fringe-corrected science X1D: {self.sx1_mast}")
         if len(self.nonsci_x1d) > 0:
             print(f"Non-science X1D(s): {self.nonsci_x1d}")
 
