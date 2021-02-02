@@ -85,7 +85,6 @@ class Stisdata():
         self.yamlfile = yamlfile
         self.config = read_config(yamlfile)
         self.sx1_c, self.fix_dq16, self.crrej_c, self.defringe_c, self.cti_proc = self.config["x1d"], self.config["fix_dq16"], self.config["crrej"], self.config["defringe"], self.config["processes"]
-        self.fringeflat = os.path.join(self.basedir, self.defringe_c["fringeflat"])
         self.crsplit = fits.getval(scifile, "crsplit")
         self.opt_elem = opt_elem
 
@@ -309,20 +308,23 @@ class Stisdata():
         print("\n", f" EXTRACTING SPECTRA ".center(NCOLS, SYM), "\n")
         
         # Look up extraction parameters given the target config file.
-        self.nonsci_x1d = []
+        self.nonsci_x1d = {}
         for targ, pars in self.sx1_c.items():
             if targ == "sci":
                 outfile = os.path.join(self.outdir, self.rootname+"_x1d.fits")
                 self.sx1 = outfile
+                if self.drj is None:
+                    infile = self.crc
+                else:
+                    infile = self.drj
             else:
+                infile = self.nonsci_drj[targ]
                 outfile = os.path.join(self.outdir, f"{self.rootname}_{targ}_x1d.fits")
-                self.nonsci_x1d.append(outfile)
+                self.nonsci_x1d[targ] = outfile
+            
             if os.path.exists(outfile):
                 os.remove(outfile)
-            if self.drj is None:
-                infile = self.crc
-            else:
-                infile = self.drj
+            
             x1d.x1d(infile, 
                 output = outfile, 
                 a2center = pars["yloc"], 
@@ -427,56 +429,64 @@ class Stisdata():
 #-----------------------------------------------------------------------------#
 
     def defringe(self):
-
-        if self.opt_elem not in ["G750L", "G750M"]:
-            self.drj = None
-            return
-        print("\n", f" DEFRINGING DATA ".center(NCOLS, SYM), "\n")
         
-        fringeflat = self.defringe_c["fringeflat"]
-        rawfringe = os.path.join(self.basedir, fringeflat)
-        fringeroot = os.path.basename(fringeflat)[:9]
-        outnorm = os.path.join(self.outdir, fringeroot+"_nsp.fits")
-        with fits.open(rawfringe, mode="update") as hdulist:
-            hdr0 = hdulist[0].header
-            darkfile = fits.getval(self.scifile, "darkfile")
-            hdr0.set("DARKFILE", darkfile)
+        self.nonsci_drj = {}
+        for targ, pars in self.defringe_c.items():
+            if self.opt_elem not in ["G750L", "G750M"]:
+                self.drj = None
+                return
+            print("\n", f" DEFRINGING DATA ".center(NCOLS, SYM), "\n")
+            
+            fringeflat = pars["fringeflat"]
+            rawfringe = os.path.join(self.basedir, fringeflat)
+            fringeroot = os.path.basename(fringeflat)[:9]
+            outnorm = os.path.join(self.outdir, fringeroot+"_nsp.fits")
+            with fits.open(rawfringe, mode="update") as hdulist:
+                hdr0 = hdulist[0].header
+                darkfile = fits.getval(self.scifile, "darkfile")
+                hdr0.set("DARKFILE", darkfile)
+    
+            if os.path.exists(outnorm):
+                os.remove(outnorm)
+            stistools.defringe.normspflat(inflat=rawfringe,
+                       do_cal=True,
+                       outflat=outnorm)
+    
+            if self.opt_elem == "G750L":
+                with fits.open(outnorm, mode="update") as hdulist:
+                    hdulist[1].data[:,:250] = 1
+    
+            outmk = os.path.join(self.outdir, fringeroot+"_mff.fits")
+            if os.path.exists(outmk):
+                os.remove(outmk)
+            stistools.defringe.mkfringeflat(inspec=self.crc,
+                         inflat=outnorm,
+                         outflat=outmk,
+                         do_shift=pars["mkfringeflat"]["do_shift"],
+                         beg_shift=pars["mkfringeflat"]["beg_shift"],
+                         end_shift=pars["mkfringeflat"]["end_shift"],
+                         shift_step=pars["mkfringeflat"]["shift_step"],
+                         do_scale=pars["mkfringeflat"]["do_scale"],
+                         beg_scale=pars["mkfringeflat"]["beg_scale"],
+                         end_scale=pars["mkfringeflat"]["end_scale"],
+                         scale_step=pars["mkfringeflat"]["scale_step"])
+            outfile = stistools.defringe.defringe(science_file=self.crc,
+                               fringe_flat=outmk,
+                               overwrite=True,
+                               verbose=True)
+            if targ != "sci":
+                outfile = outfile.replace("_drj", f"{targ}_drj")
 
-        if os.path.exists(outnorm):
-            os.remove(outnorm)
-        stistools.defringe.normspflat(inflat=rawfringe,
-                   do_cal=True,
-                   outflat=outnorm)
-
-        if self.opt_elem == "G750L":
-            with fits.open(outnorm, mode="update") as hdulist:
-                hdulist[1].data[:,:250] = 1
-
-        outmk = os.path.join(self.outdir, fringeroot+"_mff.fits")
-        if os.path.exists(outmk):
-            os.remove(outmk)
-        stistools.defringe.mkfringeflat(inspec=self.crc,
-                     inflat=outnorm,
-                     outflat=outmk,
-                     do_shift=self.defringe_c["mkfringeflat"]["do_shift"],
-                     beg_shift=self.defringe_c["mkfringeflat"]["beg_shift"],
-                     end_shift=self.defringe_c["mkfringeflat"]["end_shift"],
-                     shift_step=self.defringe_c["mkfringeflat"]["shift_step"],
-                     do_scale=self.defringe_c["mkfringeflat"]["do_scale"],
-                     beg_scale=self.defringe_c["mkfringeflat"]["beg_scale"],
-                     end_scale=self.defringe_c["mkfringeflat"]["end_scale"],
-                     scale_step=self.defringe_c["mkfringeflat"]["scale_step"])
-        outfile = stistools.defringe.defringe(science_file=self.crc,
-                           fringe_flat=outmk,
-                           overwrite=True,
-                           verbose=True)
-        try:
-            shutil.copy(outfile, self.outdir)
-        except shutil.SameFileError:
-            pass
+            try:
+                shutil.copy(outfile, self.outdir)
+            except shutil.SameFileError:
+                pass
 
         print(f"Wrote defringed crj file: {outfile}")
-        self.drj = os.path.join(self.outdir, os.path.basename(outfile))
+        if targ != "sci":
+            self.nonsci_drj[targ] = os.path.join(self.outdir, os.path.basename(outfile))
+        else:
+            self.drj = os.path.join(self.outdir, os.path.basename(outfile))
 
 #-----------------------------------------------------------------------------#
 
