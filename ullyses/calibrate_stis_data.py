@@ -447,8 +447,10 @@ class Stisdata():
         stistools.defringe.normspflat(inflat=rawfringe,
                    do_cal=True,
                    outflat=outnorm)
-        with fits.open(outnorm, mode="update") as hdulist:
-            hdulist[1].data[:,:250] = 1
+
+        if self.opt_elem == "G750L":
+            with fits.open(outnorm, mode="update") as hdulist:
+                hdulist[1].data[:,:250] = 1
 
         outmk = os.path.join(self.outdir, fringeroot+"_mff.fits")
         if os.path.exists(outmk):
