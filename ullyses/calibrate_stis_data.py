@@ -65,6 +65,10 @@ class Stisdata():
         self.outdir = outdir
         if not os.path.exists(outdir):
             os.mkdir(outdir)
+        self._sci_dir = self.outdir
+        self._dark_dir = "/astro/ullyses/stis_ccd_data/darks"
+        self._ref_dir = "/astro/ullyses/stis_ccd_data/cti_refs"
+        os.environ["ctirefs"] = "/astro/ullyses/stis_ccd_data/cti_refs/"
         self.rootname = fits.getval(scifile, "rootname")
         self.flc = None
         self.crc = None
@@ -78,11 +82,16 @@ class Stisdata():
         self.config = read_config(yamlfile)
         self.sx1_c, self.fix_dq16, self.crrej_c, self.defringe_c, self.cti_proc = self.config["x1d"], self.config["fix_dq16"], self.config["crrej"], self.config["defringe"], self.config["processes"]
         self.fringeflat = self.defringe_c["fringeflat"]
+        self.fringeflat = os.path.join(self.basedir, self.defringe_c["fringeflat"])
+        with fits.open(self.fringeflat, mode="update") as hdulist:
+            hdr0 = hdulist[0].header
+            darkfile = hdr0["darkfile"]
+            if "ctiref" in darkfile:
+                darkfile.replace("$ctirefs/", self._ref_dir)
+                hdr0.set("DARKFILE", darkfile)
+
         self.crsplit = fits.getval(scifile, "crsplit")
         self.opt_elem = opt_elem
-        self._sci_dir = self.outdir
-        self._dark_dir = "/astro/ullyses/stis_ccd_data/darks"
-        self._ref_dir = "/astro/ullyses/stis_ccd_data/cti_refs"
 
 #-----------------------------------------------------------------------------#
 
@@ -449,8 +458,16 @@ class Stisdata():
         if not os.path.exists(prod):
             prod = os.path.join(self.outdir, self.rootname+"_"+ext+".fits")
             if not os.path.exists(prod):
-                prod = None
-    
+                prod = os.path.join(self.basedir, "mast_products", self.rootname+"_"+ext+".fits")
+                if not os.path.exists(prod):
+                    prod = None
+        if prod is not None:
+            with fits.open(prod, mode="update") as hdulist:
+                hdr0 = hdulist[0].header
+                darkfile = hdr0["darkfile"]
+                if "ctiref" in darkfile:
+                    darkfile.replace("$ctirefs/", self._ref_dir)
+                    hdr0.set("DARKFILE", darkfile)
         return prod
 
 #-----------------------------------------------------------------------------#
