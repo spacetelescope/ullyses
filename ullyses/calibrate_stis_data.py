@@ -157,6 +157,11 @@ class Stisdata():
             os.mkdir(customdark_dir)
             print(f"Made directory: {customdark_dir}")
             
+        try:
+            shutil.copy(self.flc, self.outdir)
+        except shutil.SameFileError:
+            pass
+        self.flc = os.path.join(self.outdir, self.rootname+"_flc.fits")
         # Read in science FLT dataset.
         sci_hdu = fits.open(self.flc, mode="update")
         sci_dq = sci_hdu[3].data
@@ -170,6 +175,7 @@ class Stisdata():
         perc_flagged = n_flagged / total
         if perc_flagged <= 0.06:
             print(f"Less than 6% of pixels flagged with DQ=16, not performing custom dark correction")
+            sci_hdu.close()
             return
         else:
             self.fix_dq16 = True
@@ -372,6 +378,11 @@ class Stisdata():
         print(f'   Full CCD Frame: {frac_rej_expec:.2f} \n')
 
         if frac_rej < (frac_rej_expec * 5) or frac_rej < .05:
+            try:
+                shutil.copy(self.crc, self.outdir)
+                self.crc = os.path.join(self.outdir, self.rootname+"_crc.fits")
+            except shutil.SameFileError:
+                pass
             print("Extraction region rejection rate is not high enough for custom CR rejection")
             return
         else:
@@ -448,6 +459,10 @@ class Stisdata():
                            fringe_flat=outmk,
                            overwrite=True,
                            verbose=True)
+        try:
+            shutil.copy(outfile, self.outdir)
+        except shutil.SameFileError:
+            pass
 
         print(f"Wrote defringed crj file: {outfile}")
         self.drj = os.path.join(self.outdir, os.path.basename(outfile))
