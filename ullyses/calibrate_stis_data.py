@@ -436,6 +436,7 @@ class Stisdata():
                 self.drj = None
                 return
             print("\n", f" DEFRINGING DATA ".center(NCOLS, SYM), "\n")
+            print(f"TARGET = {targ}")
             
             fringeflat = pars["fringeflat"]
             rawfringe = os.path.join(self.basedir, fringeflat)
@@ -475,18 +476,19 @@ class Stisdata():
                                overwrite=True,
                                verbose=True)
             if targ != "sci":
-                outfile = outfile.replace("_drj", f"{targ}_drj")
+                outfile_name = outfile.replace("_drj", f"{targ}_drj")
+                outfile_dest = os.path.join(self.outdir, os.path.basename(outfile_name))
+                self.nonsci_drj[targ] = outfile_dest
+            else:
+                outfile_dest = os.path.join(self.outdir, os.path.basename(outfile))
+                self.drj = outfile_dest 
 
             try:
-                shutil.copy(outfile, self.outdir)
+                shutil.copyfile(outfile, outfile_dest)
             except shutil.SameFileError:
                 pass
 
         print(f"Wrote defringed crj file: {outfile}")
-        if targ != "sci":
-            self.nonsci_drj[targ] = os.path.join(self.outdir, os.path.basename(outfile))
-        else:
-            self.drj = os.path.join(self.outdir, os.path.basename(outfile))
 
 #-----------------------------------------------------------------------------#
 
