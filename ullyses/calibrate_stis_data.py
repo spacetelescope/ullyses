@@ -318,7 +318,10 @@ class Stisdata():
                 else:
                     infile = self.drj
             else:
-                infile = self.nonsci_drj[targ]
+                if self.opt_elem == "G750L":
+                    infile = self.nonsci_drj[targ]
+                else:
+                    infile = self.crc
                 outfile = os.path.join(self.outdir, f"{self.rootname}_{targ}_x1d.fits")
                 self.nonsci_x1d[targ] = outfile
             
