@@ -54,6 +54,9 @@ class Stisdata():
             outdir: Output directory for products.
         """
 
+        self.yamlfile = yamlfile
+        self.config = read_config(yamlfile)
+        self.sx1_c, self.fix_dq16, self.crrej_c, self.defringe_c, self.cti_proc, self.perform_cti = self.config["x1d"], self.config["fix_dq16"], self.config["crrej"], self.config["defringe"], self.config["processes"], self.config["perform_cti"]
         detector = fits.getval(scifile, "detector")
         opt_elem = fits.getval(scifile, "opt_elem")
         assert detector == "CCD" and opt_elem !="MIRVIS", f"Observing configurtion not supported: {detector}/{opt_elem}"
@@ -79,19 +82,20 @@ class Stisdata():
             self.sx1_mast = prod
         self.visit = self.rootname[4:6]
         self.target = fits.getval(scifile, "targname")
-        self.flc = self.find_product("flc") 
-        self.crc = self.find_product("crc") 
+        if self.perform_cti is True:
+            self.flc = self.find_product("flc")
+            self.crc = self.find_product("crc") 
+        else: 
+            self.flc = self.find_product("flt")
+            self.crc = self.find_product("crj") 
         self.sx1 = self.find_product("sx1") 
-        self.yamlfile = yamlfile
-        self.config = read_config(yamlfile)
-        self.sx1_c, self.fix_dq16, self.crrej_c, self.defringe_c, self.cti_proc = self.config["x1d"], self.config["fix_dq16"], self.config["crrej"], self.config["defringe"], self.config["processes"]
         self.crsplit = fits.getval(scifile, "crsplit")
         self.opt_elem = opt_elem
 
 #-----------------------------------------------------------------------------#
 
     def run_all(self):
-        if self.flc is None:
+        if self.perform_cti is True:
             self.perform_cti()
         self.analyze_dark()
         #self.flag_negatives()
@@ -159,7 +163,7 @@ class Stisdata():
             shutil.copy(self.flc, self.outdir)
         except shutil.SameFileError:
             pass
-        self.flc = os.path.join(self.outdir, self.rootname+"_flc.fits")
+        self.flc = os.path.join(self.outdir, os.path.basename(self.flc))
         # Read in science FLT dataset.
         sci_hdu = fits.open(self.flc, mode="update")
         sci_dq = sci_hdu[3].data
@@ -337,7 +341,7 @@ class Stisdata():
                 bk2offst = (pars["b_bkg2"] - pars["yloc"]) if pars["b_bkg2"] is not None else None,
                 bk1size = pars["b_hgt1"],
                 bk2size = pars["b_hgt2"],
-                ctecorr="omit",
+                ctecorr="omit" if self.perform_cti is True else "perform",
                 verbose=True)
             print(f"Wrote x1d file: {outfile}")
 
@@ -388,7 +392,7 @@ class Stisdata():
         if frac_rej < (frac_rej_expec * 5) or frac_rej < .05:
             try:
                 shutil.copy(self.crc, self.outdir)
-                self.crc = os.path.join(self.outdir, self.rootname+"_crc.fits")
+                self.crc = os.path.join(self.outdir, os.path.basename(self.crc))
             except shutil.SameFileError:
                 pass
             print("Extraction region rejection rate is not high enough for custom CR rejection")
@@ -411,7 +415,10 @@ class Stisdata():
             print("No x1d files specified")
             return
 
-        outfile = os.path.join(self.outdir, self.rootname+"_crc.fits")
+        if self.perform_cti is True:
+            outfile = os.path.join(self.outdir, self.rootname+"_crc.fits")
+        else:
+            outfile = os.path.join(self.outdir, self.rootname+"_crj.fits")
         if os.path.exists(outfile):
             os.remove(outfile)
         
@@ -525,10 +532,8 @@ class Stisdata():
             print(f"Non-science X1D(s): {self.nonsci_x1d}")
 
         print("")
-        if self.flc is not None:
-            print("CTI correction already performed")
-        else:
-            print("WARNING!!! CTI correction needs to be performed")
+        if self.perform_cti is True:
+            print("Pixel-based CTI correction performed")
         if self.do_crrej is True:
             print("WARNING!!! CR rejection should be performed again. Edit yaml file and re-run.")
         else:
