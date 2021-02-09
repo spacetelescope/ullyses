@@ -42,8 +42,9 @@ class SegmentList:
         self.target = ''
         self.prog_id = ''
         self.datasets = []
+        self.level0 = False
 
-        x1dfiles = glob.glob(os.path.join(path, '*_x1d.fits'))
+        x1dfiles = glob.glob(os.path.join(path, '*_x1d.fits')) + glob.glob(os.path.join(path, '*_sx1.fits'))
 
         gratinglist = []
 
@@ -60,6 +61,11 @@ class SegmentList:
                     target = prihdr['TARGNAME']
                     if target not in self.targname:
                         self.targname.append(target.strip())
+                    try:
+                        if prihdr['HLSP_LVL'] == 0:
+                            self.level0 = True
+                    except:
+                        pass
                 else:
                     print('{} has no data'.format(file))
             else:
