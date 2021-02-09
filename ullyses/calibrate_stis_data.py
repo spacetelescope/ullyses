@@ -441,9 +441,11 @@ class Stisdata():
     def defringe(self):
         
         self.nonsci_drj = {}
+        self.drj = None
+        if self.defringe_c is False:
+            return
         for targ, pars in self.defringe_c.items():
             if self.opt_elem not in ["G750L", "G750M"]:
-                self.drj = None
                 return
             print("\n", f" DEFRINGING DATA ".center(NCOLS, SYM), "\n")
             print(f"TARGET = {targ}")
@@ -480,7 +482,9 @@ class Stisdata():
                          do_scale=pars["mkfringeflat"]["do_scale"],
                          beg_scale=pars["mkfringeflat"]["beg_scale"],
                          end_scale=pars["mkfringeflat"]["end_scale"],
-                         scale_step=pars["mkfringeflat"]["scale_step"])
+                         scale_step=pars["mkfringeflat"]["scale_step"],
+                         extrloc=pars["mkfringeflat"]["extrloc"] if "extrloc" in pars["mkfringeflat"] else None,
+                         extrsize=pars["mkfringeflat"]["extrsize"] if "extrloc" in pars["mkfringeflat"] else None)
             outfile = stistools.defringe.defringe(science_file=self.crc,
                                fringe_flat=outmk,
                                overwrite=True,
