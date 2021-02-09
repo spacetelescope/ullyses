@@ -104,6 +104,7 @@ class Stisdata():
         self.defringe()
         self.extract_spectra()
         write_config(self.config, self.yamlfile)
+        self.add_id()
         self.help()
 
 #-----------------------------------------------------------------------------#
@@ -522,6 +523,13 @@ class Stisdata():
                     darkfile.replace("$ctirefs/", self._ref_dir)
                     hdr0.set("DARKFILE", darkfile)
         return prod
+
+#-----------------------------------------------------------------------------#
+
+    def add_id(self):
+        for item in [self.sx1] + list(self.nonsci_x1d.values()):
+            with fits.open(item, mode="update") as hdulist:
+                hdulist[0].header["HLSP_LVL"] = 0
 
 #-----------------------------------------------------------------------------#
 
