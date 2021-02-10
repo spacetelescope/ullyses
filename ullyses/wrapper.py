@@ -8,7 +8,7 @@ from astropy.io import fits
 from coadd import COSSegmentList, STISSegmentList
 from coadd import abut
 
-default_version = 'dr1'
+default_version = 'dr2'
 PROD_DIR = "/astro/ullyses/ULLYSES_HLSP"
 
 '''
@@ -40,10 +40,16 @@ def main(indir, outdir, version=default_version, clobber=False):
         # but we need to know which gratings are present
         uniqmodes = []
 
-        for myfile in glob.glob(os.path.join(root, '*_x1d.fits')):
+        for myfile in glob.glob(os.path.join(root, '*_x1d.fits')) + glob.glob(os.path.join(root, '*_vo.fits')):
             f1 = fits.open(myfile)
             prihdr = f1[0].header
-            obsmode = (prihdr['INSTRUME'], prihdr['OPT_ELEM'])
+
+            if '_x1d.fits' in myfile:
+                obsmode = (prihdr['INSTRUME'], prihdr['OPT_ELEM'])
+            elif '_vo.fits' in myfile:
+                obsmode = (prihdr['TELESCOP'], None)
+            else:
+                continue
             if obsmode not in uniqmodes:
                 uniqmodes.append(obsmode)
 
@@ -63,6 +69,8 @@ def main(indir, outdir, version=default_version, clobber=False):
         products['cos_m'] = None
         products['stis_m'] = None
         products['stis_h'] = None
+        products['all_hst'] = None
+        products['fuse'] = None
         products['all'] = None
 
         level = 2
@@ -72,6 +80,12 @@ def main(indir, outdir, version=default_version, clobber=False):
                 prod = COSSegmentList(grating, path=root)
             elif instrument == 'STIS':
                 prod = STISSegmentList(grating, path=root)
+            elif instrument == 'FUSE':
+                # FUSE data will not be coadded, but will be included in the abuts
+                # We will still need something from coadd.py like SegmentList so
+                # that the data is in a class for abut to work on. Setting to dummy for now
+                prod = FUSESegmentList(None, path=root)
+                products['fuse'] = prod
             else:
                 print(f'Unknown mode [{instrument}, {grating}]')
 
@@ -151,15 +165,29 @@ def main(indir, outdir, version=default_version, clobber=False):
             products['stis_h'] = products['E230H']
 
         level = 4
+
         if products['cos_m'] is not None and products['stis_m'] is not None:
-            products['all'] = abut(products['cos_m'], products['stis_m'])
+            products['all_hst'] = abut(products['cos_m'], products['stis_m'])
         elif products['cos_m'] is not None and products['stis_h'] is not None:
-            products['all'] = abut(products['cos_m'], products['stis_h'])
+            products['all_hst'] = abut(products['cos_m'], products['stis_h'])
+        if products['all_hst'] is not None:
+            filename = create_output_file_name(products['all_hst'], version, level=level)
+            filename = os.path.join(outdir, filename)
+            products['all_hst'].write(filename, clobber, level=level, version=version)
+            print(f"   Wrote {filename}")
+
+        level = 5
+
+        if products['all_hst'] is not None and products['fuse'] is not None:
+            products['all'] = abut(products['all_hst'], products['fuse'])
+        elif products['all_hst'] is not None and products['fuse'] is None:
+            products['all'] = products['all_hst']
+        elif products['all_hst'] is None and products['fuse'] is not None:
+            products['all'] = products['fuse']
         if products['all'] is not None:
             filename = create_output_file_name(products['all'], version, level=level)
             filename = os.path.join(outdir, filename)
             products['all'].write(filename, clobber, level=level, version=version)
-            print(f"   Wrote {filename}")
 
 
 def create_output_file_name(prod, version=default_version, level=3):
@@ -167,6 +195,7 @@ def create_output_file_name(prod, version=default_version, level=3):
     grating = prod.grating.lower()
     target = prod.target.lower()
     version = version.lower()
+    tel = 'hst'
     if level == 1:
         suffix = "mspec"
     elif level == 3 or level == 2:
@@ -175,8 +204,14 @@ def create_output_file_name(prod, version=default_version, level=3):
         suffix = "sed"
         grating = "uv"
         # Need to add logic for uv-opt here
-    name = f"hlsp_ullyses_hst_{instrument}_{target}_{grating}_{version}_{suffix}.fits"
+    elif level == 5:
+        tel = 'hst-fuse'  # maybe fuse will be included in instrument?
+        suffix = "sed"
+        grating = "uv"
+
+    name = f"hlsp_ullyses_{tel}_{instrument}_{target}_{grating}_{version}_{suffix}.fits"
     return name
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -185,7 +220,7 @@ if __name__ == '__main__':
     parser.add_argument("-o", "--outdir", default=None,
                         help="Directory for output HLSPs")
     parser.add_argument("-v", "--version", default=default_version, 
-    					help="Version number of the HLSP")
+                        help="Version number of the HLSP")
     parser.add_argument("-c", "--clobber", default=False,
                         action="store_true",
                         help="If True, overwrite existing products")
