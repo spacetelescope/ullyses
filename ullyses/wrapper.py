@@ -84,6 +84,9 @@ def main(indir, outdir, version=default_version, clobber=False):
                 # FUSE data will not be coadded, but will be included in the abuts
                 # We will still need something from coadd.py like SegmentList so
                 # that the data is in a class for abut to work on. Setting to dummy for now
+                # this happens at level 2 which doesn't really make sense
+                # but we do need to populate the products['fuse'] at some point, and this
+                # is when we are looping through all the modes...
                 prod = FUSESegmentList(None, path=root)
                 products['fuse'] = prod
             else:
