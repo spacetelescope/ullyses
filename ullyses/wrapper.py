@@ -5,7 +5,7 @@ import numpy as np
 
 from astropy.io import fits
 
-from coadd import COSSegmentList, STISSegmentList
+from coadd import COSSegmentList, STISSegmentList, FUSESegmentList
 from coadd import abut
 
 default_version = 'dr2'
