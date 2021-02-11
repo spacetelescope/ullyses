@@ -92,6 +92,8 @@ class Stisdata():
         self.sx1 = self.find_product("sx1") 
         self.crsplit = fits.getval(scifile, "crsplit")
         self.opt_elem = opt_elem
+        if opt_elem != "G750L":
+            self.defringe_c = False
 
 #-----------------------------------------------------------------------------#
 
@@ -189,7 +191,7 @@ class Stisdata():
                 self.fix_dq16 = True
                 self.config["fix_dq16"] = True
     
-                print(f"For ext={dqext}, ore than 6% of pixels ({perc_flagged*100.:.2f}) flagged with DQ=16")
+                print(f"For ext={dqext}, more than 6% of pixels ({perc_flagged*100.:.2f}) flagged with DQ=16")
                 print(f"Manually creating superdarks and setting DQ={dq} values...")
     
             # Determine DARKFILE filename.
@@ -543,20 +545,25 @@ class Stisdata():
         print(f"Raw file: {self.scifile}")
         print(f"FLT/FLC: {self.flc}")
         print(f"CRJ/CRC: {self.crc}")
-        print(f"Fringe-corrected science X1D: {self.sx1}")
-        print(f"NON fringe-corrected science X1D: {self.sx1_mast}")
+        print(f"Final custom science X1D: {self.sx1}")
+        print(f"MAST science X1D: {self.sx1_mast}")
         if len(self.nonsci_x1d) > 0:
             print(f"Non-science X1D(s): {self.nonsci_x1d}")
 
         print("")
         if self.perform_cti is True:
             print("Pixel-based CTI correction performed")
-        if self.do_crrej is True:
-            print("WARNING!!! CR rejection should be performed again. Edit yaml file and re-run.")
         else:
-            print("Default CR rejection parameters were used")
+            print("Default CalSTIS empirical CTI correction performed")
         if self.fix_dq16 is True:
             print("Custom DQ=16 flagging has been applied")
         else:
             print("Default DQ=16 flagging was used")
-
+        if self.do_crrej is True:
+            print("WARNING!!! CR rejection should be performed again. Edit yaml file and re-run.")
+        else:
+            print("Default CR rejection parameters were used")
+        if self.defringe_c is False:
+            print("No fringe correction applied")
+        else:
+            print("Fringe correction applied")
