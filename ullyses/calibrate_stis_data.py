@@ -167,76 +167,79 @@ class Stisdata():
         self.flc = os.path.join(self.outdir, os.path.basename(self.flc))
         # Read in science FLT dataset.
         sci_hdu = fits.open(self.flc, mode="update")
-        sci_dq = sci_hdu[3].data
-        darkfile0 = sci_hdu[0].header["darkfile"]
-
-        # Check how many pixels are flagged.
-        # DQ=512 is "bad pixel in reference file"
-        sci_dq16 = np.where((sci_dq&dq == dq) & (sci_dq&512 == 0))
-        n_flagged = len(sci_dq16) * len(sci_dq16[0])
-        total = len(sci_dq) * len(sci_dq[0])
-        perc_flagged = n_flagged / total
-        if perc_flagged <= 0.06:
-            print(f"Less than 6% of pixels flagged with DQ=16, not performing custom dark correction")
-            sci_hdu.close()
-            return
-        else:
-            self.fix_dq16 = True
-            self.config["fix_dq16"] = True
-
-            print(f"More than 6% of pixels ({perc_flagged*100.:.2f}) flagged with DQ=16")
-            print(f"Manually creating superdarks and setting DQ={dq} values...")
+        dqext = 0
+        for i in range(self.crsplit):
+            dqext += 3
+            sci_dq = sci_hdu[dqext].data
+            darkfile0 = sci_hdu[0].header["darkfile"]
     
-        # Determine DARKFILE filename.
-        if "/" in darkfile0:
-            darkname = os.path.basename(darkfile0)
-            darkfile = os.path.join(self._ref_dir, darkname)
-        else:
-            darkname = darkfile0.split("$")[1]
-            darkfile = os.path.join(OREF_DIR, darkname)
+            # Check how many pixels are flagged.
+            # DQ=512 is "bad pixel in reference file"
+            sci_dq16 = np.where((sci_dq&dq == dq) & (sci_dq&512 == 0))
+            n_flagged = len(sci_dq16) * len(sci_dq16[0])
+            total = len(sci_dq) * len(sci_dq[0])
+            perc_flagged = n_flagged / total
+            if perc_flagged <= 0.06:
+                print(f"For ext={dqext}, less than 6% of pixels are flagged with DQ=16, not performing custom dark correction")
+                if i == self.crsplit - 1:
+                    sci_hdu.close()
+                    return
+            else:
+                self.fix_dq16 = True
+                self.config["fix_dq16"] = True
+    
+                print(f"For ext={dqext}, ore than 6% of pixels ({perc_flagged*100.:.2f}) flagged with DQ=16")
+                print(f"Manually creating superdarks and setting DQ={dq} values...")
+    
+            # Determine DARKFILE filename.
+            if "/" in darkfile0:
+                darkname = os.path.basename(darkfile0)
+                darkfile = os.path.join(self._ref_dir, darkname)
+            else:
+                darkname = darkfile0.split("$")[1]
+                darkfile = os.path.join(OREF_DIR, darkname)
 
-        # Remove any existing DQ={dq} flags from FLT, since DQ={dq} flags are
-        # inherently wrong.
-        outfile = os.path.join(customdark_dir, darkname)
-        sci_hdu[0].header["DARKFILE"] = outfile
-        sci_hdu[3].data[sci_dq16] -= dq
-        
-        written_darks = [os.path.basename(x) for x in 
-                         glob.glob(os.path.join(customdark_dir, "*fits"))]
-        # If the custom darkfile has already been written (from a previous iteration), 
-        # read from the darkfile and apply the DQ={dq} flags to the FLT. 
-        if darkname in written_darks:
-            dark_dq = fits.getdata(outfile, 3)
-            dark_dq16 = np.where(dark_dq&dq == dq)
-            sci_hdu[3].data[dark_dq16] |= dq
-            sci_hdu.close()
-            print(f"Already wrote custom dark: {outfile}")
-        
-        # Create custom darkfile, flag high dark values with dq={dq} 
-        else:
-            dark_hdu = fits.open(darkfile)
-            dark = dark_hdu[1].data
-            dark_dq = dark_hdu[3].data
-            dark_dq16 = np.where(dark_dq&dq == dq)
-            dark_dq[dark_dq16] -= dq
-            sci_hdu[3].data[dark_dq16] |= dq
-        
-            # Determine 5*stddev + median of the darkfile, anything above this is DQ={dq}. 
-            dark_thresh = (np.std(dark)*5) + np.median(dark)
-            dark_inds = np.where((dark > dark_thresh) | (dark < -dark_thresh))
-            dark_dq[dark_inds] |= dq
-        
-            new_dark = fits.HDUList( fits.PrimaryHDU() )
-            new_dark[0].header = dark_hdu[0].header
-            for ext in [1,2]:
-                new_dark.append(fits.ImageHDU(dark_hdu[ext].data, dark_hdu[ext].header, name=dark_hdu[ext].name))
-            new_dark.append(fits.ImageHDU(dark_dq, dark_hdu[3].header, name=dark_hdu[ext].name))
-            new_dark.writeto(outfile)
-        
-            sci_hdu.close()
-            dark_hdu.close()
-        
-            print(f"Wrote new darkfile: {outfile}")
+            # Remove any existing DQ={dq} flags from FLT, since DQ={dq} flags are
+            # inherently wrong.
+            outfile = os.path.join(customdark_dir, darkname)
+            sci_hdu[0].header["DARKFILE"] = outfile
+            sci_hdu[dqext].data[sci_dq16] -= dq
+            
+            written_darks = [os.path.basename(x) for x in 
+                             glob.glob(os.path.join(customdark_dir, "*fits"))]
+            # If the custom darkfile has already been written (from a previous iteration), 
+            # read from the darkfile and apply the DQ={dq} flags to the FLT. 
+            if darkname in written_darks:
+                dark_dq = fits.getdata(outfile, 3)
+                dark_dq16 = np.where(dark_dq&dq == dq)
+                sci_hdu[dqext].data[dark_dq16] |= dq
+                print(f"Already wrote custom dark: {outfile}")
+            
+            # Create custom darkfile, flag high dark values with dq={dq} 
+            else:
+                dark_hdu = fits.open(darkfile)
+                dark = dark_hdu[1].data
+                dark_dq = dark_hdu[3].data
+                dark_dq16 = np.where(dark_dq&dq == dq)
+                dark_dq[dark_dq16] -= dq
+                sci_hdu[dqext].data[dark_dq16] |= dq
+            
+                # Determine 5*stddev + median of the darkfile, anything above this is DQ={dq}. 
+                dark_thresh = (np.std(dark)*5) + np.median(dark)
+                dark_inds = np.where((dark > dark_thresh) | (dark < -dark_thresh))
+                dark_dq[dark_inds] |= dq
+            
+                new_dark = fits.HDUList( fits.PrimaryHDU() )
+                new_dark[0].header = dark_hdu[0].header
+                for ext in [1,2]:
+                    new_dark.append(fits.ImageHDU(dark_hdu[ext].data, dark_hdu[ext].header, name=dark_hdu[ext].name))
+                new_dark.append(fits.ImageHDU(dark_dq, dark_hdu[3].header, name=dark_hdu[ext].name))
+                new_dark.writeto(outfile)
+            
+                dark_hdu.close()
+                print(f"Wrote new darkfile: {outfile}")
+        sci_hdu.close()
+            
                     
 #-----------------------------------------------------------------------------#
 
