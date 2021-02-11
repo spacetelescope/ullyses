@@ -462,9 +462,9 @@ class Stisdata():
             outnorm = os.path.join(self.outdir, fringeroot+"_nsp.fits")
             with fits.open(rawfringe, mode="update") as hdulist:
                 hdr0 = hdulist[0].header
-                darkfile = self.darkfile
+                darkfile = fits.getval(self.scifile, "darkfile")
                 hdr0.set("DARKFILE", darkfile)
-    
+
             if os.path.exists(outnorm):
                 os.remove(outnorm)
             stistools.defringe.normspflat(inflat=rawfringe,
