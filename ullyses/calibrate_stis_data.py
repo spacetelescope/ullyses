@@ -73,6 +73,7 @@ class Stisdata():
         self._ref_dir = "/astro/ullyses/stis_ccd_data/cti_refs"
         os.environ["ctirefs"] = "/astro/ullyses/stis_ccd_data/cti_refs/"
         self.rootname = fits.getval(scifile, "rootname")
+        self.darkfile = fits.getval(scifile, "darkfile")
         self.flc = None
         self.crc = None
         self.sx1 = None
@@ -203,6 +204,7 @@ class Stisdata():
             # inherently wrong.
             outfile = os.path.join(customdark_dir, darkname)
             sci_hdu[0].header["DARKFILE"] = outfile
+            self.darkfile = outfile
             sci_hdu[dqext].data[sci_dq16] -= dq
             
             written_darks = [os.path.basename(x) for x in 
@@ -460,7 +462,7 @@ class Stisdata():
             outnorm = os.path.join(self.outdir, fringeroot+"_nsp.fits")
             with fits.open(rawfringe, mode="update") as hdulist:
                 hdr0 = hdulist[0].header
-                darkfile = fits.getval(self.scifile, "darkfile")
+                darkfile = self.darkfile
                 hdr0.set("DARKFILE", darkfile)
     
             if os.path.exists(outnorm):
