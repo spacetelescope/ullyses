@@ -40,13 +40,27 @@ def main(indir, outdir, version=default_version, clobber=False):
         # but we need to know which gratings are present
         uniqmodes = []
 
-        for myfile in glob.glob(os.path.join(root, '*_x1d.fits')):
-            f1 = fits.open(myfile)
-            prihdr = f1[0].header
-            obsmode = (prihdr['INSTRUME'], prihdr['OPT_ELEM'])
-            if obsmode not in uniqmodes:
-                uniqmodes.append(obsmode)
+        x1dfiles = glob.glob(os.path.join(root, '*_x1d.fits'))
+        vofiles = glob.glob(os.path.join(root, '*_vo.fits'))
 
+        if x1dfiles:
+            for myfile in x1dfiles:
+                f1 = fits.open(myfile)
+                prihdr = f1[0].header
+                obsmode = (prihdr['INSTRUME'], prihdr['OPT_ELEM'])
+                if obsmode not in uniqmodes:
+                    uniqmodes.append(obsmode)
+                f1.close()
+        if vofiles:
+            if len(vofiles != 1):
+                print("More than 1 FUSE data file, aborting")
+            else:
+                for myfile in vofiles:
+                    f1 = fits.open(myfile)
+                    prihdr = f1[0].header
+                    obsmode = ('FUSE', 'FUSE')
+                    uniqmodes.append(obsmode)
+                    f1.close()
         if not uniqmodes:
             print(f'No data to coadd for {dirname}.')
             continue
@@ -63,6 +77,7 @@ def main(indir, outdir, version=default_version, clobber=False):
         products['cos_m'] = None
         products['stis_m'] = None
         products['stis_h'] = None
+        products['fuse'] = None
         products['all'] = None
 
         level = 2
@@ -72,6 +87,8 @@ def main(indir, outdir, version=default_version, clobber=False):
                 prod = COSSegmentList(grating, path=root)
             elif instrument == 'STIS':
                 prod = STISSegmentList(grating, path=root)
+            elif instrument == 'FUSE':
+                prod = FUSESegmentList(grating, path=root)
             else:
                 print(f'Unknown mode [{instrument}, {grating}]')
 
@@ -81,6 +98,8 @@ def main(indir, outdir, version=default_version, clobber=False):
                 prod.coadd()
                 # this writes the output file
                 # If making HLSPs for a DR, put them in the official folder
+                prod.target = prod.ull_targname()
+                prod.targ_ra, prod.targ_dec = prod.ull_coords()
                 target = prod.target.lower()
                 if outdir_inplace is True:
                     outdir = os.path.join(PROD_DIR, target, version)
