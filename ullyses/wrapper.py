@@ -51,18 +51,17 @@ def main(indir, outdir, version=default_version, clobber=False):
                 if obsmode not in uniqmodes:
                     uniqmodes.append(obsmode)
                 f1.close()
-
-         if vofiles:
+        if vofiles:
             if len(vofiles != 1):
-                 print("More than 1 FUSE data file, aborting")
-             else:
-                 for myfile in vofiles:
-                     f1 = fits.open(myfile)
-                     prihdr = f1[0].header
-                     obsmode = ('FUSE', 'FUSE')
-                     uniqmodes.append(obsmode)
-                     f1.close()
-
+                print("More than 1 FUSE data file, aborting")
+            else:
+                for myfile in vofiles:
+                    f1 = fits.open(myfile)
+                    prihdr = f1[0].header
+                    obsmode = ('FUSE', 'FUSE')
+                    uniqmodes.append(obsmode)
+                    f1.close()
+              
         if not uniqmodes:
             print(f'No data to coadd for {dirname}.')
             continue
