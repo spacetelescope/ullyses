@@ -40,18 +40,28 @@ def main(indir, outdir, version=default_version, clobber=False):
         # but we need to know which gratings are present
         uniqmodes = []
 
-        for myfile in glob.glob(os.path.join(root, '*_x1d.fits')) + glob.glob(os.path.join(root, '*_vo.fits')):
-            f1 = fits.open(myfile)
-            prihdr = f1[0].header
+        x1dfiles = glob.glob(os.path.join(root, '*_x1d.fits'))
+        vofiles = glob.glob(os.path.join(root, '*_vo.fits'))
 
-            if '_x1d.fits' in myfile:
+        if x1dfiles:
+            for myfile in x1dfiles:
+                f1 = fits.open(myfile)
+                prihdr = f1[0].header
                 obsmode = (prihdr['INSTRUME'], prihdr['OPT_ELEM'])
-            elif '_vo.fits' in myfile:
-                obsmode = (prihdr['TELESCOP'], None)
-            else:
-                continue
-            if obsmode not in uniqmodes:
-                uniqmodes.append(obsmode)
+                if obsmode not in uniqmodes:
+                    uniqmodes.append(obsmode)
+                f1.close()
+
+         if vofiles:
+            if len(vofiles != 1):
+                 print("More than 1 FUSE data file, aborting")
+             else:
+                 for myfile in vofiles:
+                     f1 = fits.open(myfile)
+                     prihdr = f1[0].header
+                     obsmode = ('FUSE', 'FUSE')
+                     uniqmodes.append(obsmode)
+                     f1.close()
 
         if not uniqmodes:
             print(f'No data to coadd for {dirname}.')
@@ -81,13 +91,7 @@ def main(indir, outdir, version=default_version, clobber=False):
             elif instrument == 'STIS':
                 prod = STISSegmentList(grating, path=root)
             elif instrument == 'FUSE':
-                # FUSE data will not be coadded, but will be included in the abuts
-                # We will still need something from coadd.py like SegmentList so
-                # that the data is in a class for abut to work on. Setting to dummy for now
-                # this happens at level 2 which doesn't really make sense
-                # but we do need to populate the products['fuse'] at some point, and this
-                # is when we are looping through all the modes...
-                prod = FUSESegmentList(None, path=root)
+                prod = FUSESegmentList(grating, path=root)
                 products['fuse'] = prod
             else:
                 print(f'Unknown mode [{instrument}, {grating}]')
@@ -98,6 +102,8 @@ def main(indir, outdir, version=default_version, clobber=False):
                 prod.coadd()
                 # this writes the output file
                 # If making HLSPs for a DR, put them in the official folder
+                prod.target = prod.ull_targname()
+                prod.targ_ra, prod.targ_dec = prod.ull_coords()
                 target = prod.target.lower()
                 if outdir_inplace is True:
                     outdir = os.path.join(PROD_DIR, target, version)
@@ -167,6 +173,10 @@ def main(indir, outdir, version=default_version, clobber=False):
         elif products['E230H'] is not None:
             products['stis_h'] = products['E230H']
 
+        if products['fuse'] is not None:
+            filename = create_output_file_name(products['fuse'], version, level=level)
+            products['fuse'].write(filename, clobber, level=level, version=version)
+
         level = 4
 
         if products['cos_m'] is not None and products['stis_m'] is not None:
@@ -178,40 +188,41 @@ def main(indir, outdir, version=default_version, clobber=False):
             filename = os.path.join(outdir, filename)
             products['all_hst'].write(filename, clobber, level=level, version=version)
             print(f"   Wrote {filename}")
-
-        level = 5
-
         if products['all_hst'] is not None and products['fuse'] is not None:
             products['all'] = abut(products['all_hst'], products['fuse'])
-        elif products['all_hst'] is not None and products['fuse'] is None:
-            products['all'] = products['all_hst']
-        elif products['all_hst'] is None and products['fuse'] is not None:
-            products['all'] = products['fuse']
-        if products['all'] is not None:
             filename = create_output_file_name(products['all'], version, level=level)
             filename = os.path.join(outdir, filename)
             products['all'].write(filename, clobber, level=level, version=version)
 
 
 def create_output_file_name(prod, version=default_version, level=3):
-    instrument = prod.instrument.lower()
+    instrument = prod.instrument.lower()   # will be either cos, stis, or fuse. If abbuted can be cos-stis or cos-stis-fuse
     grating = prod.grating.lower()
     target = prod.target.lower()
     version = version.lower()
-    tel = 'hst'
+    aperture = prod.aperture().lower()
+
     if level == 1:
         suffix = "mspec"
+        tel = 'hst'
     elif level == 3 or level == 2:
-        suffix = "cspec"
+        if instrument == 'fuse':
+            tel = 'fuse'
+            instrument = 'fuv'   # "fuv" is the "instrument" equivalent for fuse
+            grating = aperture   # the grating for fuse data is set to "fuse" to change to use aperture
+            suffix = 'sed'
+        else:
+            tel= 'hst'
+            suffix = "cspec"
     elif level == 4:
         suffix = "sed"
         grating = "uv"
-        # Need to add logic for uv-opt here
-    elif level == 5:
-        tel = 'hst-fuse'  # maybe fuse will be included in instrument?
-        suffix = "sed"
-        grating = "uv"
+        if 'fuse' in instrument:
+            tel = 'hst-fuse'
+        else:
+            tel = 'hst'
 
+    # Need to add logic for uv-opt here
     name = f"hlsp_ullyses_{tel}_{instrument}_{target}_{grating}_{version}_{suffix}.fits"
     return name
 
