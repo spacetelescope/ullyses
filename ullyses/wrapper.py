@@ -5,10 +5,10 @@ import numpy as np
 
 from astropy.io import fits
 
-from coadd import COSSegmentList, STISSegmentList
+from coadd import COSSegmentList, STISSegmentList, FUSESegmentList
 from coadd import abut
 
-default_version = 'dr1'
+default_version = 'dr2'
 PROD_DIR = "/astro/ullyses/ULLYSES_HLSP"
 
 '''
@@ -61,6 +61,7 @@ def main(indir, outdir, version=default_version, clobber=False):
                     obsmode = ('FUSE', 'FUSE')
                     uniqmodes.append(obsmode)
                     f1.close()
+              
         if not uniqmodes:
             print(f'No data to coadd for {dirname}.')
             continue
@@ -77,6 +78,7 @@ def main(indir, outdir, version=default_version, clobber=False):
         products['cos_m'] = None
         products['stis_m'] = None
         products['stis_h'] = None
+        products['all_hst'] = None
         products['fuse'] = None
         products['all'] = None
 
@@ -89,6 +91,7 @@ def main(indir, outdir, version=default_version, clobber=False):
                 prod = STISSegmentList(grating, path=root)
             elif instrument == 'FUSE':
                 prod = FUSESegmentList(grating, path=root)
+                products['fuse'] = prod
             else:
                 print(f'Unknown mode [{instrument}, {grating}]')
 
@@ -169,33 +172,59 @@ def main(indir, outdir, version=default_version, clobber=False):
         elif products['E230H'] is not None:
             products['stis_h'] = products['E230H']
 
+        if products['fuse'] is not None:
+            filename = create_output_file_name(products['fuse'], version, level=level)
+            products['fuse'].write(filename, clobber, level=level, version=version)
+
         level = 4
+
         if products['cos_m'] is not None and products['stis_m'] is not None:
-            products['all'] = abut(products['cos_m'], products['stis_m'])
+            products['all_hst'] = abut(products['cos_m'], products['stis_m'])
         elif products['cos_m'] is not None and products['stis_h'] is not None:
-            products['all'] = abut(products['cos_m'], products['stis_h'])
-        if products['all'] is not None:
+            products['all_hst'] = abut(products['cos_m'], products['stis_h'])
+        if products['all_hst'] is not None:
+            filename = create_output_file_name(products['all_hst'], version, level=level)
+            filename = os.path.join(outdir, filename)
+            products['all_hst'].write(filename, clobber, level=level, version=version)
+            print(f"   Wrote {filename}")
+        if products['all_hst'] is not None and products['fuse'] is not None:
+            products['all'] = abut(products['all_hst'], products['fuse'])
             filename = create_output_file_name(products['all'], version, level=level)
             filename = os.path.join(outdir, filename)
             products['all'].write(filename, clobber, level=level, version=version)
-            print(f"   Wrote {filename}")
 
 
 def create_output_file_name(prod, version=default_version, level=3):
-    instrument = prod.instrument.lower()
+    instrument = prod.instrument.lower()   # will be either cos, stis, or fuse. If abbuted can be cos-stis or cos-stis-fuse
     grating = prod.grating.lower()
     target = prod.target.lower()
     version = version.lower()
+    aperture = prod.aperture().lower()
+
     if level == 1:
         suffix = "mspec"
+        tel = 'hst'
     elif level == 3 or level == 2:
-        suffix = "cspec"
+        if instrument == 'fuse':
+            tel = 'fuse'
+            instrument = 'fuv'   # "fuv" is the "instrument" equivalent for fuse
+            grating = aperture   # the grating for fuse data is set to "fuse" to change to use aperture
+            suffix = 'sed'
+        else:
+            tel= 'hst'
+            suffix = "cspec"
     elif level == 4:
         suffix = "sed"
         grating = "uv"
-        # Need to add logic for uv-opt here
-    name = f"hlsp_ullyses_hst_{instrument}_{target}_{grating}_{version}_{suffix}.fits"
+        if 'fuse' in instrument:
+            tel = 'hst-fuse'
+        else:
+            tel = 'hst'
+
+    # Need to add logic for uv-opt here
+    name = f"hlsp_ullyses_{tel}_{instrument}_{target}_{grating}_{version}_{suffix}.fits"
     return name
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -204,7 +233,7 @@ if __name__ == '__main__':
     parser.add_argument("-o", "--outdir", default=None,
                         help="Directory for output HLSPs")
     parser.add_argument("-v", "--version", default=default_version, 
-    					help="Version number of the HLSP")
+                        help="Version number of the HLSP")
     parser.add_argument("-c", "--clobber", default=False,
                         action="store_true",
                         help="If True, overwrite existing products")
