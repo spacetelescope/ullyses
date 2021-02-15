@@ -56,7 +56,7 @@ class Stisdata():
 
         self.yamlfile = yamlfile
         self.config = read_config(yamlfile)
-        self.sx1_c, self.fix_dq16, self.crrej_c, self.defringe_c, self.cti_proc, self.perform_cti = self.config["x1d"], self.config["fix_dq16"], self.config["crrej"], self.config["defringe"], self.config["processes"], self.config["perform_cti"]
+        self.sx1_c, self.fix_dq16, self.crrej_c, self.defringe_c, self.cti_proc, self.doperform_cti = self.config["x1d"], self.config["fix_dq16"], self.config["crrej"], self.config["defringe"], self.config["processes"], self.config["perform_cti"]
         detector = fits.getval(scifile, "detector")
         opt_elem = fits.getval(scifile, "opt_elem")
         assert detector == "CCD" and opt_elem !="MIRVIS", f"Observing configurtion not supported: {detector}/{opt_elem}"
@@ -83,7 +83,7 @@ class Stisdata():
             self.sx1_mast = prod
         self.visit = self.rootname[4:6]
         self.target = fits.getval(scifile, "targname")
-        if self.perform_cti is True:
+        if self.doperform_cti is True:
             self.flc = self.find_product("flc")
             self.crc = self.find_product("crc") 
         else: 
@@ -98,7 +98,7 @@ class Stisdata():
 #-----------------------------------------------------------------------------#
 
     def run_all(self):
-        if self.perform_cti is True:
+        if self.doperform_cti is True:
             self.perform_cti()
         self.analyze_dark()
         #self.flag_negatives()
@@ -196,8 +196,11 @@ class Stisdata():
     
             # Determine DARKFILE filename.
             if "/" in darkfile0:
-                darkname = os.path.basename(darkfile0)
-                darkfile = os.path.join(self._ref_dir, darkname)
+                if self.doperform_cti is True:    
+                    darkname = os.path.basename(darkfile0)
+                    darkfile = os.path.join(self._ref_dir, darkname)
+                else:
+                    darkfile = darkfile0
             else:
                 darkname = darkfile0.split("$")[1]
                 darkfile = os.path.join(OREF_DIR, darkname)
@@ -349,7 +352,7 @@ class Stisdata():
                 bk2offst = (pars["b_bkg2"] - pars["yloc"]) if pars["b_bkg2"] is not None else None,
                 bk1size = pars["b_hgt1"],
                 bk2size = pars["b_hgt2"],
-                ctecorr="omit" if self.perform_cti is True else "perform",
+                ctecorr="omit" if self.doperform_cti is True else "perform",
                 verbose=True)
             print(f"Wrote x1d file: {outfile}")
 
@@ -423,7 +426,7 @@ class Stisdata():
             print("No x1d files specified")
             return
 
-        if self.perform_cti is True:
+        if self.doperform_cti is True:
             outfile = os.path.join(self.outdir, self.rootname+"_crc.fits")
         else:
             outfile = os.path.join(self.outdir, self.rootname+"_crj.fits")
@@ -551,7 +554,7 @@ class Stisdata():
             print(f"Non-science X1D(s): {self.nonsci_x1d}")
 
         print("")
-        if self.perform_cti is True:
+        if self.doperform_cti is True:
             print("Pixel-based CTI correction performed")
         else:
             print("Default CalSTIS empirical CTI correction performed")
