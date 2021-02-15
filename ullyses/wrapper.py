@@ -52,7 +52,7 @@ def main(indir, outdir, version=default_version, clobber=False):
                     uniqmodes.append(obsmode)
                 f1.close()
         if vofiles:
-            if len(vofiles != 1):
+            if len(vofiles) != 1:
                 print("More than 1 FUSE data file, aborting")
             else:
                 for myfile in vofiles:
@@ -199,7 +199,7 @@ def create_output_file_name(prod, version=default_version, level=3):
     grating = prod.grating.lower()
     target = prod.target.lower()
     version = version.lower()
-    aperture = prod.aperture().lower()
+    aperture = prod.aperture.lower()
 
     if level == 1:
         suffix = "mspec"
