@@ -47,7 +47,7 @@ class Stisdata():
         x1d (list): List of final x1d products. 
         
     """
-    def __init__(self, scifile, yamlfile, outdir=None):
+    def __init__(self, scifile, yamlfile, outdir=None, overwrite=True):
         """
         Args:
             infiles: List or wildcard describing all input files.
@@ -183,7 +183,7 @@ class Stisdata():
             total = len(sci_dq) * len(sci_dq[0])
             perc_flagged = n_flagged / total
             if perc_flagged <= 0.06:
-                print(f"For ext={dqext}, less than 6% of pixels are flagged with DQ=16, not performing custom dark correction")
+                print(f"For ext={dqext}, less than 6% of pixels are flagged with DQ=16 ({perc_flagged*100.:.2f}), not performing custom dark correction")
                 if i == self.crsplit - 1:
                     sci_hdu.close()
                     return
@@ -522,11 +522,10 @@ class Stisdata():
     def find_product(self, ext):
         prod = os.path.join(self.basedir, self.rootname+"_"+ext+".fits")
         if not os.path.exists(prod):
-            prod = os.path.join(self.outdir, self.rootname+"_"+ext+".fits")
+            prod = os.path.join(self.basedir, "mast_products", self.rootname+"_"+ext+".fits")
             if not os.path.exists(prod):
-                prod = os.path.join(self.basedir, "mast_products", self.rootname+"_"+ext+".fits")
-                if not os.path.exists(prod):
-                    prod = None
+                prod = None
+#            prod = os.path.join(self.outdir, self.rootname+"_"+ext+".fits")
         if prod is not None:
             with fits.open(prod, mode="update") as hdulist:
                 hdr0 = hdulist[0].header
