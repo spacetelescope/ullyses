@@ -182,16 +182,22 @@ def main(indir, outdir, version=default_version, clobber=False):
             products['all_hst'] = abut(products['cos_m'], products['stis_m'])
         elif products['cos_m'] is not None and products['stis_h'] is not None:
             products['all_hst'] = abut(products['cos_m'], products['stis_h'])
-        if products['all_hst'] is not None:
+        elif products['stis_m'] is not None and products['fuse'] is not None:
+            products['all_hst'] = products['stis_m']
+        elif products['E140H'] is not None and products['fuse'] is not None:
+            products['all_hst'] = products['stis_h']
+
+        if products['all_hst'] is not None and products['fuse'] is not None:
+            products['all'] = abut(products['fuse'], products['all_hst'])
+            filename = create_output_file_name(products['all'], version, level=level)
+            filename = os.path.join(outdir, filename)
+            products['all'].write(filename, clobber, level=level, version=version)
+            print(f"   Wrote {filename}")
+        elif products['all_hst'] is not None:
             filename = create_output_file_name(products['all_hst'], version, level=level)
             filename = os.path.join(outdir, filename)
             products['all_hst'].write(filename, clobber, level=level, version=version)
             print(f"   Wrote {filename}")
-        if products['all_hst'] is not None and products['fuse'] is not None:
-            products['all'] = abut(products['all_hst'], products['fuse'])
-            filename = create_output_file_name(products['all'], version, level=level)
-            filename = os.path.join(outdir, filename)
-            products['all'].write(filename, clobber, level=level, version=version)
 
 
 def create_output_file_name(prod, version=default_version, level=3):
@@ -209,7 +215,7 @@ def create_output_file_name(prod, version=default_version, level=3):
             tel = 'fuse'
             instrument = 'fuv'   # "fuv" is the "instrument" equivalent for fuse
             grating = aperture   # the grating for fuse data is set to "fuse" to change to use aperture
-            suffix = 'sed'
+            suffix = 'cspec'
         else:
             tel= 'hst'
             suffix = "cspec"
