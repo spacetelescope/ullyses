@@ -182,8 +182,10 @@ def main(indir, outdir, version=default_version, clobber=False):
             products['all_hst'] = abut(products['cos_m'], products['stis_m'])
         elif products['cos_m'] is not None and products['stis_h'] is not None:
             products['all_hst'] = abut(products['cos_m'], products['stis_h'])
+        # Want to use medium res STIS if available
         elif products['stis_m'] is not None and products['fuse'] is not None:
             products['all_hst'] = products['stis_m']
+        # If no medium res STIS, use E140H 
         elif products['E140H'] is not None and products['fuse'] is not None:
             products['all_hst'] = products['stis_h']
 
