@@ -179,7 +179,7 @@ class Stisdata():
             # Check how many pixels are flagged.
             # DQ=512 is "bad pixel in reference file"
             sci_dq16 = np.where((sci_dq&dq == dq) & (sci_dq&512 == 0))
-            n_flagged = len(sci_dq16) * len(sci_dq16[0])
+            n_flagged = len(sci_dq16[0])
             total = len(sci_dq) * len(sci_dq[0])
             perc_flagged = n_flagged / total
             if perc_flagged <= 0.06:
