@@ -75,6 +75,8 @@ class SegmentList:
                     print('{} added to file list for FUSE'.format(file))
                     gratinglist.append(f1)
                     self.instrument = 'FUSE'
+                    aperture = prihdr["APERTURE"]
+                    self.aperture = aperture
                     self.datasets.append(file)
                     target = prihdr['TARGNAME']
                     if target not in self.targname:
@@ -203,8 +205,8 @@ class SegmentList:
         hdr1['TIMEUNIT'] = ('s', 'Time unit for durations')
         hdr1['TREFPOS'] = ('GEOCENTER', 'Time reference position')
 
-        mjd_beg = self.combine_keys("expstart", 1, "min")
-        mjd_end = self.combine_keys("expend", 1, "max")
+        mjd_beg = self.combine_keys("expstart", "min")
+        mjd_end = self.combine_keys("expend", "max")
         dt_beg = Time(mjd_beg, format="mjd").datetime
         dt_end = Time(mjd_end, format="mjd").datetime
         hdr1['DATE-BEG'] = (dt.strftime(dt_beg, "%Y-%m-%dT%H:%M:%S"), 'Date-time of first observation start')
@@ -214,7 +216,7 @@ class SegmentList:
         hdr1['DATE-END'] = (dt.strftime(dt_end, "%Y-%m-%dT%H:%M:%S"), 'Date-time of last observation end')
         hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
         hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
-        hdr1['XPOSURE'] = (self.combine_keys("exptime", 1, "sum"), '[s] Sum of exposure durations')
+        hdr1['XPOSURE'] = (self.combine_keys("exptime", "sum"), '[s] Sum of exposure durations')
     
         # set up the table columns
         nelements = len(self.output_wavelength)
@@ -244,16 +246,16 @@ class SegmentList:
         hdr0['ORIGIN'] = ('Space Telescope Science Institute', 'FITS file originator')
         hdr0['DATE'] = (str(datetime.date.today()), 'Date this file was written')
         hdr0['FILENAME'] = (os.path.basename(filename), 'Name of this file')
-        hdr0['TELESCOP'] = (self.combine_keys("telescop", 0, "multi"), 'Telescope used to acquire data')
-        hdr0['INSTRUME'] = (self.combine_keys("instrume", 0, "multi"), 'Instrument used to acquire data')
+        hdr0['TELESCOP'] = (self.combine_keys("telescop", "multi"), 'Telescope used to acquire data')
+        hdr0['INSTRUME'] = (self.combine_keys("instrume", "multi"), 'Instrument used to acquire data')
         hdr0.add_blank('', after='TELESCOP')
         hdr0.add_blank('              / SCIENCE INSTRUMENT CONFIGURATION', before='INSTRUME')
-        hdr0['DETECTOR'] = (self.combine_keys("detector", 0, "multi"), 'Detector or channel used to acquire data')
-        hdr0['DISPERSR'] = (self.combine_keys("opt_elem", 0, "multi"), 'Identifier of disperser')
-        hdr0['CENWAVE'] = (self.combine_keys("cenwave", 0, "multi"), 'Central wavelength setting for disperser')
-        hdr0['APERTURE'] = (self.combine_keys("aperture", 0, "multi"), 'Identifier of entrance aperture')
+        hdr0['DETECTOR'] = (self.combine_keys("detector", "multi"), 'Detector or channel used to acquire data')
+        hdr0['DISPERSR'] = (self.combine_keys("opt_elem", "multi"), 'Identifier of disperser')
+        hdr0['CENWAVE'] = (self.combine_keys("cenwave", "multi"), 'Central wavelength setting for disperser')
+        hdr0['APERTURE'] = (self.combine_keys("aperture", "multi"), 'Identifier of entrance aperture')
         hdr0['S_REGION'] = (self.obs_footprint(), 'Region footprint')
-        hdr0['OBSMODE'] = (self.combine_keys("obsmode", 0, "multi"), 'Instrument operating mode (ACCUM | TIME-TAG)')
+        hdr0['OBSMODE'] = (self.combine_keys("obsmode", "multi"), 'Instrument operating mode (ACCUM | TIME-TAG)')
         hdr0['TARGNAME'] = self.targname[0]
         hdr0.add_blank(after='OBSMODE')
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
@@ -261,7 +263,7 @@ class SegmentList:
         hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
-        hdr0['PROPOSID'] = (self.combine_keys("proposid", 0, "multi"), 'Program identifier')
+        hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi"), 'Program identifier')
         hdr0.add_blank(after='TARG_DEC')
         hdr0.add_blank('           / PROVENANCE INFORMATION', before='PROPOSID')
         hdr0['CAL_VER'] = (f'ULLYSES Cal {CAL_VER}', 'HLSP processing software version')
@@ -275,11 +277,11 @@ class SegmentList:
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
         hdr0['REFERENC'] = ('TBD', 'Bibliographic ID of primary paper')
     
-        hdr0['CENTRWV'] = (self.combine_keys("centrwv", 0, "average"), 'Central wavelength of the data')
+        hdr0['CENTRWV'] = (self.combine_keys("centrwv", "average"), 'Central wavelength of the data')
         hdr0.add_blank(after='REFERENC')
         hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')
-        hdr0['MINWAVE'] = (self.combine_keys("minwave", 0, "min"), 'Minimum wavelength in spectrum')
-        hdr0['MAXWAVE'] = (self.combine_keys("maxwave", 0, "max"), 'Maximum wavelength in spectrum')
+        hdr0['MINWAVE'] = (self.combine_keys("minwave", "min"), 'Minimum wavelength in spectrum')
+        hdr0['MAXWAVE'] = (self.combine_keys("maxwave", "max"), 'Maximum wavelength in spectrum')
 
         primary = fits.PrimaryHDU(header=hdr0)
 
@@ -383,14 +385,51 @@ class SegmentList:
             return avg_ra, avg_dec    
                                       
                                       
-    def combine_keys(self, key, hdrno, method):
-        # Allowable methods are min, max, average, sum, multi
+    def combine_keys(self, key, method):
+        keymap_hst = {"expstart": ("expstart", 1),
+                      "expend": ("expend", 1),
+                      "exptime": ("exptime", 1),
+                      "telescop": ("telescop", 0),
+                      "instrume": ("instrume", 0),
+                      "detector": ("detector", 0),
+                      "opt_elem": ("opt_elem", 0),
+                      "cenwave": ("cenwave", 0),
+                      "aperture": ("aperture", 0),
+                      "obsmode": ("obsmode", 0),
+                      "proposid": ("proposid", 0),
+                      "centrwv": ("centrwv", 0),
+                      "minwave": ("minwave", 0),
+                      "maxwave": ("maxwave", 0)}
+        keymap_fuse = {"expstart": ("obsstart", 0),
+                       "expend": ("obsend", 0),
+                       "exptime": ("obstime", 0),
+                       "telescop": ("telescop", 0),
+                       "instrume": ("instrume", 0),
+                       "detector": ("detector", 0),
+                       "opt_elem": ("detector", 0),
+                       "cenwave": ("centrwv", 0),
+                       "aperture": ("aperture", 0),
+                       "obsmode": ("instmode", 0),
+                       "proposid": ("prgrm_id", 0),
+                       "centrwv": ("centrwv", 0),
+                       "minwave": ("wavemin", 0),
+                       "maxwave": ("wavemax", 0)}
+
+        if self.instrument == "FUSE":
+            keymap = keymap_fuse
+        else:
+            keymap = keymap_hst
+        actual_key = keymap[key][0]
+        hdrno = keymap[key][1]
+
         if hdrno == 0:
             hdrs = self.primary_headers
         else:
             hdrs = self.first_headers
 
-        vals = [h[key] for h in hdrs]
+        vals = [h[actual_key] for h in hdrs]
+        
+        # Allowable methods are min, max, average, sum, multi
         if method == "multi":
             keys_set = list(set(vals))
             if len(keys_set) > 1:
@@ -478,8 +517,8 @@ class FUSESegmentList(SegmentList):
         hdr1['TIMEUNIT'] = ('s', 'Time unit for durations')
         hdr1['TREFPOS'] = ('GEOCENTER', 'Time reference position')
 
-        mjd_beg = self.combine_keys("obsstart", 0, "min")
-        mjd_end = self.combine_keys("obsend", 0, "max")
+        mjd_beg = self.combine_keys("expstart", "min")
+        mjd_end = self.combine_keys("expend", "max")
         dt_beg = Time(mjd_beg, format="mjd").datetime
         dt_end = Time(mjd_end, format="mjd").datetime
         hdr1['DATE-BEG'] = (dt.strftime(dt_beg, "%Y-%m-%dT%H:%M:%S"), 'Date-time of first observation start')
@@ -489,7 +528,7 @@ class FUSESegmentList(SegmentList):
         hdr1['DATE-END'] = (dt.strftime(dt_end, "%Y-%m-%dT%H:%M:%S"), 'Date-time of last observation end')
         hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
         hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
-        hdr1['XPOSURE'] = (self.combine_keys("obstime", 0, "sum"), '[s] Sum of exposure durations')
+        hdr1['XPOSURE'] = (self.combine_keys("exptime", "sum"), '[s] Sum of exposure durations')
     
         # set up the table columns
         nelements = len(self.output_wavelength)
@@ -519,16 +558,16 @@ class FUSESegmentList(SegmentList):
         hdr0['ORIGIN'] = ('Space Telescope Science Institute', 'FITS file originator')
         hdr0['DATE'] = (str(datetime.date.today()), 'Date this file was written')
         hdr0['FILENAME'] = (os.path.basename(filename), 'Name of this file')
-        hdr0['TELESCOP'] = (self.combine_keys("telescop", 0, "multi"), 'Telescope used to acquire data')
-        hdr0['INSTRUME'] = (self.combine_keys("instrume", 0, "multi"), 'Instrument used to acquire data')
+        hdr0['TELESCOP'] = (self.combine_keys("telescop", "multi"), 'Telescope used to acquire data')
+        hdr0['INSTRUME'] = (self.combine_keys("instrume", "multi"), 'Instrument used to acquire data')
         hdr0.add_blank('', after='TELESCOP')
         hdr0.add_blank('              / SCIENCE INSTRUMENT CONFIGURATION', before='INSTRUME')
-        hdr0['DETECTOR'] = (self.combine_keys("detector", 0, "multi"), 'Detector or channel used to acquire data')
-        hdr0['DISPERSR'] = (self.combine_keys("detector", 0, "multi"), 'Identifier of disperser')
-        hdr0['CENWAVE'] = (self.combine_keys("centrwv", 0, "multi"), 'Central wavelength setting for disperser')
-        hdr0['APERTURE'] = (self.combine_keys("aperture", 0, "multi"), 'Identifier of entrance aperture')
+        hdr0['DETECTOR'] = (self.combine_keys("detector", "multi"), 'Detector or channel used to acquire data')
+        hdr0['DISPERSR'] = (self.combine_keys("opt_elem", "multi"), 'Identifier of disperser')
+        hdr0['CENWAVE'] = (self.combine_keys("cenwave", "multi"), 'Central wavelength setting for disperser')
+        hdr0['APERTURE'] = (self.combine_keys("aperture", "multi"), 'Identifier of entrance aperture')
         hdr0['S_REGION'] = (self.obs_footprint(), 'Region footprint')
-        hdr0['OBSMODE'] = (self.combine_keys("instmode", 0, "multi"), 'Instrument operating mode (ACCUM | TIME-TAG)')
+        hdr0['OBSMODE'] = (self.combine_keys("obsmode", "multi"), 'Instrument operating mode (ACCUM | TIME-TAG)')
         hdr0['TARGNAME'] = self.targname[0]
         hdr0.add_blank(after='OBSMODE')
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
@@ -536,7 +575,7 @@ class FUSESegmentList(SegmentList):
         hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
-        hdr0['PROPOSID'] = (self.combine_keys("prgrm_id", 0, "multi"), 'Program identifier')
+        hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi"), 'Program identifier')
         hdr0.add_blank(after='TARG_DEC')
         hdr0.add_blank('           / PROVENANCE INFORMATION', before='PROPOSID')
         hdr0['CAL_VER'] = (f'ULLYSES Cal {CAL_VER}', 'HLSP processing software version')
@@ -550,11 +589,11 @@ class FUSESegmentList(SegmentList):
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
         hdr0['REFERENC'] = ('TBD', 'Bibliographic ID of primary paper')
     
-        hdr0['CENTRWV'] = (self.combine_keys("centrwv", 0, "average"), 'Central wavelength of the data')
+        hdr0['CENTRWV'] = (self.combine_keys("centrwv", "average"), 'Central wavelength of the data')
         hdr0.add_blank(after='REFERENC')
         hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')
-        hdr0['MINWAVE'] = (self.combine_keys("wavemin", 0, "min"), 'Minimum wavelength in spectrum')
-        hdr0['MAXWAVE'] = (self.combine_keys("wavemax", 0, "max"), 'Maximum wavelength in spectrum')
+        hdr0['MINWAVE'] = (self.combine_keys("minwave", "min"), 'Minimum wavelength in spectrum')
+        hdr0['MAXWAVE'] = (self.combine_keys("maxwave", "max"), 'Maximum wavelength in spectrum')
 
         primary = fits.PrimaryHDU(header=hdr0)
 
