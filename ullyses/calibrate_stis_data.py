@@ -195,16 +195,17 @@ class Stisdata():
                 print(f"Manually creating superdarks and setting DQ={dq} values...")
     
             # Determine DARKFILE filename.
-            if "/" in darkfile0:
-                if self.doperform_cti is True:    
-                    darkname = os.path.basename(darkfile0)
-                    darkfile = os.path.join(self._ref_dir, darkname)
+            if self.doperform_cti is True:
+                darkname = os.path.basename(darkfile0)
+                darkfile = os.path.join(self._ref_dir, darkname)
+            else:
+                if "oref" in darkfile0:
+                    darkname = darkfile0.split("$")[1]
+                    darkfile = os.path.join(OREF_DIR, darkname)
                 else:
                     darkname = os.path.basename(darkfile0)
-                    darkfile = darkfile0
-            else:
-                darkname = darkfile0.split("$")[1]
-                darkfile = os.path.join(OREF_DIR, darkname)
+                    darkfile = os.path.join(OREF_DIR, darkname)
+
 
             # Remove any existing DQ={dq} flags from FLT, since DQ={dq} flags are
             # inherently wrong.
