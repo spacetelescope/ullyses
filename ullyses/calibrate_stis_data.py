@@ -200,6 +200,7 @@ class Stisdata():
                     darkname = os.path.basename(darkfile0)
                     darkfile = os.path.join(self._ref_dir, darkname)
                 else:
+                    darkname = os.path.basename(darkfile0)
                     darkfile = darkfile0
             else:
                 darkname = darkfile0.split("$")[1]
