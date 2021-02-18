@@ -74,6 +74,10 @@ def main(indir, outdir, version=default_version, clobber=False):
                 prod = STISSegmentList(grating, path=root)
             else:
                 print(f'Unknown mode [{instrument}, {grating}]')
+                continue
+
+            prod.target = prod.ull_targname()
+            prod.targ_ra, prod.targ_dec = prod.ull_coords()
 
             # these two calls perform the main functions
             if len(prod.members) > 0:
