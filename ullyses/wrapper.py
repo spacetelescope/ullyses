@@ -184,7 +184,7 @@ def create_output_file_name(prod, version=default_version, level=3):
     target = prod.target.lower()
     version = version.lower()
     if level == 0:
-        suffix = "test"
+        suffix = "spec"
     if level == 1:
         suffix = "mspec"
     elif level == 3 or level == 2:
