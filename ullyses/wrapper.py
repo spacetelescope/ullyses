@@ -40,28 +40,23 @@ def main(indir, outdir, version=default_version, clobber=False):
         # but we need to know which gratings are present
         uniqmodes = []
 
-        x1dfiles = glob.glob(os.path.join(root, '*_x1d.fits'))
+        spec1d = glob.glob(os.path.join(root, '*_x1d.fits')) + glob.glob(os.path.join(root, '*_sx1.fits'))
         vofiles = glob.glob(os.path.join(root, '*_vo.fits'))
+        for myfile in spec1d:
+            f1 = fits.open(myfile)
+            prihdr = f1[0].header
+            obsmode = (prihdr['INSTRUME'], prihdr['OPT_ELEM'])
+            if obsmode not in uniqmodes:
+                uniqmodes.append(obsmode)
+            f1.close()
 
-        if x1dfiles:
-            for myfile in x1dfiles:
-                f1 = fits.open(myfile)
-                prihdr = f1[0].header
-                obsmode = (prihdr['INSTRUME'], prihdr['OPT_ELEM'])
-                if obsmode not in uniqmodes:
-                    uniqmodes.append(obsmode)
-                f1.close()
         if vofiles:
             if len(vofiles) != 1:
                 print("More than 1 FUSE data file, aborting")
             else:
-                for myfile in vofiles:
-                    f1 = fits.open(myfile)
-                    prihdr = f1[0].header
-                    obsmode = ('FUSE', 'FUSE')
-                    uniqmodes.append(obsmode)
-                    f1.close()
-              
+                obsmode = ('FUSE', 'FUSE')
+                uniqmodes.append(obsmode)
+
         if not uniqmodes:
             print(f'No data to coadd for {dirname}.')
             continue
@@ -94,6 +89,10 @@ def main(indir, outdir, version=default_version, clobber=False):
                 products['fuse'] = prod
             else:
                 print(f'Unknown mode [{instrument}, {grating}]')
+                continue
+
+            prod.target = prod.ull_targname()
+            prod.targ_ra, prod.targ_dec = prod.ull_coords()
 
             # these two calls perform the main functions
             if len(prod.members) > 0:
@@ -111,6 +110,21 @@ def main(indir, outdir, version=default_version, clobber=False):
                 outname = create_output_file_name(prod, version, level=level)
                 outname = os.path.join(outdir, outname)
                 prod.write(outname, clobber, level=level, version=version)
+                print(f"   Wrote {outname}")
+                products[grating] = prod
+            if prod.level0 is True:
+                prod.create_output_wavelength_grid()
+                prod.coadd()
+                # this writes the output file
+                # If making HLSPs for a DR, put them in the official folder
+                target = prod.target.lower()
+                if outdir_inplace is True:
+                    outdir = os.path.join(PROD_DIR, target, version)
+                if not os.path.exists(outdir):
+                    os.makedirs(outdir)
+                outname = create_output_file_name(prod, version, level=0)
+                outname = os.path.join(outdir, outname)
+                prod.write(outname, clobber, level=0, version=version)
                 print(f"   Wrote {outname}")
                 products[grating] = prod
             else:
@@ -207,8 +221,8 @@ def create_output_file_name(prod, version=default_version, level=3):
     grating = prod.grating.lower()
     target = prod.target.lower()
     version = version.lower()
-    aperture = prod.aperture.lower()
-
+    if level == 0:
+        suffix = "spec"
     if level == 1:
         suffix = "mspec"
         tel = 'hst'

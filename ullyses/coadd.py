@@ -18,6 +18,7 @@ CAL_VER = 0.1
 RED = "\033[1;31m"
 RESET = "\033[0;0m"
 
+
 class SegmentList:
 
     def __init__(self, grating, path='.'):
@@ -42,9 +43,10 @@ class SegmentList:
         self.target = ''
         self.prog_id = ''
         self.datasets = []
+        self.level0 = False
 
-        x1dfiles = glob.glob(os.path.join(path, '*_x1d.fits'))
         vofiles = glob.glob(os.path.join(path, '*_vo.fits'))
+        x1dfiles = glob.glob(os.path.join(path, '*_x1d.fits')) + glob.glob(os.path.join(path, '*_sx1.fits'))
 
         gratinglist = []
 
@@ -61,6 +63,11 @@ class SegmentList:
                     target = prihdr['TARGNAME']
                     if target not in self.targname:
                         self.targname.append(target.strip())
+                    try:
+                        if prihdr['HLSP_LVL'] == 0:
+                            self.level0 = True
+                    except:
+                        pass
                 else:
                     print('{} has no data'.format(file))
             else:
@@ -168,7 +175,7 @@ class SegmentList:
         wavelength = index * self.delta_wavelength + self.min_wavelength
         return wavelength
 
-    def get_gross_counts(self, segment):
+    def get_flux_weight(self, segment):
         pass
 
     def coadd(self):
@@ -177,7 +184,7 @@ class SegmentList:
             goodpixels = np.where((segment.data['dq'] & segment.sdqflags) == 0)
             wavelength = segment.data['wavelength'][goodpixels]
             indices = self.wavelength_to_index(wavelength)
-            gross_counts = self.get_gross_counts(segment)
+            gross_counts = self.get_flux_weight(segment)
             weight = gross_counts[goodpixels]
             flux = segment.data['flux'][goodpixels]
             self.output_sumweight[indices] = self.output_sumweight[indices] + weight
@@ -450,16 +457,35 @@ class SegmentList:
         elif method == "arr":
             return np.array(vals)
 
+
+# Weight functions for STIS
+weight_function = {
+    'gross':      lambda x, y, z: x,
+    'exptime':    lambda x, y, z: x * y,
+    'throughput': lambda x, y, z: x * y * z
+}
+
 class STISSegmentList(SegmentList):
 
-    def get_gross_counts(self, segment):
+    def __init__(self, grating, path, weighting_method='throughput'):
+        SegmentList.__init__(self, grating, path)
+
+        self.weighting_method = weighting_method
+
+    def get_flux_weight(self, segment):
        exptime = segment.exptime
        gross = segment.data['gross']
-       return np.abs(gross*exptime)
+       net = segment.data['net']
+       flux = segment.data['flux']
+
+       weighted_gross = weight_function[self.weighting_method](gross, exptime, net/flux)
+
+       return np.abs(weighted_gross)
+
 
 class COSSegmentList(SegmentList):
 
-    def get_gross_counts(self, segment):
+    def get_flux_weight(self, segment):
         try:
             gross = segment.data['variance_counts'] + segment.data['variance_bkg'] + segment.data['variance_flat']
             return gross
@@ -518,6 +544,7 @@ class Segment:
         self.data = None
         self.sdqflags = None
         self.exptime = None
+
 
 def abut(product_short, product_long):
     """Abut the spectra in 2 products.  Assumes the first argument is the shorter
@@ -591,6 +618,7 @@ def abut(product_short, product_long):
     
     product_abutted.targ_ra, product_abutted.targ_dec = product_abutted.ull_coords()
     return product_abutted
+
 
 def find_transition_wavelength(product_short, product_long):
     """Find the wavelength below which we use product_short and above
