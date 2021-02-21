@@ -47,7 +47,7 @@ class Stisdata():
         x1d (list): List of final x1d products. 
         
     """
-    def __init__(self, scifile, yamlfile, outdir=None, overwrite=True):
+    def __init__(self, scifile, yamlfile, outdir=None, overwrite=True, force_dq16=False):
         """
         Args:
             infiles: List or wildcard describing all input files.
@@ -56,6 +56,7 @@ class Stisdata():
 
         self.yamlfile = yamlfile
         self.config = read_config(yamlfile)
+        self.force_dq16 = force_dq16
         self.sx1_c, self.fix_dq16, self.crrej_c, self.defringe_c, self.cti_proc, self.doperform_cti = self.config["x1d"], self.config["fix_dq16"], self.config["crrej"], self.config["defringe"], self.config["processes"], self.config["perform_cti"]
         detector = fits.getval(scifile, "detector")
         opt_elem = fits.getval(scifile, "opt_elem")
@@ -182,11 +183,15 @@ class Stisdata():
             n_flagged = len(sci_dq16[0])
             total = len(sci_dq) * len(sci_dq[0])
             perc_flagged = n_flagged / total
-            if perc_flagged <= 0.06:
+            if perc_flagged <= 0.06 and self.force_dq16 is False:
                 print(f"For ext={dqext}, less than 6% of pixels are flagged with DQ=16 ({perc_flagged*100.:.2f}), not performing custom dark correction")
                 if i == self.crsplit - 1:
                     sci_hdu.close()
                     return
+            elif perc_flagged <= 0.06 and self.force_dq16 is True:
+                print(f"For ext={dqext}, less than 6% of pixels are flagged with DQ=16 ({perc_flagged*100.:.2f}), but force_dq16 flag is True, so custom dark correction is still applied")
+                self.fix_dq16 = True
+                self.config["fix_dq16"] = True
             else:
                 self.fix_dq16 = True
                 self.config["fix_dq16"] = True
@@ -515,7 +520,7 @@ class Stisdata():
             except shutil.SameFileError:
                 pass
 
-        print(f"Wrote defringed crj file: {outfile}")
+            print(f"Wrote defringed crj file: {outfile_dest}")
 
 #-----------------------------------------------------------------------------#
 
