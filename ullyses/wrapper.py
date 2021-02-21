@@ -221,7 +221,10 @@ def create_output_file_name(prod, version=default_version, level=3):
     grating = prod.grating.lower()
     target = prod.target.lower()
     version = version.lower()
+    aperture = prod.aperture.lower()
+
     if level == 0:
+        tel = 'hst'
         suffix = "spec"
     if level == 1:
         suffix = "mspec"
