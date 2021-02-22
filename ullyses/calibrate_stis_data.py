@@ -107,6 +107,7 @@ class Stisdata():
         self.crrej()
         self.defringe()
         self.extract_spectra()
+        self.config["force_dq16"] = self.force_dq16
         write_config(self.config, self.yamlfile)
         self.add_id()
         self.help()
