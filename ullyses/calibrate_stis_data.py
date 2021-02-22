@@ -502,6 +502,8 @@ class Stisdata():
                          beg_scale=pars["mkfringeflat"]["beg_scale"],
                          end_scale=pars["mkfringeflat"]["end_scale"],
                          scale_step=pars["mkfringeflat"]["scale_step"],
+                         opti_spreg=pars["mkfringeflat"]["opti_spreg"] if "opti_spreg" in pars["mkfringeflat"] else None,
+                         rms_region=pars["mkfringeflat"]["rms_region"] if "rms_region" in pars["mkfringeflat"] else None,
                          extrloc=pars["mkfringeflat"]["extrloc"] if "extrloc" in pars["mkfringeflat"] else None,
                          extrsize=pars["mkfringeflat"]["extrsize"] if "extrloc" in pars["mkfringeflat"] else None)
             outfile = stistools.defringe.defringe(science_file=self.crc,
