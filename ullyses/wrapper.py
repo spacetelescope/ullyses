@@ -62,21 +62,8 @@ def main(indir, outdir, version=default_version, clobber=False):
             print(f'No data to coadd for {dirname}.')
             continue
         
-        products = {}
-        products['G130M'] = None
-        products['G160M'] = None
-        products['G185M'] = None
-        products['E140M'] = None
-        products['E230M'] = None
-        products['E140H'] = None
-        products['E230H'] = None
-        products['cos_fuv_m'] = None
-        products['cos_m'] = None
-        products['stis_m'] = None
-        products['stis_h'] = None
-        products['all_hst'] = None
-        products['fuse'] = None
-        products['all'] = None
+        # Create dictionary of all products, with each set to None by default
+        products = defaultdict(lambda: None)
 
         level = 2
         for instrument, grating in uniqmodes:
@@ -87,7 +74,7 @@ def main(indir, outdir, version=default_version, clobber=False):
                 prod = STISSegmentList(grating, path=root)
             elif instrument == 'FUSE':
                 prod = FUSESegmentList(grating, path=root)
-                products['fuse'] = prod
+                products[f'{instrument}/{grating}'] = prod
             else:
                 print(f'Unknown mode [{instrument}, {grating}]')
                 continue
@@ -112,7 +99,7 @@ def main(indir, outdir, version=default_version, clobber=False):
                 outname = os.path.join(outdir, outname)
                 prod.write(outname, clobber, level=level, version=version)
                 print(f"   Wrote {outname}")
-                products[grating] = prod
+                products[f'{instrument}/{grating}'] = prod
             else:
                 print(f"No valid data for grating {grating}")
             if prod.level0 is True:
@@ -129,62 +116,83 @@ def main(indir, outdir, version=default_version, clobber=False):
                 outname = os.path.join(outdir, outname)
                 prod.write(outname, clobber, level=0, version=version)
                 print(f"   Wrote {outname}")
-                products[grating] = prod
-            products[grating] = prod
+                products[f'{instrument}/{grating}'] = prod
+            products[f'{instrument}/{grating}'] = prod
 
-
-        # Create Level 3 products by abutting level 2 products
-        level = 3
-        if products['G130M'] is not None and products['G160M'] is not None:
-            products['cos_fuv_m'] = abut(products['G130M'], products['G160M'])
-            filename = create_output_file_name(products['cos_fuv_m'], version, level=level)
-            filename = os.path.join(outdir, filename)
-            products['cos_fuv_m'].write(filename, clobber, level=level, version=version)
-            print(f"   Wrote {filename}")
-        elif products['G130M'] is not None:
-            products['cos_fuv_m'] = products['G130M']
-        elif products['G160M'] is not None:
-            products['cos_fuv_m'] = products['G160M']
-
-        if products['cos_fuv_m'] is not None and products['G185M'] is not None:
-            products['cos_m'] = abut(products['cos_fuv_m'], products['G185M'])
-            if products['cos_m'] is not None:
-                filename = create_output_file_name(products['cos_m'], version, level=level)
+#
+        lvl3_modes = {"cos_fuv_m": ["COS/G130M", "COS/G160M", "COS/G185M"],
+                      "stis_m": ["STIS/E140M", "STIS/E230M"],
+                      "stis_h": ["STIS/E140H", "STIS/E230H"],
+                      "stis_l": ["STIS/G230L", "STIS/G430L", "STIS/G750L"]}
+        for outprod,modes in lvl3_modes.items():
+            abutted = None
+            dowrite = False
+            for mode in modes:
+                if products[mode] is not None:
+                    if abutted is None:
+                        abutted = products[mode]
+                    else:
+                        abutted = abut(abutted, products[mode])
+                        dowrite = True
+            if dowrite is True:
+                filename = create_output_file_name(abutted, version, level=level)
                 filename = os.path.join(outdir, filename)
-                products['cos_m'].write(filename, clobber, level=level, version=version)
+                abutted.write(filename, clobber, level=level, version=version)
                 print(f"   Wrote {filename}")
-        elif products['cos_fuv_m'] is not None:
-            products['cos_m'] = products['cos_fuv_m']
-        elif products['G185M'] is not None:
-            products['cos_m'] = products['G185M']
-        
-        if products['E140M'] is not None and products['E230M'] is not None:
-            products['stis_m'] = abut(products['E140M'], products['E230M'])
-            if products['stis_m'] is not None:
-                filename = create_output_file_name(products['stis_m'], version, level=level)
-                filename = os.path.join(outdir, filename)
-                products['stis_m'].write(filename, clobber, level=level, version=version)
-                print(f"   Wrote {filename}")
-        elif products['E140M'] is not None:
-            products['stis_m'] = products['E140M']
-        elif products['E230M'] is not None:
-            products['stis_m'] = products['E230M']
-        
-        if products['E140H'] is not None and products['E230H'] is not None:
-            products['stis_h'] = abut(products['E140H'], products['E230H'])
-            if products['stis_h'] is not None:
-                filename = create_output_file_name(products['stis_h'], version, level=level)
-                filename = os.path.join(outdir, filename)
-                products['stis_h'].write(filename, clobber, level=level, version=version)
-                print(f"   Wrote {filename}")
-        elif products['E140H'] is not None:
-            products['stis_h'] = products['E140H']
-        elif products['E230H'] is not None:
-            products['stis_h'] = products['E230H']
 
-        if products['fuse'] is not None:
-            filename = create_output_file_name(products['fuse'], version, level=level)
-            products['fuse'].write(filename, clobber, level=level, version=version)
+#
+#        # Create Level 3 products by abutting level 2 products
+#        level = 3
+#        if products['COS/G130M'] is not None and products['COS/G160M'] is not None:
+#            products['cos_fuv_m'] = abut(products['COS/G130M'], products['COS/G160M'])
+#            filename = create_output_file_name(products['cos_fuv_m'], version, level=level)
+#            filename = os.path.join(outdir, filename)
+#            products['cos_fuv_m'].write(filename, clobber, level=level, version=version)
+#            print(f"   Wrote {filename}")
+#        elif products['COS/G130M'] is not None:
+#            products['cos_fuv_m'] = products['COS/G130M']
+#        elif products['COS/G160M'] is not None:
+#            products['cos_fuv_m'] = products['COS/G160M']
+#
+#        if products['cos_fuv_m'] is not None and products['COS/G185M'] is not None:
+#            products['cos_m'] = abut(products['cos_fuv_m'], products['COS/G185M'])
+#            if products['cos_m'] is not None:
+#                filename = create_output_file_name(products['cos_m'], version, level=level)
+#                filename = os.path.join(outdir, filename)
+#                products['cos_m'].write(filename, clobber, level=level, version=version)
+#                print(f"   Wrote {filename}")
+#        elif products['cos_fuv_m'] is not None:
+#            products['cos_m'] = products['cos_fuv_m']
+#        elif products['COS/G185M'] is not None:
+#            products['cos_m'] = products['G185M']
+#        
+#        if products['E140M'] is not None and products['E230M'] is not None:
+#            products['stis_m'] = abut(products['E140M'], products['E230M'])
+#            if products['stis_m'] is not None:
+#                filename = create_output_file_name(products['stis_m'], version, level=level)
+#                filename = os.path.join(outdir, filename)
+#                products['stis_m'].write(filename, clobber, level=level, version=version)
+#                print(f"   Wrote {filename}")
+#        elif products['E140M'] is not None:
+#            products['stis_m'] = products['E140M']
+#        elif products['E230M'] is not None:
+#            products['stis_m'] = products['E230M']
+#        
+#        if products['E140H'] is not None and products['E230H'] is not None:
+#            products['stis_h'] = abut(products['E140H'], products['E230H'])
+#            if products['stis_h'] is not None:
+#                filename = create_output_file_name(products['stis_h'], version, level=level)
+#                filename = os.path.join(outdir, filename)
+#                products['stis_h'].write(filename, clobber, level=level, version=version)
+#                print(f"   Wrote {filename}")
+#        elif products['E140H'] is not None:
+#            products['stis_h'] = products['E140H']
+#        elif products['E230H'] is not None:
+#            products['stis_h'] = products['E230H']
+
+        if products['FUSE/FUSE'] is not None:
+            filename = create_output_file_name(products['FUSE/FUSE'], version, level=level)
+            products['FUSE/FUSE'].write(filename, clobber, level=level, version=version)
 
         level = 4
         
@@ -195,8 +203,8 @@ def main(indir, outdir, version=default_version, clobber=False):
         for instrument, grating in uniqmodes:
             ins.append(instrument)
             gratings.append(grating)
-            minwls.append(products[grating].min_wavelength)
-            maxwls.append(products[grating].max_wavelength)
+            minwls.append(products[instrument+"/"+grating].min_wavelength)
+            maxwls.append(products[instrument+"/"+grating].max_wavelength)
         if len(set(ins)) != 1:
             df = pd.DataFrame({"gratings": gratings, "ins": ins, "minwls": minwls, "maxwls": maxwls})
             lowind = df["minwls"].idxmin()
@@ -245,10 +253,10 @@ def main(indir, outdir, version=default_version, clobber=False):
 #                    if target not in ["sk191", "av388", "av456", "av479"]:
 #                        print("!!!! used and actual_used do not match")
 #                        import pdb; pdb.set_trace()
-                abut_gr = used.iloc[0]["gratings"]
+                abut_gr = used.iloc[0]["ins"] + "/" + used.iloc[0]["gratings"]
                 abutted = products[abut_gr]
                 for i in range(1, len(used)):
-                    abut_gr = used.iloc[i]["gratings"]
+                    abut_gr = used.iloc[i]["ins"] + "/" + used.iloc[i]["gratings"]
                     abutted = abut(abutted, products[abut_gr])
                 filename = create_output_file_name(abutted, version, level=level)
                 filename = os.path.join(outdir, filename)
