@@ -1,3 +1,5 @@
+import pandas as pd
+from collections import defaultdict
 import argparse
 import os
 import glob
@@ -16,6 +18,19 @@ This wrapper goes through each target folder in the ullyses data directory and f
 the data and which gratings are present. This info is then fed into coadd.py.
 '''
 
+res_pwr = {"COS/G130M": 16000,
+           "COS/G160M": 20000,
+           "COS/G140L": 4000,
+           "COS/G185M": 20000,
+           "COS/G285M": 24000,
+           "COS/G230L": 3900,
+           "STIS/G750L": 500,
+           "STIS/G430L": 500,
+           "STIS/G230L": 500,
+           "STIS/E230M": 30000,
+           "STIS/E230H": 114000,
+           "STIS/E140M": 45800,
+           "STIS/E140H": 114000}
 
 def main(indir, outdir, version=default_version, clobber=False):
     outdir_inplace = False
@@ -60,7 +75,7 @@ def main(indir, outdir, version=default_version, clobber=False):
         if not uniqmodes:
             print(f'No data to coadd for {dirname}.')
             continue
-
+        
         products = {}
         products['G130M'] = None
         products['G160M'] = None
@@ -104,7 +119,7 @@ def main(indir, outdir, version=default_version, clobber=False):
                 prod.targ_ra, prod.targ_dec = prod.ull_coords()
                 target = prod.target.lower()
                 if outdir_inplace is True:
-                    outdir = os.path.join(PROD_DIR, target, version)
+                    dictir = os.path.join(PROD_DIR, target, version)
                 if not os.path.exists(outdir):
                     os.makedirs(outdir)
                 outname = create_output_file_name(prod, version, level=level)
@@ -112,6 +127,8 @@ def main(indir, outdir, version=default_version, clobber=False):
                 prod.write(outname, clobber, level=level, version=version)
                 print(f"   Wrote {outname}")
                 products[grating] = prod
+            else:
+                print(f"No valid data for grating {grating}")
             if prod.level0 is True:
                 prod.create_output_wavelength_grid()
                 prod.coadd()
@@ -127,8 +144,6 @@ def main(indir, outdir, version=default_version, clobber=False):
                 prod.write(outname, clobber, level=0, version=version)
                 print(f"   Wrote {outname}")
                 products[grating] = prod
-            else:
-                print(f"No valid data for grating {grating}")
             products[grating] = prod
 
         # Create Level 3 products by abutting level 2 products
@@ -136,6 +151,42 @@ def main(indir, outdir, version=default_version, clobber=False):
 #            products['cos_m'] = coadd.abut(products['cos_m'], products['g185m'])
 #            products['stis_m'] = coadd.abut(products['e140m'], products['e230m'])
 #            products['stis_h'] = coadd.abut(products['e140h'], products['e230h'])
+
+
+#        gratings = np.array(gratings)
+#        minwls = np.array(minwls)
+#        maxwls = np.array(maxwls)
+#        lowind = np.argmin(minwls)
+#        print(f"!!!! {gratings[lowind]}")
+#        maxwl = maxwls[lowind]
+#        gratings = np.delete(gratings, lowind)
+#        minwls = np.delete(minwls, lowind)
+#        maxwls = np.delete(maxwls, lowind)
+#        while len(gratings) > 0:
+#            print(gratings)
+#            lowind = np.where((minwls < maxwl) & (maxwls > maxwl))
+#            print(lowind)
+#            if len(lowind[0]) > 1:
+#                matched = gratings[lowind]
+#                medres = [i for i in range(len(gratings[lowind])) if not gratings[i].endswith("H")]
+#                if len(medres) != 1:
+#                    print(f"!!!! MORE THAN ONE {matched}")
+#                    import pdb; pdb.set_trace()
+#                else:
+#                    print("!!!! PICKED")
+#                    lowind = tuple(np.array([lowind[0][medres]]),)
+#            elif len(lowind) == 0:
+#                import pdb; pdb.set_trace()
+#                print(f"!!!! NO MATCHES TO {gratings[lowind]}")
+#            else:
+#                maxwl = maxwls[lowind]
+#                print(f"!!!! {gratings[lowind]}")
+#                gratings = np.delete(gratings, lowind[0][0])
+#                minwls = np.delete(minwls, lowind[0][0])
+#                maxwls = np.delete(maxwls, lowind[0][0])
+                
+
+
 
         # Create Level 3 products by abutting level 2 products
         level = 3
@@ -191,7 +242,94 @@ def main(indir, outdir, version=default_version, clobber=False):
             products['fuse'].write(filename, clobber, level=level, version=version)
 
         level = 4
+#
+        gratings = []
+        minwls = []
+        maxwls = []
+        ins = []
+        for instrument, grating in uniqmodes:
+            ins.append(instrument)
+            gratings.append(grating)
+            minwls.append(products[grating].min_wavelength)
+            maxwls.append(products[grating].max_wavelength)
+        if len(set(ins)) != 1:
+            df = pd.DataFrame({"gratings": gratings, "ins": ins, "minwls": minwls, "maxwls": maxwls})
+            print(df)
+            #if products["cos_fuv_m"] is not None:
+            #    df = df.drop(df.loc[(df["gratings"] == "G130M") | (df["gratings"] == "G160M")].index)
+            lowind = df["minwls"].idxmin()
+            shortestwl = df.loc[lowind, "minwls"]
+            used = pd.DataFrame()
+            used = used.append(df.loc[lowind])
+            print(f"**** {df.loc[lowind, 'gratings']}")
+            maxwl = df.loc[lowind, "maxwls"]
+            print(df.gratings)
+            df = df.drop(lowind)
+            while len(df) > 0:
+                print(df.gratings)
+                lowind = df.loc[(df["minwls"] < maxwl) & (df["maxwls"] > maxwl)].index.values
+                if "G130M" in used.gratings.values and "G160M" in gratings and "G160M" not in used.gratings.values:
+                    lowind = df.loc[df["gratings"] == "G160M"].index.values
+                    maxwl = df.loc[lowind[0], "maxwls"]
+                    used = used.append(df.loc[lowind])
+                    print(f"**** {df.loc[lowind, 'gratings']}")  
+                    df = df.drop(index=lowind)
+                elif len(lowind) > 1:
+                    df2 = df.loc[lowind]
+                    ranges = df2.maxwls - df2.minwls
+                    biggest = ranges.idxmax()
+                    match_grating = df2.loc[biggest, "gratings"]
+                    match_ind = df.loc[df["gratings"] == match_grating].index.values
+                    used = used.append(df.loc[match_ind])
+                    print(f"**** {match_grating}")
+                    maxwl = df.loc[match_ind, "maxwls"].values[0]
+                    df = df.drop(index=lowind)
 
+
+#                    df2 = df.loc[lowind]
+#                    medres = ~df2.gratings.str.endswith("H")
+#                    matchedrow = df2[medres]
+#                    if len(matchedrow) != 1:
+#                        print("!!!! more than 1 matched!")
+#                        import pdb; pdb.set_trace()
+#                        break
+#                    else:
+#                        match_grating = df2[medres].gratings.values[0]
+#                        match_ind = df.loc[df["gratings"] == match_grating].index.values
+#                        used = used.append(df.loc[match_ind])
+#                        print(f"**** {match_grating}")
+#                        maxwl = df.loc[match_ind, "maxwls"].values[0]
+#                        df = df.drop(index=lowind)
+                elif len(lowind) == 0:
+                    lowind = df["minwls"].idxmin()
+                    used = used.append(df.loc[lowind])
+                    maxwl = df.loc[lowind, "maxwls"]
+                    df = df.drop(lowind)
+#                    print("!!!! BADNESS 10000")
+#                    import pdb; pdb.set_trace()
+#                    break
+                else:
+                    maxwl = df.loc[lowind[0], "maxwls"]
+                    used = used.append(df.loc[lowind])
+                    print(f"**** {df.loc[lowind, 'gratings']}")
+                    df = df.drop(index=lowind)
+                badinds = df.loc[(df["minwls"] > shortestwl) & (df["maxwls"] < maxwl)].index.values
+                if len(badinds) > 0:
+                    df = df.drop(index=badinds)
+            
+            if len(set(used["ins"].values)) > 1:
+                dr1 = os.path.join("/astro/ullyses/ULLYSES_HLSP/", target, "dr1/*sed.fits")
+                sedfile = glob.glob(dr1)[0]
+                p = fits.getdata(sedfile, 2)
+                actual_used0 = [p["instrument"][i]+"/"+p["disperser"][i] for i in range(len(p["disperser"]))]
+                actual_used = list(set(actual_used0))
+                used_modes = (used.ins + "/" +used.gratings).values
+                if len(set(used_modes) ^ set(actual_used)) != 0:
+                    if target not in ["sk191", "av388", "av456", "av479"]:
+                        print("!!!! used and actual_used do not match")
+                        import pdb; pdb.set_trace()
+#
+            
         if products['cos_m'] is not None and products['stis_m'] is not None:
             products['all_hst'] = abut(products['cos_m'], products['stis_m'])
         elif products['cos_m'] is not None and products['stis_h'] is not None:
