@@ -189,6 +189,8 @@ class Stisdata():
                 if i == self.crsplit - 1:
                     sci_hdu.close()
                     return
+                else:
+                    continue
             elif perc_flagged <= 0.06 and self.force_dq16 is True:
                 print(f"For ext={dqext}, less than 6% of pixels are flagged with DQ=16 ({perc_flagged*100.:.2f}), but force_dq16 flag is True, so custom dark correction is still applied")
                 self.fix_dq16 = True
