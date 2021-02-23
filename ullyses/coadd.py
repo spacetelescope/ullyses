@@ -589,7 +589,9 @@ def abut(product_short, product_long):
         product_abutted.grating = output_grating
         product_short.target = product_short.ull_targname()
         product_long.target = product_long.ull_targname()
-        if product_short.instrument == product_long.instrument:
+        if product_short.instrument in product_long.instrument:
+            product_abutted.instrument = product_long.instrument
+        if product_long.instrument in product_short.instrument:
             product_abutted.instrument = product_short.instrument
         else:
             product_abutted.instrument = product_short.instrument + '-' + product_long.instrument
