@@ -119,7 +119,8 @@ def main(indir, outdir, version=default_version, clobber=False):
                 products[f'{instrument}/{grating}'] = prod
             products[f'{instrument}/{grating}'] = prod
 
-#
+
+        level = 3
         lvl3_modes = {"cos_fuv_m": ["COS/G130M", "COS/G160M", "COS/G185M"],
                       "stis_m": ["STIS/E140M", "STIS/E230M"],
                       "stis_h": ["STIS/E140H", "STIS/E230H"],
@@ -140,62 +141,11 @@ def main(indir, outdir, version=default_version, clobber=False):
                 abutted.write(filename, clobber, level=level, version=version)
                 print(f"   Wrote {filename}")
 
-#
-#        # Create Level 3 products by abutting level 2 products
-#        level = 3
-#        if products['COS/G130M'] is not None and products['COS/G160M'] is not None:
-#            products['cos_fuv_m'] = abut(products['COS/G130M'], products['COS/G160M'])
-#            filename = create_output_file_name(products['cos_fuv_m'], version, level=level)
-#            filename = os.path.join(outdir, filename)
-#            products['cos_fuv_m'].write(filename, clobber, level=level, version=version)
-#            print(f"   Wrote {filename}")
-#        elif products['COS/G130M'] is not None:
-#            products['cos_fuv_m'] = products['COS/G130M']
-#        elif products['COS/G160M'] is not None:
-#            products['cos_fuv_m'] = products['COS/G160M']
-#
-#        if products['cos_fuv_m'] is not None and products['COS/G185M'] is not None:
-#            products['cos_m'] = abut(products['cos_fuv_m'], products['COS/G185M'])
-#            if products['cos_m'] is not None:
-#                filename = create_output_file_name(products['cos_m'], version, level=level)
-#                filename = os.path.join(outdir, filename)
-#                products['cos_m'].write(filename, clobber, level=level, version=version)
-#                print(f"   Wrote {filename}")
-#        elif products['cos_fuv_m'] is not None:
-#            products['cos_m'] = products['cos_fuv_m']
-#        elif products['COS/G185M'] is not None:
-#            products['cos_m'] = products['G185M']
-#        
-#        if products['E140M'] is not None and products['E230M'] is not None:
-#            products['stis_m'] = abut(products['E140M'], products['E230M'])
-#            if products['stis_m'] is not None:
-#                filename = create_output_file_name(products['stis_m'], version, level=level)
-#                filename = os.path.join(outdir, filename)
-#                products['stis_m'].write(filename, clobber, level=level, version=version)
-#                print(f"   Wrote {filename}")
-#        elif products['E140M'] is not None:
-#            products['stis_m'] = products['E140M']
-#        elif products['E230M'] is not None:
-#            products['stis_m'] = products['E230M']
-#        
-#        if products['E140H'] is not None and products['E230H'] is not None:
-#            products['stis_h'] = abut(products['E140H'], products['E230H'])
-#            if products['stis_h'] is not None:
-#                filename = create_output_file_name(products['stis_h'], version, level=level)
-#                filename = os.path.join(outdir, filename)
-#                products['stis_h'].write(filename, clobber, level=level, version=version)
-#                print(f"   Wrote {filename}")
-#        elif products['E140H'] is not None:
-#            products['stis_h'] = products['E140H']
-#        elif products['E230H'] is not None:
-#            products['stis_h'] = products['E230H']
-
         if products['FUSE/FUSE'] is not None:
             filename = create_output_file_name(products['FUSE/FUSE'], version, level=level)
             products['FUSE/FUSE'].write(filename, clobber, level=level, version=version)
 
         level = 4
-        
         gratings = []
         minwls = []
         maxwls = []
@@ -288,7 +238,10 @@ def create_output_file_name(prod, version=default_version, level=3):
             suffix = "cspec"
     elif level == 4:
         suffix = "sed"
-        grating = "uv"
+        if "G430L" in prod.grating or "G750L" in prod.grating:
+            grating = "uv-opt"
+        else:
+            grating = "uv"
         if 'fuse' in instrument:
             tel = 'hst-fuse'
         else:
