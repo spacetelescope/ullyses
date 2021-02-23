@@ -120,6 +120,8 @@ def main(indir, outdir, version=default_version, clobber=False):
             products[f'{instrument}/{grating}'] = prod
 
 
+        # Create level 3 products- abutted spectra for gratings of the same
+        # resolution for each instrument.
         level = 3
         lvl3_modes = {"cos_fuv_m": ["COS/G130M", "COS/G160M", "COS/G185M"],
                       "stis_m": ["STIS/E140M", "STIS/E230M"],
@@ -140,11 +142,17 @@ def main(indir, outdir, version=default_version, clobber=False):
                 filename = os.path.join(outdir, filename)
                 abutted.write(filename, clobber, level=level, version=version)
                 print(f"   Wrote {filename}")
-
+        # Manually write out a FUSE level3 product.
         if products['FUSE/FUSE'] is not None:
             filename = create_output_file_name(products['FUSE/FUSE'], version, level=level)
             products['FUSE/FUSE'].write(filename, clobber, level=level, version=version)
 
+
+        # Determine which gratings should contribute to the final level 4 SED HLSP.
+        # Starting with the bluest product and working redward, find which products,
+        # if any, overlap with the bluer product. If more than one overlaps, use 
+        # the one that extends further. If none overlap, still abut them- there
+        # will just be a region of flux=0 in between.
         level = 4
         gratings = []
         minwls = []
@@ -155,8 +163,11 @@ def main(indir, outdir, version=default_version, clobber=False):
             gratings.append(grating)
             minwls.append(products[instrument+"/"+grating].min_wavelength)
             maxwls.append(products[instrument+"/"+grating].max_wavelength)
+        # Only go through this exercise if there is data for more than one instrument
         if len(set(ins)) != 1:
             df = pd.DataFrame({"gratings": gratings, "ins": ins, "minwls": minwls, "maxwls": maxwls})
+            # Start with the bluest product, and remove rows from the dataframe
+            # until no rows remain.
             lowind = df["minwls"].idxmin()
             shortestwl = df.loc[lowind, "minwls"]
             used = pd.DataFrame()
@@ -165,11 +176,14 @@ def main(indir, outdir, version=default_version, clobber=False):
             df = df.drop(lowind)
             while len(df) > 0:
                 lowind = df.loc[(df["minwls"] < maxwl) & (df["maxwls"] > maxwl)].index.values
+                # If G130M and G160M both exist for a given target, *always* 
+                # abut them together regardless of other available gratings.
                 if "G130M" in used.gratings.values and "G160M" in gratings and "G160M" not in used.gratings.values:
                     lowind = df.loc[df["gratings"] == "G160M"].index.values
                     maxwl = df.loc[lowind[0], "maxwls"]
                     used = used.append(df.loc[lowind])
                     df = df.drop(index=lowind)
+                # Handle case where more than one grating overlaps with bluer data.
                 elif len(lowind) > 1:
                     df2 = df.loc[lowind]
                     ranges = df2.maxwls - df2.minwls
@@ -179,30 +193,26 @@ def main(indir, outdir, version=default_version, clobber=False):
                     used = used.append(df.loc[match_ind])
                     maxwl = df.loc[match_ind, "maxwls"].values[0]
                     df = df.drop(index=lowind)
+                # If none overlap, abut with the next closest product.
                 elif len(lowind) == 0:
                     lowind = df["minwls"].idxmin()
                     used = used.append(df.loc[lowind])
                     maxwl = df.loc[lowind, "maxwls"]
                     df = df.drop(lowind)
+                # This is the easy case- only one mode overlaps with the bluer data.
                 else:
                     maxwl = df.loc[lowind[0], "maxwls"]
                     used = used.append(df.loc[lowind])
                     df = df.drop(index=lowind)
+                # Check every time if there are any modes that overlap completely
+                # with what has been abutted so far.
                 badinds = df.loc[(df["minwls"] > shortestwl) & (df["maxwls"] < maxwl)].index.values
                 if len(badinds) > 0:
                     df = df.drop(index=badinds)
             
+            # If more than one instrument was selected for abutting,
+            # create level 4 product.
             if len(set(used["ins"].values)) > 1:
-#                dr1 = os.path.join("/astro/ullyses/ULLYSES_HLSP/", target, "dr1/*sed.fits")
-#                sedfile = glob.glob(dr1)[0]
-#                p = fits.getdata(sedfile, 2)
-#                actual_used0 = [p["instrument"][i]+"/"+p["disperser"][i] for i in range(len(p["disperser"]))]
-#                actual_used = list(set(actual_used0))
-#                used_modes = (used.ins + "/" +used.gratings).values
-#                if len(set(used_modes) ^ set(actual_used)) != 0:
-#                    if target not in ["sk191", "av388", "av456", "av479"]:
-#                        print("!!!! used and actual_used do not match")
-#                        import pdb; pdb.set_trace()
                 abut_gr = used.iloc[0]["ins"] + "/" + used.iloc[0]["gratings"]
                 abutted = products[abut_gr]
                 for i in range(1, len(used)):
