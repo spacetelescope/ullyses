@@ -160,10 +160,6 @@ class Stisdata():
         self.fix_dq16 = False
 
         print("\n", f" CHECKING DQ=16 FLAGS ".center(NCOLS, SYM), "\n")
-        customdark_dir = os.path.join(self.basedir, "custom_darks")
-        if not os.path.isdir(customdark_dir):
-            os.mkdir(customdark_dir)
-            print(f"Made directory: {customdark_dir}")
             
         try:
             shutil.copy(self.flc, self.outdir)
@@ -201,6 +197,11 @@ class Stisdata():
     
                 print(f"For ext={dqext}, more than 6% of pixels ({perc_flagged*100.:.2f}) flagged with DQ=16")
                 print(f"Manually creating superdarks and setting DQ={dq} values...")
+        
+            customdark_dir = os.path.join(self.basedir, "custom_darks")
+            if not os.path.isdir(customdark_dir):
+                os.mkdir(customdark_dir)
+                print(f"Made directory: {customdark_dir}")
     
             # Determine DARKFILE filename.
             if self.doperform_cti is True:
