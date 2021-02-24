@@ -356,7 +356,8 @@ class Stisdata():
             
             x1d.x1d(infile, 
                 output = outfile, 
-                a2center = pars["yloc"], 
+                a2center = pars["yloc"],
+                xoffset = pars["xoffset"], 
                 maxsrch = pars["maxsrch"],
                 extrsize = pars["height"],
                 bk1offst = (pars["b_bkg1"] - pars["yloc"]) if pars["b_bkg1"] is not None else None,
