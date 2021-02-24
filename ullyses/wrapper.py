@@ -92,7 +92,7 @@ def main(indir, outdir, version=default_version, clobber=False):
                 prod.targ_ra, prod.targ_dec = prod.ull_coords()
                 target = prod.target.lower()
                 if outdir_inplace is True:
-                    dictir = os.path.join(PROD_DIR, target, version)
+                    outdir = os.path.join(PROD_DIR, target, version)
                 if not os.path.exists(outdir):
                     os.makedirs(outdir)
                 outname = create_output_file_name(prod, version, level=level)
