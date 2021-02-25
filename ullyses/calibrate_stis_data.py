@@ -47,13 +47,15 @@ class Stisdata():
         x1d (list): List of final x1d products. 
         
     """
-    def __init__(self, scifile, yamlfile, outdir=None, overwrite=True, force_dq16=False):
+    def __init__(self, scifile, yamlfile, outdir=None, overwrite=True, 
+                 force_dq16=False, start_from_flt=False):
         """
         Args:
             infiles: List or wildcard describing all input files.
             outdir: Output directory for products.
         """
 
+        self.start_from_flt = start_from_flt
         self.yamlfile = yamlfile
         self.config = read_config(yamlfile)
         self.force_dq16 = force_dq16
@@ -101,10 +103,10 @@ class Stisdata():
     def run_all(self):
         if self.doperform_cti is True:
             self.perform_cti()
-        self.analyze_dark()
         #self.flag_negatives()
         self.check_crrej()
         self.crrej()
+        self.analyze_dark()
         self.defringe()
         self.extract_spectra()
         self.config["force_dq16"] = self.force_dq16
@@ -160,16 +162,24 @@ class Stisdata():
         self.fix_dq16 = False
 
         print("\n", f" CHECKING DQ=16 FLAGS ".center(NCOLS, SYM), "\n")
+        
+        if self.start_from_flt is True:
+            iters = range(self.crsplit)
+            infile = self.flc
+        else:
+            iters = range(1)
+            infile = self.crc
             
         try:
-            shutil.copy(self.flc, self.outdir)
+            shutil.copy(infile, self.outdir)
         except shutil.SameFileError:
             pass
-        self.flc = os.path.join(self.outdir, os.path.basename(self.flc))
+        self.infile = os.path.join(self.outdir, os.path.basename(infile))
         # Read in science FLT dataset.
-        sci_hdu = fits.open(self.flc, mode="update")
+        sci_hdu = fits.open(self.infile, mode="update")
         dqext = 0
-        for i in range(self.crsplit):
+
+        for i in iters:
             dqext += 3
             sci_dq = sci_hdu[dqext].data
             darkfile0 = sci_hdu[0].header["darkfile"]
@@ -433,11 +443,14 @@ class Stisdata():
         """
        
         print("\n", f" PERFORMING CR REJECTION ".center(NCOLS, SYM), "\n")
-        
-        if self.sx1 is None:
-            print("No x1d files specified")
-            return
 
+        if self.do_crrej is True and self.start_from_flt is True:
+            pass
+            #raise Exception("CUSTOM CRREJ NOT YET IMPLEMENTED")
+        else:
+            print("Skipping CR rejection")
+            return
+        
         if self.doperform_cti is True:
             outfile = os.path.join(self.outdir, self.rootname+"_crc.fits")
         else:
