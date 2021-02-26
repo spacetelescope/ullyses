@@ -161,8 +161,8 @@ def main(indir, outdir, version=default_version, clobber=False):
         for instrument, grating in uniqmodes:
             ins.append(instrument)
             gratings.append(grating)
-            minwls.append(products[instrument+"/"+grating].min_wavelength)
-            maxwls.append(products[instrument+"/"+grating].max_wavelength)
+            minwls.append(products[instrument+"/"+grating].first_good_wavelength)
+            maxwls.append(products[instrument+"/"+grating].last_good_wavelength)
         # Only go through this exercise if there is data for more than one instrument
         if len(set(ins)) != 1:
             df = pd.DataFrame({"gratings": gratings, "ins": ins, "minwls": minwls, "maxwls": maxwls})

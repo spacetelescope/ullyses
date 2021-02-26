@@ -103,7 +103,7 @@ class SegmentList:
                     self.primary_headers.append(hdulist[0].header)
                     self.first_headers.append(hdulist[1].header)
                     if self.instrument == 'FUSE':
-                        sdqflags = 0
+                        sdqflags = 3
                     else:
                         sdqflags = hdulist[1].header['SDQFLAGS']
                         if self.instrument == "STIS" and (sdqflags&16) == 16:
@@ -190,6 +190,9 @@ class SegmentList:
             self.output_sumweight[indices] = self.output_sumweight[indices] + weight
             self.output_sumflux[indices] = self.output_sumflux[indices] + flux * weight
             self.output_exptime[indices] = self.output_exptime[indices] + segment.exptime
+        good_dq = np.where(self.output_exptime > 0.)
+        self.first_good_wavelength = self.output_wavelength[good_dq][0]
+        self.last_good_wavelength = self.output_wavelength[good_dq][-1]
         nonzeros = np.where(self.output_sumweight != 0)
         if self.instrument == 'COS':
             # Using the variances (which only COS has) gives spikes in the error when the flux goes negative.
@@ -535,6 +538,9 @@ class FUSESegmentList(SegmentList):
         self.output_errors[goodpixels] = segment.data['sigma'][goodpixels]
         nonzeros = np.where(self.output_errors != 0.0)
         self.signal_to_noise[nonzeros] = self.output_flux[nonzeros] / self.output_errors[nonzeros]
+        good_dq = np.where(self.output_exptime > 0.)
+        self.first_good_wavelength = self.output_wavelength[good_dq][0]
+        self.last_good_wavelength = self.output_wavelength[good_dq][-1]
         return
 
 
@@ -562,8 +568,14 @@ def abut(product_short, product_long):
             transition_index_long = long_indices[0][0]
         else:
             # No overlap
-            transition_index_short = product_short.nelements
-            transition_index_long = 0
+            goodshort = np.where(product_short.output_exptime > 0.)
+            goodlong = np.where(product_long.output_exptime > 0.)
+            last_good_short = product_short.output_wavelength[goodshort][-1]
+            first_good_long = product_long.output_wavelength[goodlong][0]
+            short_indices = np.where(product_short.output_wavelength < last_good_short)
+            transition_index_short = short_indices[0][-1]
+            long_indices = np.where(product_long.output_wavelength > first_good_long)
+            transition_index_long = long_indices[0][0]
         output_grating = product_short.grating + '-' + product_long.grating
         product_abutted = SegmentList(output_grating)
         nout = len(product_short.output_wavelength[:transition_index_short])
