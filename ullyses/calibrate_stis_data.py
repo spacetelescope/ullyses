@@ -77,6 +77,8 @@ class Stisdata():
         os.environ["ctirefs"] = "/astro/ullyses/stis_ccd_data/cti_refs/"
         self.rootname = fits.getval(scifile, "rootname")
         self.darkfile = fits.getval(scifile, "darkfile")
+        self.nonsci_drj = {}
+        self.drj = None
         self.flc = None
         self.crc = None
         self.sx1 = None
@@ -354,7 +356,7 @@ class Stisdata():
                 else:
                     infile = self.drj
             else:
-                if len(self.nonsci_drj[targ]) == 0:
+                if len(self.nonsci_drj) == 0:
                     infile = self.crc
                 else:
                     infile = self.nonsci_drj[targ]
@@ -476,8 +478,6 @@ class Stisdata():
 
     def defringe(self):
         
-        self.nonsci_drj = {}
-        self.drj = None
         if self.defringe_c is False:
             return
         for targ, pars in self.defringe_c.items():
