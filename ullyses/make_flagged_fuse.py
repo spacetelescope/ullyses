@@ -143,15 +143,18 @@ fuse_dr1 = [
 targstoedit = list(filestoedit.keys())
 
 for targ in fuse_dr1:
-    vofiles = glob.glob(os.path.join("/astro/ullyses/fuse_data", targ, "*_vo.fits"))
+    vofiles0 = glob.glob(os.path.join("/astro/ullyses/fuse_data", targ, "*_vo.fits"))
+    vofiles = [x for x in vofiles0 if "dqscreened" not in x]
     if len(vofiles) > 1:
-        import pdb; pdb.set_trace()
+        print(f"more than one VO file for {targ}, exiting")
+        break
     vofile = vofiles[0]
-    outfile = vofile.replace("_vo.fits", "_vo_dq.fits")
+    vofilename = os.path.basename(vofile)
+    outfilename = "dqscreened_"+vofilename
+    outfile = os.path.join("/astro/ullyses/fuse_data", targ, outfilename)
     if targ in targstoedit:
         pars = filestoedit[targ] 
         add_dq_col(vofile, outfile, pars["minwl"], pars["maxwl"], pars["dq"], overwrite=True)
     else:
-        pass
         add_dq_col(vofile, outfile, [], [], [], overwrite=True)      
 
