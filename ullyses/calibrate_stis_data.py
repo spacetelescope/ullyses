@@ -59,7 +59,7 @@ class Stisdata():
         self.yamlfile = yamlfile
         self.config = read_config(yamlfile)
         self.force_dq16 = force_dq16
-        self.sx1_c, self.fix_dq16, self.crrej_c, self.defringe_c, self.cti_proc, self.doperform_cti = self.config["x1d"], self.config["fix_dq16"], self.config["crrej"], self.config["defringe"], self.config["processes"], self.config["perform_cti"]
+        self.sx1_c, self.fix_dq16, self.force_dq16, self.crrej_c, self.defringe_c, self.cti_proc, self.doperform_cti = self.config["x1d"], self.config["fix_dq16"], self.config["force_dq16"], self.config["crrej"], self.config["defringe"], self.config["processes"], self.config["perform_cti"]
         detector = fits.getval(scifile, "detector")
         opt_elem = fits.getval(scifile, "opt_elem")
         assert detector == "CCD" and opt_elem !="MIRVIS", f"Observing configurtion not supported: {detector}/{opt_elem}"
@@ -574,6 +574,7 @@ class Stisdata():
 
     def help(self):
         print("\n", f" RECALIBRATION SUMMARY ".center(NCOLS, SYM), "\n")
+        print(f"YAML file: {self.yamlfile}")
         print(f"Raw file: {self.scifile}")
         print(f"FLT/FLC: {self.flc}")
         print(f"CRJ/CRC: {self.crc}")
