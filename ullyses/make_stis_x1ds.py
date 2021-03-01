@@ -4,7 +4,7 @@ import glob
 from astropy.io import fits as pf
 import matplotlib
 import matplotlib.pyplot as pl
-
+from stistools import x1d
 
 from calibrate_stis_data import Stisdata
 
@@ -13,16 +13,16 @@ from calibrate_stis_data import Stisdata
 #       "V510-ORI"]
 
 tts = ["CVSO-104", "CVSO-107", "CVSO-109", "CVSO-146", "CVSO-17",
-       "CVSO-176", "CVSO-36", "CVSO-58", "V-TX-ORI", "V505-ORI",
+       "CVSO-176", "CVSO-36", "CVSO-58", "CVSO-90", "V-TX-ORI", "V505-ORI",
        "V510-ORI"]
 
 datadir = "/astro/ullyses/tts_dr2"
-outdir0 = "out1"
+outdir0 = "20210301"
 
 config_dir = "/user/jotaylor/git/ullyses_dp/high_level_science_products/high_level_science_products/config_files"
 
 bad = []
-def make_x1ds():
+def make_ccd_x1ds():
     for targ in tts:
         raws = glob.glob(os.path.join(datadir, targ, "o*_raw.fits"))
         for item in raws:
@@ -40,52 +40,188 @@ def make_x1ds():
                     print(item, grating, config)
                     S = Stisdata(item, yamlfile=config, outdir=outdir, overwrite=True)
                     S.run_all()
-                    this = input("Press enter to continue to next target\n")
+                    print("")
+                    print("#"*80)
+                    if S.sx1_mast is not None:
+                        check_x1d(S.sx1, S.sx1_mast, f"{targ}_{grating}", outdir)
+#                    else:
+#                        check_x1d(S.sx1, S.sx1, targ, outdir)
+                    print("#"*80)
+                    print("")
     print(f"Files that did not calibrate properly: {bad}")
 
-def check_x1d(newfile, oldfile):
+def make_mama_x1ds():
+    outfile = os.path.join(datadir, "CVSO-104", outdir0, "oe9k1s020_nonsci410_x1d.fits")
+    if os.path.exists(outfile):
+        os.remove(outfile)
+    x1d.x1d(os.path.join(datadir, "CVSO-104/mast_products/oe9k1s020_flt.fits"),
+            output=outfile,
+            a2center=410,
+            maxsrch=10,
+            extrsize=7)
+    print("#"*80, "\n")
+    
+    outfile = os.path.join(datadir, "CVSO-109", outdir0, "oe9k2s010_x1d.fits")
+    if os.path.exists(outfile):
+        os.remove(outfile)
+    x1d.x1d(os.path.join(datadir, "CVSO-109/mast_products/oe9k2s010_flt.fits"),
+            output=outfile,
+            a2center=502,
+            maxsrch=0)
+    print("#"*80, "\n")
+    outfile = os.path.join(datadir, "CVSO-109", outdir0, "oe9k2s010_nonsci516_x1d.fits")
+    if os.path.exists(outfile):
+        os.remove(outfile)
+    x1d.x1d(os.path.join(datadir, "CVSO-109/mast_products/oe9k2s010_flt.fits"),
+            output=outfile,
+            a2center=516.3,
+            maxsrch=0,
+            extrsize=7)
+    print("#"*80, "\n")
+    
+    outfile = os.path.join(datadir, "CVSO-36", outdir0, "oe9k5s010_x1d.fits")
+    if os.path.exists(outfile):
+        os.remove(outfile)
+    x1d.x1d(os.path.join(datadir, "CVSO-36/mast_products/oe9k5s010_flt.fits"),
+            output=outfile,
+            a2center=502.2578,
+            maxsrch=0,
+            extrsize=7)
+    print("#"*80, "\n")
+    
+    outfile = os.path.join(datadir, "CVSO-17", outdir0, "oe9k3s010_x1d.fits")
+    if os.path.exists(outfile):
+        os.remove(outfile)
+    x1d.x1d(os.path.join(datadir, "CVSO-36/mast_products/oe9k3s010_flt.fits"),
+            output=outfile,
+            a2center=502.73044,
+            maxsrch=0,
+            extrsize=7)
+    print("#"*80, "\n")
+    
+    outfile = os.path.join(datadir, "CVSO-58", outdir0, "oe9j3s010_x1d.fits")
+    if os.path.exists(outfile):
+        os.remove(outfile)
+    x1d.x1d(os.path.join(datadir, "CVSO-58/mast_products/oe9j3s010_flt.fits"),
+            output=outfile,
+            extrsize=9)
+    print("#"*80, "\n")
+    
+    outfile = os.path.join(datadir, "CVSO-165", outdir0, "oe9j2s010_x1d.fits")
+    if os.path.exists(outfile):
+        os.remove(outfile)
+    x1d.x1d(os.path.join(datadir, "CVSO-165/mast_products/oe9j2s010_flt.fits"),
+            output=outfile,
+            a2center=514.5,
+            maxsrch=0,
+            extrsize=7)
+    print("#"*80, "\n")
+    outfile = os.path.join(datadir, "CVSO-165", outdir0, "oe9j2s010_nonsci527_x1d.fits")
+    if os.path.exists(outfile):
+        os.remove(outfile)
+    x1d.x1d(os.path.join(datadir, "CVSO-165/mast_products/oe9j2s010_flt.fits"),
+            output=outfile,
+            a2center=527.0,
+            maxsrch=0,
+            extrsize=9)
+    print("#"*80, "\n")
+    outfile = os.path.join(datadir, "CVSO-165", outdir0, "oe9j2s010_nonsci733_x1d.fits")
+    if os.path.exists(outfile):
+        os.remove(outfile)
+    x1d.x1d(os.path.join(datadir, "CVSO-165/mast_products/oe9j2s010_flt.fits"),
+            output=outfile,
+            a2center=733,
+            maxsrch=13,
+            extrsize=7,
+            bk1offst=-521,
+            bk2offst=79)
+    print("#"*80, "\n")
+    
+    outfile = os.path.join(datadir, "CVSO-176", outdir0, "oe9k4s010_x1d.fits")
+    if os.path.exists(outfile):
+        os.remove(outfile)
+    x1d.x1d(os.path.join(datadir, "CVSO-176/mast_products/oe9k4s010_flt.fits"),
+            output=outfile,
+            extrsize=7)
+    print("#"*80, "\n")
+    
+    outfile = os.path.join(datadir, "V505-ORI", outdir0, "oe9i3s010_x1d.fits")
+    if os.path.exists(outfile):
+        os.remove(outfile)
+    x1d.x1d(os.path.join(datadir, "V505-ORI/mast_products/oe9i3s010_flt.fits"),
+            output=outfile,
+            extrsize=7)
+    print("#"*80, "\n")
+
+
+def check_x1d(newfile, oldfile, targ, outdir):
     new = pf.getdata(newfile)
     old = pf.getdata(oldfile)
-    compare_dq(new, old)
-    overplot(new, old)
-    plotdiv(new, old)
-    plotdiff(new, old)
+    spl = newfile.split("/")
+    newname = spl[-2]+"/"+spl[-1]
+    spl = oldfile.split("/")
+    oldname = spl[-2]+"/"+spl[-1]
+    compare_dq(new, newname, old, oldname, targ, outdir)
+    overplot(new, newname, old, oldname, targ, outdir)
+    plotdiv(new, newname, old, oldname, targ, outdir)
+    plotdiff(new, newname, old, oldname, targ, outdir)
 
-def compare_dq(new, old):
+def compare_dq(new, newname, old, oldname, targ, outdir):
     fig,ax = pl.subplots(figsize=(20,7))
     newsdq = np.where((new["dq"] & 31743) != 0)
     oldsdq = np.where((old["dq"] & 31743) != 0)
-    ax.plot(old["wavelength"][0], old["flux"][0], "k", label="MAST")
+    ax.plot(old["wavelength"][0], old["flux"][0], "k", label=oldname)
     ax.plot(old["wavelength"][oldsdq], old["flux"][oldsdq], "rx")
-    ax.plot(new["wavelength"][0], new["flux"][0]+1e-14, "b", label="New")
+    ax.plot(new["wavelength"][0], new["flux"][0]+1e-14, "royalblue", label=newname)
     ax.plot(new["wavelength"][newsdq], new["flux"][newsdq]+1e-14, "rx", label="SDQ")
+    ax.set_xlabel("Wavelength [A]")
+    ax.set_ylabel("Flux")
+    ax.set_title(targ)
     ax.legend(loc="upper right")
-    this = input("")
+    png = os.path.join(outdir, f"{targ}_dq.png")
+    pl.savefig(png, bbox_inches="tight")
+    print(f"Wrote {png}")
+    pl.cla()
     pl.close()
 
-def overplot(new, old):
+def overplot(new, newname, old, oldname, targ, outdir):
     fig,ax = pl.subplots(figsize=(20,7))
-    ax.plot(old["wavelength"][0], old["flux"][0], "k", label="MAST")
-    ax.plot(new["wavelength"][0], new["flux"][0], "b", label="New", alpha=0.7)
+    ax.plot(old["wavelength"][0], old["flux"][0], "k", label=oldname)
+    ax.plot(new["wavelength"][0], new["flux"][0], "royalblue", label=newname, alpha=0.8)
+    ax.set_xlabel("Wavelength [A]")
+    ax.set_ylabel("Flux")
+    ax.set_title(targ)
     ax.legend(loc="upper right")
-    this = input("")
+    png = os.path.join(outdir, f"{targ}_overplot.png")
+    pl.savefig(png, bbox_inches="tight")
+    print(f"Wrote {png}")
+    pl.cla()
     pl.close()
 
-def plotdiv(new, old):
+def plotdiv(new, newname, old, oldname, targ, outdir):
     fig,ax = pl.subplots(figsize=(20,7))
     div = new["flux"][0] / old["flux"][0]
     ax.plot(new["wavelength"][0], div)
-    ax.set_title("New - Old")
-    this = input("")
+    ax.set_xlabel("Wavelength [A]")
+    ax.set_title(f"{targ}: New - Old")
+    png = os.path.join(outdir, f"{targ}_div.png")
+    pl.savefig(png, bbox_inches="tight")
+    print(f"Wrote {png}")
+    pl.cla()
     pl.close()
 
-def plotdiff(new, old):
+def plotdiff(new, newname, old, oldname, targ, outdir):
     fig,ax = pl.subplots(figsize=(20,7))
     diff = new["flux"][0] - old["flux"][0]
     ax.plot(new["wavelength"][0], diff)
-    ax.set_title("New / Old")
-    this = input("")
+    ax.set_xlabel("Wavelength [A]")
+    ax.set_title(f"{targ}: New / Old")
+    png = os.path.join(outdir, f"{targ}_diff.png")
+    pl.savefig(png, bbox_inches="tight")
+    print(f"Wrote {png}")
+    pl.cla()
     pl.close()
 
 if __name__ == "__main__":
-    make_x1ds()
+    make_ccd_x1ds()
+    make_mama_x1ds()
