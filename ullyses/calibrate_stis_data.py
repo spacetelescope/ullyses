@@ -167,18 +167,21 @@ class Stisdata():
         
         if self.start_from_flt is True:
             iters = range(self.crsplit)
-            infile = self.flc
+            infile0 = self.flc
+            infile = os.path.join(self.outdir, os.path.basename(infile0))
+            self.flc = infile
         else:
             iters = range(1)
-            infile = self.crc
-            
+            infile0 = self.crc
+            infile = os.path.join(self.outdir, os.path.basename(infile0))
+            self.crc = infile
         try:
-            shutil.copy(infile, self.outdir)
+            shutil.copy(infile0, self.outdir)
         except shutil.SameFileError:
             pass
-        self.infile = os.path.join(self.outdir, os.path.basename(infile))
+
         # Read in science FLT dataset.
-        sci_hdu = fits.open(self.infile, mode="update")
+        sci_hdu = fits.open(infile, mode="update")
         dqext = 0
 
         for i in iters:
@@ -252,18 +255,18 @@ class Stisdata():
                 dark_dq = dark_hdu[3].data
                 dark_dq16 = np.where(dark_dq&dq == dq)
                 dark_dq[dark_dq16] -= dq
-                sci_hdu[dqext].data[dark_dq16] |= dq
             
                 # Determine 5*stddev + median of the darkfile, anything above this is DQ={dq}. 
                 dark_thresh = (np.std(dark)*5) + np.median(dark)
                 dark_inds = np.where((dark > dark_thresh) | (dark < -dark_thresh))
                 dark_dq[dark_inds] |= dq
+                sci_hdu[dqext].data[dark_inds] |= dq
             
                 new_dark = fits.HDUList( fits.PrimaryHDU() )
                 new_dark[0].header = dark_hdu[0].header
                 for ext in [1,2]:
                     new_dark.append(fits.ImageHDU(dark_hdu[ext].data, dark_hdu[ext].header, name=dark_hdu[ext].name))
-                new_dark.append(fits.ImageHDU(dark_dq, dark_hdu[3].header, name=dark_hdu[ext].name))
+                new_dark.append(fits.ImageHDU(dark_dq, dark_hdu[3].header, name=dark_hdu[3].name))
                 new_dark.writeto(outfile)
             
                 dark_hdu.close()
@@ -365,7 +368,7 @@ class Stisdata():
             
             if os.path.exists(outfile):
                 os.remove(outfile)
-            
+        
             x1d.x1d(infile, 
                 output = outfile, 
                 a2center = pars["yloc"],
