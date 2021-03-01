@@ -19,6 +19,9 @@ RED = "\033[1;31m"
 RESET = "\033[0;0m"
 
 
+STIS_NON_CCD_DETECTORS = ['FUV-MAMA', 'NUV-MAMA']
+
+
 class SegmentList:
 
     def __init__(self, grating, path='.'):
@@ -106,7 +109,8 @@ class SegmentList:
                         sdqflags = 3
                     else:
                         sdqflags = hdulist[1].header['SDQFLAGS']
-                        if self.instrument == "STIS" and (sdqflags&16) == 16:
+                        if self.instrument == "STIS" and (sdqflags&16) == 16 and \
+                                hdulist[0].header['DETECTOR'] in STIS_NON_CCD_DETECTORS:
                             sdqflags -= 16
                     if self.instrument == 'FUSE':
                         exptime = hdulist[1].header['EXPOSURE']
@@ -430,7 +434,7 @@ class SegmentList:
                          "filename": ("filename", 0),
                          "specres": ("spec_rp", 1),
                          "cal_ver": ("cf_vers", 0)}}
-        
+
         vals = []
         for i in range(len(self.primary_headers)):
             tel = self.primary_headers[i]["telescop"]
@@ -510,9 +514,9 @@ class FUSESegmentList(SegmentList):
         segment = self.members[0]
         self.min_wavelength = segment.data['wave'].min()
         self.max_wavelength = segment.data['wave'].max()
-    
+
         self.delta_wavelength = None
-    
+
         self.output_wavelength = segment.data['wave']
         self.nelements = len(self.output_wavelength)
         self.output_sumflux = np.zeros(self.nelements)
@@ -525,7 +529,7 @@ class FUSESegmentList(SegmentList):
         return self.output_wavelength
 
     def coadd(self):
-        
+
         segment = self.members[0]
         nelements = len(self.output_wavelength)
         try:
