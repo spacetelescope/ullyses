@@ -59,6 +59,8 @@ def make_mama_x1ds():
             a2center=410,
             maxsrch=10,
             extrsize=7)
+    with pf.open(outfile, mode="update") as hdulist:
+        hdulist[0].header["HLSP_LVL"] = 0
     print("#"*80, "\n")
     
     outfile = os.path.join(datadir, "CVSO-109", outdir0, "oe9k2s010_x1d.fits")
@@ -68,6 +70,8 @@ def make_mama_x1ds():
             output=outfile,
             a2center=502,
             maxsrch=0)
+    with pf.open(outfile, mode="update") as hdulist:
+        hdulist[0].header["HLSP_LVL"] = 0
     print("#"*80, "\n")
     outfile = os.path.join(datadir, "CVSO-109", outdir0, "oe9k2s010_nonsci516_x1d.fits")
     if os.path.exists(outfile):
@@ -77,6 +81,8 @@ def make_mama_x1ds():
             a2center=516.3,
             maxsrch=0,
             extrsize=7)
+    with pf.open(outfile, mode="update") as hdulist:
+        hdulist[0].header["HLSP_LVL"] = 0
     print("#"*80, "\n")
     
     outfile = os.path.join(datadir, "CVSO-36", outdir0, "oe9k5s010_x1d.fits")
@@ -87,6 +93,8 @@ def make_mama_x1ds():
             a2center=502.2578,
             maxsrch=0,
             extrsize=7)
+    with pf.open(outfile, mode="update") as hdulist:
+        hdulist[0].header["HLSP_LVL"] = 0
     print("#"*80, "\n")
     
     outfile = os.path.join(datadir, "CVSO-17", outdir0, "oe9k3s010_x1d.fits")
@@ -97,6 +105,8 @@ def make_mama_x1ds():
             a2center=502.73044,
             maxsrch=0,
             extrsize=7)
+    with pf.open(outfile, mode="update") as hdulist:
+        hdulist[0].header["HLSP_LVL"] = 0
     print("#"*80, "\n")
     
     outfile = os.path.join(datadir, "CVSO-58", outdir0, "oe9j3s010_x1d.fits")
@@ -105,6 +115,8 @@ def make_mama_x1ds():
     x1d.x1d(os.path.join(datadir, "CVSO-58/mast_products/oe9j3s010_flt.fits"),
             output=outfile,
             extrsize=9)
+    with pf.open(outfile, mode="update") as hdulist:
+        hdulist[0].header["HLSP_LVL"] = 0
     print("#"*80, "\n")
     
     outfile = os.path.join(datadir, "CVSO-165", outdir0, "oe9j2s010_x1d.fits")
@@ -115,6 +127,8 @@ def make_mama_x1ds():
             a2center=514.5,
             maxsrch=0,
             extrsize=7)
+    with pf.open(outfile, mode="update") as hdulist:
+        hdulist[0].header["HLSP_LVL"] = 0
     print("#"*80, "\n")
     outfile = os.path.join(datadir, "CVSO-165", outdir0, "oe9j2s010_nonsci527_x1d.fits")
     if os.path.exists(outfile):
@@ -124,6 +138,8 @@ def make_mama_x1ds():
             a2center=527.0,
             maxsrch=0,
             extrsize=9)
+    with pf.open(outfile, mode="update") as hdulist:
+        hdulist[0].header["HLSP_LVL"] = 0
     print("#"*80, "\n")
     outfile = os.path.join(datadir, "CVSO-165", outdir0, "oe9j2s010_nonsci733_x1d.fits")
     if os.path.exists(outfile):
@@ -135,6 +151,8 @@ def make_mama_x1ds():
             extrsize=7,
             bk1offst=-521,
             bk2offst=79)
+    with pf.open(outfile, mode="update") as hdulist:
+        hdulist[0].header["HLSP_LVL"] = 0
     print("#"*80, "\n")
     
     outfile = os.path.join(datadir, "CVSO-176", outdir0, "oe9k4s010_x1d.fits")
@@ -143,6 +161,8 @@ def make_mama_x1ds():
     x1d.x1d(os.path.join(datadir, "CVSO-176/mast_products/oe9k4s010_flt.fits"),
             output=outfile,
             extrsize=7)
+    with pf.open(outfile, mode="update") as hdulist:
+        hdulist[0].header["HLSP_LVL"] = 0
     print("#"*80, "\n")
     
     outfile = os.path.join(datadir, "V505-ORI", outdir0, "oe9i3s010_x1d.fits")
@@ -151,6 +171,8 @@ def make_mama_x1ds():
     x1d.x1d(os.path.join(datadir, "V505-ORI/mast_products/oe9i3s010_flt.fits"),
             output=outfile,
             extrsize=7)
+    with pf.open(outfile, mode="update") as hdulist:
+        hdulist[0].header["HLSP_LVL"] = 0
     print("#"*80, "\n")
 
 
