@@ -1,3 +1,5 @@
+import pandas as pd
+from collections import defaultdict
 import argparse
 import os
 import glob
@@ -5,17 +7,16 @@ import numpy as np
 
 from astropy.io import fits
 
-from coadd import COSSegmentList, STISSegmentList
+from coadd import COSSegmentList, STISSegmentList, FUSESegmentList
 from coadd import abut
 
-default_version = 'dr1'
+default_version = 'dr2'
 PROD_DIR = "/astro/ullyses/ULLYSES_HLSP"
 
 '''
 This wrapper goes through each target folder in the ullyses data directory and find
 the data and which gratings are present. This info is then fed into coadd.py.
 '''
-
 
 def main(indir, outdir, version=default_version, clobber=False):
     outdir_inplace = False
@@ -41,30 +42,28 @@ def main(indir, outdir, version=default_version, clobber=False):
         uniqmodes = []
 
         spec1d = glob.glob(os.path.join(root, '*_x1d.fits')) + glob.glob(os.path.join(root, '*_sx1.fits'))
+        vofiles = glob.glob(os.path.join(root, '*_vo.fits'))
         for myfile in spec1d:
             f1 = fits.open(myfile)
             prihdr = f1[0].header
             obsmode = (prihdr['INSTRUME'], prihdr['OPT_ELEM'])
             if obsmode not in uniqmodes:
                 uniqmodes.append(obsmode)
+            f1.close()
+
+        if vofiles:
+            if len(vofiles) != 1:
+                print("More than 1 FUSE data file, aborting")
+            else:
+                obsmode = ('FUSE', 'FUSE')
+                uniqmodes.append(obsmode)
 
         if not uniqmodes:
             print(f'No data to coadd for {dirname}.')
             continue
-
-        products = {}
-        products['G130M'] = None
-        products['G160M'] = None
-        products['G185M'] = None
-        products['E140M'] = None
-        products['E230M'] = None
-        products['E140H'] = None
-        products['E230H'] = None
-        products['cos_fuv_m'] = None
-        products['cos_m'] = None
-        products['stis_m'] = None
-        products['stis_h'] = None
-        products['all'] = None
+        
+        # Create dictionary of all products, with each set to None by default
+        products = defaultdict(lambda: None)
 
         level = 2
         for instrument, grating in uniqmodes:
@@ -73,6 +72,9 @@ def main(indir, outdir, version=default_version, clobber=False):
                 prod = COSSegmentList(grating, path=root)
             elif instrument == 'STIS':
                 prod = STISSegmentList(grating, path=root)
+            elif instrument == 'FUSE':
+                prod = FUSESegmentList(grating, path=root)
+                products[f'{instrument}/{grating}'] = prod
             else:
                 print(f'Unknown mode [{instrument}, {grating}]')
                 continue
@@ -86,6 +88,8 @@ def main(indir, outdir, version=default_version, clobber=False):
                 prod.coadd()
                 # this writes the output file
                 # If making HLSPs for a DR, put them in the official folder
+                prod.target = prod.ull_targname()
+                prod.targ_ra, prod.targ_dec = prod.ull_coords()
                 target = prod.target.lower()
                 if outdir_inplace is True:
                     outdir = os.path.join(PROD_DIR, target, version)
@@ -95,7 +99,9 @@ def main(indir, outdir, version=default_version, clobber=False):
                 outname = os.path.join(outdir, outname)
                 prod.write(outname, clobber, level=level, version=version)
                 print(f"   Wrote {outname}")
-                products[grating] = prod
+                products[f'{instrument}/{grating}'] = prod
+            else:
+                print(f"No valid data for grating {grating}")
             if prod.level0 is True:
                 prod.create_output_wavelength_grid()
                 prod.coadd()
@@ -110,95 +116,151 @@ def main(indir, outdir, version=default_version, clobber=False):
                 outname = os.path.join(outdir, outname)
                 prod.write(outname, clobber, level=0, version=version)
                 print(f"   Wrote {outname}")
-                products[grating] = prod
-            else:
-                print(f"No valid data for grating {grating}")
-            products[grating] = prod
+                products[f'{instrument}/{grating}'] = prod
+            products[f'{instrument}/{grating}'] = prod
 
-        # Create Level 3 products by abutting level 2 products
-#            products['cos_fuv_m'] = coadd.abut(products['g130m'], products['g160m'])
-#            products['cos_m'] = coadd.abut(products['cos_m'], products['g185m'])
-#            products['stis_m'] = coadd.abut(products['e140m'], products['e230m'])
-#            products['stis_h'] = coadd.abut(products['e140h'], products['e230h'])
 
-        # Create Level 3 products by abutting level 2 products
+        # Create level 3 products- abutted spectra for gratings of the same
+        # resolution for each instrument.
         level = 3
-        if products['G130M'] is not None and products['G160M'] is not None:
-            products['cos_fuv_m'] = abut(products['G130M'], products['G160M'])
-            filename = create_output_file_name(products['cos_fuv_m'], version, level=level)
-            filename = os.path.join(outdir, filename)
-            products['cos_fuv_m'].write(filename, clobber, level=level, version=version)
-            print(f"   Wrote {filename}")
-        elif products['G130M'] is not None:
-            products['cos_fuv_m'] = products['G130M']
-        elif products['G160M'] is not None:
-            products['cos_fuv_m'] = products['G160M']
+        lvl3_modes = {"cos_fuv_m": ["COS/G130M", "COS/G160M", "COS/G185M"],
+                      "stis_m": ["STIS/E140M", "STIS/E230M"],
+                      "stis_h": ["STIS/E140H", "STIS/E230H"],
+                      "stis_l": ["STIS/G230L", "STIS/G430L", "STIS/G750L"]}
+        for outprod,modes in lvl3_modes.items():
+            abutted = None
+            dowrite = False
+            for mode in modes:
+                if products[mode] is not None:
+                    if abutted is None:
+                        abutted = products[mode]
+                    else:
+                        abutted = abut(abutted, products[mode])
+                        dowrite = True
+            if dowrite is True:
+                filename = create_output_file_name(abutted, version, level=level)
+                filename = os.path.join(outdir, filename)
+                abutted.write(filename, clobber, level=level, version=version)
+                print(f"   Wrote {filename}")
+        # Manually write out a FUSE level3 product.
+        if products['FUSE/FUSE'] is not None:
+            filename = create_output_file_name(products['FUSE/FUSE'], version, level=level)
+            products['FUSE/FUSE'].write(filename, clobber, level=level, version=version)
 
-        if products['cos_fuv_m'] is not None and products['G185M'] is not None:
-            products['cos_m'] = abut(products['cos_fuv_m'], products['G185M'])
-            if products['cos_m'] is not None:
-                filename = create_output_file_name(products['cos_m'], version, level=level)
-                filename = os.path.join(outdir, filename)
-                products['cos_m'].write(filename, clobber, level=level, version=version)
-                print(f"   Wrote {filename}")
-        elif products['cos_fuv_m'] is not None:
-            products['cos_m'] = products['cos_fuv_m']
-        elif products['G185M'] is not None:
-            products['cos_m'] = products['G185M']
-        
-        if products['E140M'] is not None and products['E230M'] is not None:
-            products['stis_m'] = abut(products['E140M'], products['E230M'])
-            if products['stis_m'] is not None:
-                filename = create_output_file_name(products['stis_m'], version, level=level)
-                filename = os.path.join(outdir, filename)
-                products['stis_m'].write(filename, clobber, level=level, version=version)
-                print(f"   Wrote {filename}")
-        elif products['E140M'] is not None:
-            products['stis_m'] = products['E140M']
-        elif products['E230M'] is not None:
-            products['stis_m'] = products['E230M']
-        
-        if products['E140H'] is not None and products['E230H'] is not None:
-            products['stis_h'] = abut(products['E140H'], products['E230H'])
-            if products['stis_h'] is not None:
-                filename = create_output_file_name(products['stis_h'], version, level=level)
-                filename = os.path.join(outdir, filename)
-                products['stis_h'].write(filename, clobber, level=level, version=version)
-                print(f"   Wrote {filename}")
-        elif products['E140H'] is not None:
-            products['stis_h'] = products['E140H']
-        elif products['E230H'] is not None:
-            products['stis_h'] = products['E230H']
 
+        # Determine which gratings should contribute to the final level 4 SED HLSP.
+        # Starting with the bluest product and working redward, find which products,
+        # if any, overlap with the bluer product. If more than one overlaps, use 
+        # the one that extends further. If none overlap, still abut them- there
+        # will just be a region of flux=0 in between.
         level = 4
-        if products['cos_m'] is not None and products['stis_m'] is not None:
-            products['all'] = abut(products['cos_m'], products['stis_m'])
-        elif products['cos_m'] is not None and products['stis_h'] is not None:
-            products['all'] = abut(products['cos_m'], products['stis_h'])
-        if products['all'] is not None:
-            filename = create_output_file_name(products['all'], version, level=level)
-            filename = os.path.join(outdir, filename)
-            products['all'].write(filename, clobber, level=level, version=version)
-            print(f"   Wrote {filename}")
+        gratings = []
+        minwls = []
+        maxwls = []
+        ins = []
+        for instrument, grating in uniqmodes:
+            ins.append(instrument)
+            gratings.append(grating)
+            minwls.append(products[instrument+"/"+grating].first_good_wavelength)
+            maxwls.append(products[instrument+"/"+grating].last_good_wavelength)
+        # Only go through this exercise if there is data for more than one instrument
+        if len(set(ins)) != 1:
+            df = pd.DataFrame({"gratings": gratings, "ins": ins, "minwls": minwls, "maxwls": maxwls})
+            # Start with the bluest product, and remove rows from the dataframe
+            # until no rows remain.
+            lowind = df["minwls"].idxmin()
+            shortestwl = df.loc[lowind, "minwls"]
+            used = pd.DataFrame()
+            used = used.append(df.loc[lowind])
+            maxwl = df.loc[lowind, "maxwls"]
+            df = df.drop(lowind)
+            while len(df) > 0:
+                lowind = df.loc[(df["minwls"] < maxwl) & (df["maxwls"] > maxwl)].index.values
+                # If G130M and G160M both exist for a given target, *always* 
+                # abut them together regardless of other available gratings.
+                if "G130M" in used.gratings.values and "G160M" in gratings and "G160M" not in used.gratings.values:
+                    lowind = df.loc[df["gratings"] == "G160M"].index.values
+                    maxwl = df.loc[lowind[0], "maxwls"]
+                    used = used.append(df.loc[lowind])
+                    df = df.drop(index=lowind)
+                # Handle case where more than one grating overlaps with bluer data.
+                elif len(lowind) > 1:
+                    df2 = df.loc[lowind]
+                    ranges = df2.maxwls - df2.minwls
+                    biggest = ranges.idxmax()
+                    match_grating = df2.loc[biggest, "gratings"]
+                    match_ind = df.loc[df["gratings"] == match_grating].index.values
+                    used = used.append(df.loc[match_ind])
+                    maxwl = df.loc[match_ind, "maxwls"].values[0]
+                    df = df.drop(index=lowind)
+                # If none overlap, abut with the next closest product.
+                elif len(lowind) == 0:
+                    lowind = df["minwls"].idxmin()
+                    used = used.append(df.loc[lowind])
+                    maxwl = df.loc[lowind, "maxwls"]
+                    df = df.drop(lowind)
+                # This is the easy case- only one mode overlaps with the bluer data.
+                else:
+                    maxwl = df.loc[lowind[0], "maxwls"]
+                    used = used.append(df.loc[lowind])
+                    df = df.drop(index=lowind)
+                # Check every time if there are any modes that overlap completely
+                # with what has been abutted so far.
+                badinds = df.loc[(df["minwls"] > shortestwl) & (df["maxwls"] < maxwl)].index.values
+                if len(badinds) > 0:
+                    df = df.drop(index=badinds)
+            
+            # If more than one instrument was selected for abutting,
+            # create level 4 product.
+            if len(set(used["ins"].values)) > 1:
+                abut_gr = used.iloc[0]["ins"] + "/" + used.iloc[0]["gratings"]
+                abutted = products[abut_gr]
+                for i in range(1, len(used)):
+                    abut_gr = used.iloc[i]["ins"] + "/" + used.iloc[i]["gratings"]
+                    abutted = abut(abutted, products[abut_gr])
+                filename = create_output_file_name(abutted, version, level=level)
+                filename = os.path.join(outdir, filename)
+                abutted.write(filename, clobber, level=level, version=version)
+                print(f"   Wrote {filename}")
 
 
 def create_output_file_name(prod, version=default_version, level=3):
-    instrument = prod.instrument.lower()
+    instrument = prod.instrument.lower()   # will be either cos, stis, or fuse. If abbuted can be cos-stis or cos-stis-fuse
     grating = prod.grating.lower()
     target = prod.target.lower()
     version = version.lower()
+    aperture = prod.aperture.lower()
+
     if level == 0:
+        tel = 'hst'
         suffix = "spec"
     if level == 1:
         suffix = "mspec"
+        tel = 'hst'
     elif level == 3 or level == 2:
-        suffix = "cspec"
+        if instrument == 'fuse':
+            tel = 'fuse'
+            instrument = 'fuv'   # "fuv" is the "instrument" equivalent for fuse
+            grating = aperture   # the grating for fuse data is set to "fuse" to change to use aperture
+            suffix = 'cspec'
+        else:
+            tel= 'hst'
+            suffix = "cspec"
     elif level == 4:
         suffix = "sed"
-        grating = "uv"
-        # Need to add logic for uv-opt here
-    name = f"hlsp_ullyses_hst_{instrument}_{target}_{grating}_{version}_{suffix}.fits"
+        if "G430L" in prod.grating or "G750L" in prod.grating:
+            grating = "uv-opt"
+        else:
+            grating = "uv"
+        if 'fuse' in instrument:
+            tel = 'hst-fuse'
+        else:
+            tel = 'hst'
+
+    # Need to add logic for uv-opt here
+    name = f"hlsp_ullyses_{tel}_{instrument}_{target}_{grating}_{version}_{suffix}.fits"
     return name
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -207,7 +269,7 @@ if __name__ == '__main__':
     parser.add_argument("-o", "--outdir", default=None,
                         help="Directory for output HLSPs")
     parser.add_argument("-v", "--version", default=default_version, 
-    					help="Version number of the HLSP")
+                        help="Version number of the HLSP")
     parser.add_argument("-c", "--clobber", default=False,
                         action="store_true",
                         help="If True, overwrite existing products")
