@@ -17,7 +17,7 @@ tts = ["CVSO-104", "CVSO-107", "CVSO-109", "CVSO-146", "CVSO-17",
        "V510-ORI"]
 
 datadir = "/astro/ullyses/tts_dr2"
-outdir0 = "20210301"
+outdir0 = "v1"
 
 config_dir = "/user/jotaylor/git/ullyses_dp/high_level_science_products/high_level_science_products/config_files"
 
@@ -100,7 +100,7 @@ def make_mama_x1ds():
     outfile = os.path.join(datadir, "CVSO-17", outdir0, "oe9k3s010_x1d.fits")
     if os.path.exists(outfile):
         os.remove(outfile)
-    x1d.x1d(os.path.join(datadir, "CVSO-36/mast_products/oe9k3s010_flt.fits"),
+    x1d.x1d(os.path.join(datadir, "CVSO-17/mast_products/oe9k3s010_flt.fits"),
             output=outfile,
             a2center=502.73044,
             maxsrch=0,
@@ -119,41 +119,41 @@ def make_mama_x1ds():
         hdulist[0].header["HLSP_LVL"] = 0
     print("#"*80, "\n")
     
-    outfile = os.path.join(datadir, "CVSO-165", outdir0, "oe9j2s010_x1d.fits")
-    if os.path.exists(outfile):
-        os.remove(outfile)
-    x1d.x1d(os.path.join(datadir, "CVSO-165/mast_products/oe9j2s010_flt.fits"),
-            output=outfile,
-            a2center=514.5,
-            maxsrch=0,
-            extrsize=7)
-    with pf.open(outfile, mode="update") as hdulist:
-        hdulist[0].header["HLSP_LVL"] = 0
-    print("#"*80, "\n")
-    outfile = os.path.join(datadir, "CVSO-165", outdir0, "oe9j2s010_nonsci527_x1d.fits")
-    if os.path.exists(outfile):
-        os.remove(outfile)
-    x1d.x1d(os.path.join(datadir, "CVSO-165/mast_products/oe9j2s010_flt.fits"),
-            output=outfile,
-            a2center=527.0,
-            maxsrch=0,
-            extrsize=9)
-    with pf.open(outfile, mode="update") as hdulist:
-        hdulist[0].header["HLSP_LVL"] = 0
-    print("#"*80, "\n")
-    outfile = os.path.join(datadir, "CVSO-165", outdir0, "oe9j2s010_nonsci733_x1d.fits")
-    if os.path.exists(outfile):
-        os.remove(outfile)
-    x1d.x1d(os.path.join(datadir, "CVSO-165/mast_products/oe9j2s010_flt.fits"),
-            output=outfile,
-            a2center=733,
-            maxsrch=13,
-            extrsize=7,
-            bk1offst=-521,
-            bk2offst=79)
-    with pf.open(outfile, mode="update") as hdulist:
-        hdulist[0].header["HLSP_LVL"] = 0
-    print("#"*80, "\n")
+#    outfile = os.path.join(datadir, "CVSO-165", outdir0, "oe9j2s010_x1d.fits")
+#    if os.path.exists(outfile):
+#        os.remove(outfile)
+#    x1d.x1d(os.path.join(datadir, "CVSO-165/mast_products/oe9j2s010_flt.fits"),
+#            output=outfile,
+#            a2center=514.5,
+#            maxsrch=0,
+#            extrsize=7)
+#    with pf.open(outfile, mode="update") as hdulist:
+#        hdulist[0].header["HLSP_LVL"] = 0
+#    print("#"*80, "\n")
+#    outfile = os.path.join(datadir, "CVSO-165", outdir0, "oe9j2s010_nonsci527_x1d.fits")
+#    if os.path.exists(outfile):
+#        os.remove(outfile)
+#    x1d.x1d(os.path.join(datadir, "CVSO-165/mast_products/oe9j2s010_flt.fits"),
+#            output=outfile,
+#            a2center=527.0,
+#            maxsrch=0,
+#            extrsize=9)
+#    with pf.open(outfile, mode="update") as hdulist:
+#        hdulist[0].header["HLSP_LVL"] = 0
+#    print("#"*80, "\n")
+#    outfile = os.path.join(datadir, "CVSO-165", outdir0, "oe9j2s010_nonsci733_x1d.fits")
+#    if os.path.exists(outfile):
+#        os.remove(outfile)
+#    x1d.x1d(os.path.join(datadir, "CVSO-165/mast_products/oe9j2s010_flt.fits"),
+#            output=outfile,
+#            a2center=733,
+#            maxsrch=13,
+#            extrsize=7,
+#            bk1offst=-521,
+#            bk2offst=79)
+#    with pf.open(outfile, mode="update") as hdulist:
+#        hdulist[0].header["HLSP_LVL"] = 0
+#    print("#"*80, "\n")
     
     outfile = os.path.join(datadir, "CVSO-176", outdir0, "oe9k4s010_x1d.fits")
     if os.path.exists(outfile):
@@ -191,24 +191,25 @@ def rename_targs():
                     hdulist[0].header["RA_TARG"] = d[comp][0]
                     hdulist[0].header["DEC_TARG"] = d[comp][1]
 
-    mains = {"CVSO-165": [("oe9j2s010_x1d.fits", "CVSO-165A"),
-                          ("oe9j2s020_x1d.fits", "CVSO-165A"),
-                          ("oe9j2s030_x1d.fits", "CVSO-165A")],
-             "CVSO-36": [("oe9k5s010_x1d.fits", "CVSO-36A"),
+    mains = {"CVSO-36": [("oe9k5s010_x1d.fits", "CVSO-36A"),
                          ("oe9k5s020_x1d.fits", "CVSO-36A"),
                          ("oe9k5s030_x1d.fits", "CVSO-36A")],
              "CVSO-109": [("oe9k2s010_x1d.fits", "CVSO-109A"),
                           ("oe9k2s020_x1d.fits", "CVSO-109A"),
                           ("oe9k2s030_x1d.fits", "CVSO-109A")]}
+#            "CVSO-165": [("oe9j2s010_x1d.fits", "CVSO-165A"),
+#                          ("oe9j2s020_x1d.fits", "CVSO-165A"),
+#                          ("oe9j2s030_x1d.fits", "CVSO-165A")]}
     for targ in mains:
-        d = mains[targ]
-        files = glob.glob(os.path.join(datadir, targ, outdir0, d[0]))
-        if len(files) > 0:
+        mapping = mains[targ]
+        for item in mapping:
+            files = glob.glob(os.path.join(datadir, targ, outdir0, item[0]))
+        if len(files) != 1:
             print(f"something went wrong with {targ}")
             continue
         x1d = files[0]
         with pf.open(x1d, mode="update") as hdulist:
-            hdulist[0].header["TARGNAME"] = d[1]
+            hdulist[0].header["TARGNAME"] = item[1]
 
 def check_x1d(newfile, oldfile, targ, outdir):
     new = pf.getdata(newfile)
