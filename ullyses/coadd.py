@@ -120,20 +120,8 @@ class SegmentList:
                         if self.instrument == 'COS':
                             cenwave = hdulist[0].header['CENWAVE']
                             fppos = hdulist[0].header['FPPOS']
-                            if cenwave == 1096 and fppos == 1:
-                                self.fix_cos_1096_dq(segment)
                         self.members.append(segment)
 
-    def fix_cos_1096_dq(self, segment):
-        print('Fixing COS 1096 FPPOS=1 data')
-        segmentname = segment.data['segment']
-        lastgoodwavelength = {'FUVA': 1239.75, 'FUVB': 1085.75}
-        wavelength = segment.data['wavelength']
-        good_indices = np.where(wavelength <= lastgoodwavelength[segmentname])
-        lastgoodindex = good_indices[0][-1]
-        segment.data['dq'][lastgoodindex+1:] |= 8
-        return
-        
     def create_output_wavelength_grid(self):
         min_wavelength = 10000.0
         max_wavelength = 0.0
