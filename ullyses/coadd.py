@@ -451,6 +451,7 @@ class SegmentList:
 
 # Weight functions for STIS
 weight_function = {
+    'unity':      lambda x, y, z: np.ones(len(x)),
     'gross':      lambda x, y, z: x,
     'exptime':    lambda x, y, z: x * y,
     'throughput': lambda x, y, z: x * y * z
