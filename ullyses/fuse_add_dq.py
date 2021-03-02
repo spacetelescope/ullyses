@@ -48,7 +48,7 @@ def add_column(infile, outfile, colext, colname, colformat, colvals,
     new_hdulist.writeto(outfile, overwrite=overwrite)
     print(f"Wrote {outfile}")
     
-def add_dq_col(infile, outfile, wlstart, wlend):
+def add_dq_col(infile, outfile, wlstart, wlend, dqflag, overwrite=False):
     """
     Add a DQ column for FUSE data.
 
@@ -59,14 +59,21 @@ def add_dq_col(infile, outfile, wlstart, wlend):
             to flag as bad DQ
         wlend (int, float, or array-like): End of wavelength range(s)
             to flag as bad DQ
+        dqflag (int, float, or array-like): DQ flag(s) corresponding to each
+            wavelength range to flag.
+        overwite (Bool): If True, overwrite any existing files
     """
     if not isinstance(wlstart, (list, np.ndarray)):
         wlstart = [wlstart]
     if not isinstance(wlend, (list, np.ndarray)):
         wlend = [wlend]
+    if not isinstance(dqflag, (list, np.ndarray)):
+        dqflag = [dqflag]
+    wlstart += [0, 1188]
+    wlend += [912, -1]
+    dqflag += [2,2]
 
-    bad_dq = 0
-    good_dq = 1
+    good_dq = 0
     
     data = fits.getdata(infile, 1)
     wl = data["wave"][0]
@@ -76,6 +83,7 @@ def add_dq_col(infile, outfile, wlstart, wlend):
     for i in range(len(wlstart)):
         start = wlstart[i]
         end = wlend[i]
+        bad_dq = dqflag[i]
         if end == -1:
             end = 99999
         if start == 0:
@@ -85,4 +93,4 @@ def add_dq_col(infile, outfile, wlstart, wlend):
     dqarr = dqarr.reshape(1, arrlen)
 
     add_column(infile, outfile, colext=1, colname="DQ", colformat=str(arrlen)+"I", 
-               colvals=dqarr, colunit=None)
+               colvals=dqarr, colunit=None, overwrite=overwrite)
