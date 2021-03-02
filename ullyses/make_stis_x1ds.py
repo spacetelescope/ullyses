@@ -227,6 +227,80 @@ def copy_files():
             print(f"Removed {sx1file}")
         shutil.copy(item, dest)
 
+def coadd_1d_spectra2():
+    targs = {"CVSO-109": {"G430L": ("oe9k2s020_x1d.fits", "oe9k2s020_CVSO-109B_x1d.fits"),
+                          "G750L": ("oe9k2s030_x1d.fits", "oe9k2s030_CVSO-109B_x1d.fits")}}
+    for targ in targs:
+        d = targs[targ]
+        for grating in d:
+            files = d[grating]
+            filenames = [os.path.join(datadir, targ, outdir0, f)
+            for i,f in enumerate(files):
+                filename = os.path.join(datadir, targ, outdir0, f)
+                indata = pf.getdata(filename)
+                if i == 0:
+                    root = f[:9]
+                    combined0 = f"{root}_{targ}_x1d.fits"
+                    combined = os.path.join(datadir, targ, outdir0, combined0)
+                    shutil.copy(filename, combined)
+                    comb_flux = indata["flux"][0]
+                    comb_wl = indata["wavelength"][0]
+                    comb_dq = indata["dq"][0]
+                    comb_gross = indata["gross"][0]
+                    comb_err = indata["error"][0]
+                else:
+                    interp_flux = np.interp(comb_wl, indata["wavelength"][0], indata["flux"][0])
+                    comb_flux += interp_flux
+                    interp_err = np.interp(comb_wl, indata["wavelength"][0], indata["error"][0])
+                    comb_err = np.sqrt((comb_err**2) + (interp_err**2))
+                    interp_dq = np.interp(comb_wl, indata["wavelength"][0], indata["dq"][0])
+                    comb_dq |= interp_dq
+                    interp_gross = np.interp(comb_wl, indata["wavelength"][0], indata["gross"][0])
+                    comb_gross += interp_gross
+            with pf.open(combined, mode="update") as hdulist:
+                hdulist[1].data["wavelength"][0] = comb_wl
+                hdulist[1].data["flux"][0] = comb_flux
+                hdulist[1].data["error"][0] = comb_err
+                hdulist[1].data["dq"][0] = comb_dq
+                hdulist[1].data["gross"][0] = comb_gross
+
+
+def coadd_1d_spectra():
+    targs = {"CVSO-109": {"G430L": ("oe9k2s020_x1d.fits", "oe9k2s020_CVSO-109B_x1d.fits"),
+                          "G750L": ("oe9k2s030_x1d.fits", "oe9k2s030_CVSO-109B_x1d.fits")}}
+    for targ in targs:
+        d = targs[targ]
+        for grating in d:
+            files = d[grating]
+            for i,f in enumerate(files):
+                filename = os.path.join(datadir, targ, outdir0, f)
+                indata = pf.getdata(filename)
+                if i == 0:
+                    root = f[:9]
+                    combined0 = f"{root}_{targ}_x1d.fits"
+                    combined = os.path.join(datadir, targ, outdir0, combined0)
+                    shutil.copy(filename, combined)
+                    comb_flux = indata["flux"][0]
+                    comb_wl = indata["wavelength"][0]
+                    comb_dq = indata["dq"][0]
+                    comb_gross = indata["gross"][0]
+                    comb_err = indata["error"][0]
+                else:
+                    interp_flux = np.interp(comb_wl, indata["wavelength"][0], indata["flux"][0])
+                    comb_flux += interp_flux
+                    interp_err = np.interp(comb_wl, indata["wavelength"][0], indata["error"][0])
+                    comb_err = np.sqrt((comb_err**2) + (interp_err**2))
+                    interp_dq = np.interp(comb_wl, indata["wavelength"][0], indata["dq"][0])
+                    comb_dq |= interp_dq
+                    interp_gross = np.interp(comb_wl, indata["wavelength"][0], indata["gross"][0])
+                    comb_gross += interp_gross
+            with pf.open(combined, mode="update") as hdulist:
+                hdulist[1].data["wavelength"][0] = comb_wl
+                hdulist[1].data["flux"][0] = comb_flux
+                hdulist[1].data["error"][0] = comb_err
+                hdulist[1].data["dq"][0] = comb_dq
+                hdulist[1].data["gross"][0] = comb_gross
+
 
 def check_x1d(newfile, oldfile, targ, outdir):
     new = pf.getdata(newfile)
