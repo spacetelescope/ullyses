@@ -190,6 +190,7 @@ def rename_targs():
                 with pf.open(item, mode="update") as hdulist:
                     hdulist[0].header["RA_TARG"] = d[comp][0]
                     hdulist[0].header["DEC_TARG"] = d[comp][1]
+                    hdulist[0].header["TARGNAME"] = comp
 
     mains = {"CVSO-36": [("oe9k5s010_x1d.fits", "CVSO-36A"),
                          ("oe9k5s020_x1d.fits", "CVSO-36A"),
