@@ -9,11 +9,7 @@ from stistools import x1d
 
 from calibrate_stis_data import Stisdata
 
-#tts = ["CVSO-104", "CVSO-107", "CVSO-109", "CVSO-146", "CVSO-165", "CVSO-17",
-#       "CVSO-176", "CVSO-36", "CVSO-58", "CVSO-90", "V-TX-ORI", "V505-ORI",
-#       "V510-ORI"]
-
-tts = ["CVSO-104", "CVSO-107", "CVSO-109", "CVSO-146", "CVSO-17",
+tts = ["CVSO-104", "CVSO-107", "CVSO-109", "CVSO-146", "CVSO-165", "CVSO-17",
        "CVSO-176", "CVSO-36", "CVSO-58", "CVSO-90", "V-TX-ORI", "V505-ORI",
        "V510-ORI"]
 
@@ -53,7 +49,7 @@ def make_ccd_x1ds():
     print(f"Files that did not calibrate properly: {bad}")
 
 def make_mama_x1ds():
-    outfile = os.path.join(datadir, "CVSO-104", outdir0, "oe9k1s020_nonsci410_x1d.fits")
+    outfile = os.path.join(datadir, "CVSO-104", outdir0, "oe9k1s020_GAIA-DR3-3217634157789741952_x1d.fits")
     if os.path.exists(outfile):
         os.remove(outfile)
     x1d.x1d(os.path.join(datadir, "CVSO-104/mast_products/oe9k1s020_flt.fits"),
@@ -75,7 +71,7 @@ def make_mama_x1ds():
     with pf.open(outfile, mode="update") as hdulist:
         hdulist[0].header["HLSP_LVL"] = 0
     print("#"*80, "\n")
-    outfile = os.path.join(datadir, "CVSO-109", outdir0, "oe9k2s010_nonsci516_x1d.fits")
+    outfile = os.path.join(datadir, "CVSO-109", outdir0, "oe9k2s010_CVSO-109B_x1d.fits")
     if os.path.exists(outfile):
         os.remove(outfile)
     x1d.x1d(os.path.join(datadir, "CVSO-109/mast_products/oe9k2s010_flt.fits"),
@@ -121,41 +117,42 @@ def make_mama_x1ds():
         hdulist[0].header["HLSP_LVL"] = 0
     print("#"*80, "\n")
     
-#    outfile = os.path.join(datadir, "CVSO-165", outdir0, "oe9j2s010_x1d.fits")
-#    if os.path.exists(outfile):
-#        os.remove(outfile)
-#    x1d.x1d(os.path.join(datadir, "CVSO-165/mast_products/oe9j2s010_flt.fits"),
-#            output=outfile,
-#            a2center=514.5,
-#            maxsrch=0,
-#            extrsize=7)
-#    with pf.open(outfile, mode="update") as hdulist:
-#        hdulist[0].header["HLSP_LVL"] = 0
-#    print("#"*80, "\n")
-#    outfile = os.path.join(datadir, "CVSO-165", outdir0, "oe9j2s010_nonsci527_x1d.fits")
-#    if os.path.exists(outfile):
-#        os.remove(outfile)
-#    x1d.x1d(os.path.join(datadir, "CVSO-165/mast_products/oe9j2s010_flt.fits"),
-#            output=outfile,
-#            a2center=527.0,
-#            maxsrch=0,
-#            extrsize=9)
-#    with pf.open(outfile, mode="update") as hdulist:
-#        hdulist[0].header["HLSP_LVL"] = 0
-#    print("#"*80, "\n")
-#    outfile = os.path.join(datadir, "CVSO-165", outdir0, "oe9j2s010_nonsci733_x1d.fits")
-#    if os.path.exists(outfile):
-#        os.remove(outfile)
-#    x1d.x1d(os.path.join(datadir, "CVSO-165/mast_products/oe9j2s010_flt.fits"),
-#            output=outfile,
-#            a2center=733,
-#            maxsrch=13,
-#            extrsize=7,
-#            bk1offst=-521,
-#            bk2offst=79)
-#    with pf.open(outfile, mode="update") as hdulist:
-#        hdulist[0].header["HLSP_LVL"] = 0
-#    print("#"*80, "\n")
+    outfile = os.path.join(datadir, "CVSO-165", outdir0, "oe9j2s010_x1d.fits")
+    if os.path.exists(outfile):
+        os.remove(outfile)
+    x1d.x1d(os.path.join(datadir, "CVSO-165/mast_products/oe9j2s010_flt.fits"),
+            output=outfile,
+            a2center=514.5,
+            maxsrch=5,
+            extrsize=7)
+    with pf.open(outfile, mode="update") as hdulist:
+        hdulist[0].header["HLSP_LVL"] = 0
+    print("#"*80, "\n")
+    outfile = os.path.join(datadir, "CVSO-165", outdir0, "oe9j2s010_CVSO-165B_x1d.fits")
+    if os.path.exists(outfile):
+        os.remove(outfile)
+    x1d.x1d(os.path.join(datadir, "CVSO-165/mast_products/oe9j2s010_flt.fits"),
+            output=outfile,
+            a2center=527.0,
+            xoffset=-.9214,
+            maxsrch=5,
+            extrsize=9)
+    with pf.open(outfile, mode="update") as hdulist:
+        hdulist[0].header["HLSP_LVL"] = 0
+    print("#"*80, "\n")
+    outfile = os.path.join(datadir, "CVSO-165", outdir0, "oe9j2s010_GAIA-DR3-3217473697810165504_x1d.fits")
+    if os.path.exists(outfile):
+        os.remove(outfile)
+    x1d.x1d(os.path.join(datadir, "CVSO-165/mast_products/oe9j2s010_flt.fits"),
+            output=outfile,
+            a2center=733,
+            maxsrch=7,
+            extrsize=7,
+            bk1offst=-521,
+            bk2offst=79)
+    with pf.open(outfile, mode="update") as hdulist:
+        hdulist[0].header["HLSP_LVL"] = 0
+    print("#"*80, "\n")
     
     outfile = os.path.join(datadir, "CVSO-176", outdir0, "oe9k4s010_x1d.fits")
     if os.path.exists(outfile):
@@ -178,10 +175,10 @@ def make_mama_x1ds():
     print("#"*80, "\n")
 
 def rename_targs():
-    comps = {"CVSO-14": {"GAIA-DR3-3217634157789741952": (83.02660499856, -1.18336721131)}, 
+    comps = {"CVSO-104": {"GAIA-DR3-3217634157789741952": (83.02660499856, -1.18336721131)}, 
         "CVSO-109": {"CVSO-109B": (83.13599552466, -1.22957460015)}, 
-#        "CVSO-165": {"GAIA-DR3-3217473697810165504": (84.75978669326, -1.34115742897),
-#                     "CVSO-165B": (84.760675, -1.34227778)},
+        "CVSO-165": {"GAIA-DR3-3217473697810165504": (84.75978669326, -1.34115742897),
+                     "CVSO-165B": (84.760675, -1.34227778)},
         "CVSO-36": {"CVSO-36B": (81.45900692210, 1.82725967070)}}
      
     for targ in comps:
@@ -200,9 +197,9 @@ def rename_targs():
              "CVSO-109": [("oe9k2s010_x1d.fits", "CVSO-109A"),
                           ("oe9k2s020_x1d.fits", "CVSO-109A"),
                           ("oe9k2s030_x1d.fits", "CVSO-109A")]}
-#            "CVSO-165": [("oe9j2s010_x1d.fits", "CVSO-165A"),
-#                          ("oe9j2s020_x1d.fits", "CVSO-165A"),
-#                          ("oe9j2s030_x1d.fits", "CVSO-165A")]}
+            "CVSO-165": [("oe9j2s010_x1d.fits", "CVSO-165A"),
+                          ("oe9j2s020_x1d.fits", "CVSO-165A"),
+                          ("oe9j2s030_x1d.fits", "CVSO-165A")]}
     for targ in mains:
         mapping = mains[targ]
         for item in mapping:
@@ -300,7 +297,7 @@ def plotdiff(new, newname, old, oldname, targ, outdir):
     pl.close()
 
 if __name__ == "__main__":
-#    make_ccd_x1ds()
-#    make_mama_x1ds()
-#    rename_targs()
+    make_ccd_x1ds()
+    make_mama_x1ds()
+    rename_targs()
     copy_files()
