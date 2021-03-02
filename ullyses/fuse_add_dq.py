@@ -59,8 +59,9 @@ def add_dq_col(infile, outfile, wlstart, wlend, dqflag, overwrite=False):
             to flag as bad DQ
         wlend (int, float, or array-like): End of wavelength range(s)
             to flag as bad DQ
-        wlend (int, float, or array-like): DQ flag(s) corresponding ot each
+        dqflag (int, float, or array-like): DQ flag(s) corresponding to each
             wavelength range to flag.
+        overwite (Bool): If True, overwrite any existing files
     """
     if not isinstance(wlstart, (list, np.ndarray)):
         wlstart = [wlstart]
