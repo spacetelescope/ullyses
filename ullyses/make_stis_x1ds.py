@@ -7,6 +7,7 @@ import matplotlib
 import matplotlib.pyplot as pl
 from stistools import x1d
 
+from coadd import STISSegmentList
 from calibrate_stis_data import Stisdata
 
 tts = ["CVSO-104", "CVSO-107", "CVSO-109", "CVSO-146", "CVSO-165", "CVSO-17",
@@ -227,43 +228,66 @@ def copy_files():
             print(f"Removed {sx1file}")
         shutil.copy(item, dest)
 
-def coadd_1d_spectra2():
-    targs = {"CVSO-109": {"G430L": ("oe9k2s020_x1d.fits", "oe9k2s020_CVSO-109B_x1d.fits"),
-                          "G750L": ("oe9k2s030_x1d.fits", "oe9k2s030_CVSO-109B_x1d.fits")}}
-    for targ in targs:
-        d = targs[targ]
-        for grating in d:
-            files = d[grating]
-            filenames = [os.path.join(datadir, targ, outdir0, f)
-            for i,f in enumerate(files):
-                filename = os.path.join(datadir, targ, outdir0, f)
-                indata = pf.getdata(filename)
-                if i == 0:
-                    root = f[:9]
-                    combined0 = f"{root}_{targ}_x1d.fits"
-                    combined = os.path.join(datadir, targ, outdir0, combined0)
-                    shutil.copy(filename, combined)
-                    comb_flux = indata["flux"][0]
-                    comb_wl = indata["wavelength"][0]
-                    comb_dq = indata["dq"][0]
-                    comb_gross = indata["gross"][0]
-                    comb_err = indata["error"][0]
-                else:
-                    interp_flux = np.interp(comb_wl, indata["wavelength"][0], indata["flux"][0])
-                    comb_flux += interp_flux
-                    interp_err = np.interp(comb_wl, indata["wavelength"][0], indata["error"][0])
-                    comb_err = np.sqrt((comb_err**2) + (interp_err**2))
-                    interp_dq = np.interp(comb_wl, indata["wavelength"][0], indata["dq"][0])
-                    comb_dq |= interp_dq
-                    interp_gross = np.interp(comb_wl, indata["wavelength"][0], indata["gross"][0])
-                    comb_gross += interp_gross
-            with pf.open(combined, mode="update") as hdulist:
-                hdulist[1].data["wavelength"][0] = comb_wl
-                hdulist[1].data["flux"][0] = comb_flux
-                hdulist[1].data["error"][0] = comb_err
-                hdulist[1].data["dq"][0] = comb_dq
-                hdulist[1].data["gross"][0] = comb_gross
+class STIScoadd(STISSegmentList):
+    def create_output_wavelength_grid(self):
+        min_wavelength = 10000.0
+        max_wavelength = 0.0
+        for segment in self.members:
+            minwave = segment.data['wavelength'].min()
+            maxwave = segment.data['wavelength'].max()
+            if minwave < min_wavelength: min_wavelength = minwave
+            if maxwave > max_wavelength: max_wavelength = maxwave
 
+        max_delta_wavelength = 0.0
+        for segment in self.members:
+            wavediffs = segment.data['wavelength'][1:] - segment.data['wavelength'][:-1]
+            max_delta_wavelength = max(max_delta_wavelength, wavediffs.max())
+        
+        self.delta_wavelength = max_delta_wavelength
+
+        self.min_wavelength = int(min_wavelength)
+        self.max_wavelength = int(max_wavelength+self.delta_wavelength) + 1
+        
+        wavegrid = np.arange(self.min_wavelength, self.max_wavelength, self.delta_wavelength)
+
+        self.output_wavelength = wavegrid
+        self.nelements = len(wavegrid)
+        self.output_sumflux = np.zeros(self.nelements)
+        self.output_sumweight = np.zeros(self.nelements)
+        self.output_flux = np.zeros(self.nelements)
+        self.output_errors = np.zeros(self.nelements)                                                  
+        self.signal_to_noise = np.zeros(self.nelements)
+        self.output_exptime = np.zeros(self.nelements)
+
+        return wavegrid
+
+
+    def coadd(self):
+        self.output_dq = np.zeros(self.nelements).astype(int)
+        for segment in self.members:
+            goodpixels = np.where((segment.data['dq'] & segment.sdqflags) == 0)
+            wavelength = segment.data['wavelength'][goodpixels]
+            indices = self.wavelength_to_index(wavelength)
+            all_indices = self.wavelength_to_index(segment.data['wavelength'])
+            gross_counts = self.get_flux_weight(segment)
+            weight = gross_counts[goodpixels]
+            flux = segment.data['flux'][goodpixels]
+            self.output_dq[all_indices] = self.output_dq[all_indices] | segment.data['dq']
+            self.output_sumweight[indices] = self.output_sumweight[indices] + weight
+            self.output_sumflux[indices] = self.output_sumflux[indices] + flux * weight
+            self.output_exptime[indices] = self.output_exptime[indices] + segment.exptime
+        good_dq = np.where(self.output_exptime > 0.)                  
+        self.first_good_wavelength = self.output_wavelength[good_dq][0]
+        self.last_good_wavelength = self.output_wavelength[good_dq][-1]
+        nummembers = len(self.members)
+        nonzeros = np.where(self.output_sumweight == nummembers)
+        self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / 1
+        # For the moment calculate errors from the gross counts
+        self.output_errors[nonzeros] = np.sqrt(self.output_sumweight[nonzeros])
+        self.signal_to_noise[nonzeros] = self.output_sumweight[nonzeros] / self.output_errors[nonzeros]
+        self.output_errors[nonzeros] = np.abs(self.output_flux[nonzeros] / self.signal_to_noise[nonzeros])
+        return
+  
 
 def coadd_1d_spectra():
     targs = {"CVSO-109": {"G430L": ("oe9k2s020_x1d.fits", "oe9k2s020_CVSO-109B_x1d.fits"),
@@ -272,35 +296,23 @@ def coadd_1d_spectra():
         d = targs[targ]
         for grating in d:
             files = d[grating]
-            for i,f in enumerate(files):
-                filename = os.path.join(datadir, targ, outdir0, f)
-                indata = pf.getdata(filename)
-                if i == 0:
-                    root = f[:9]
-                    combined0 = f"{root}_{targ}_x1d.fits"
-                    combined = os.path.join(datadir, targ, outdir0, combined0)
-                    shutil.copy(filename, combined)
-                    comb_flux = indata["flux"][0]
-                    comb_wl = indata["wavelength"][0]
-                    comb_dq = indata["dq"][0]
-                    comb_gross = indata["gross"][0]
-                    comb_err = indata["error"][0]
-                else:
-                    interp_flux = np.interp(comb_wl, indata["wavelength"][0], indata["flux"][0])
-                    comb_flux += interp_flux
-                    interp_err = np.interp(comb_wl, indata["wavelength"][0], indata["error"][0])
-                    comb_err = np.sqrt((comb_err**2) + (interp_err**2))
-                    interp_dq = np.interp(comb_wl, indata["wavelength"][0], indata["dq"][0])
-                    comb_dq |= interp_dq
-                    interp_gross = np.interp(comb_wl, indata["wavelength"][0], indata["gross"][0])
-                    comb_gross += interp_gross
-            with pf.open(combined, mode="update") as hdulist:
-                hdulist[1].data["wavelength"][0] = comb_wl
-                hdulist[1].data["flux"][0] = comb_flux
-                hdulist[1].data["error"][0] = comb_err
-                hdulist[1].data["dq"][0] = comb_dq
-                hdulist[1].data["gross"][0] = comb_gross
-
+            filenames = [os.path.join(datadir, targ, outdir0, f) for f in files]
+            coadd_dir = os.path.join(datadir, targ, outdir0, f"{grating}_coadd")
+            if not os.path.exists(coadd_dir):
+                os.mkdir(coadd_dir)
+            for item in filenames:
+                shutil.copy(item, coadd_dir)
+            root = files[0][:9]
+            combined0 = f"{root}_{targ}_x1d.fits"
+            combined = os.path.join(coadd_dir, combined0)
+            if os.path.exists(combined):
+                os.remove(combined)
+            prod = STIScoadd(grating, path=coadd_dir, weighting_method='unity')
+            prod.target = prod.ull_targname()
+            prod.targ_ra, prod.targ_dec = prod.ull_coords()
+            prod.create_output_wavelength_grid()
+            prod.coadd()
+            prod.write(combined, overwrite=True, level=0, version="dr2")
 
 def check_x1d(newfile, oldfile, targ, outdir):
     new = pf.getdata(newfile)
@@ -375,3 +387,4 @@ if __name__ == "__main__":
     make_mama_x1ds()
     rename_targs()
     copy_files()
+#    coadd_1d_spectra()
