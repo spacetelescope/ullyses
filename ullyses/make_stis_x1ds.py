@@ -175,6 +175,40 @@ def make_mama_x1ds():
         hdulist[0].header["HLSP_LVL"] = 0
     print("#"*80, "\n")
 
+def rename_targs():
+    comps = {"CVSO-14": {"GAIA-DR3-3217634157789741952": (83.02660499856, -1.18336721131)}, 
+        "CVSO-109": {"CVSO-109B": (83.13599552466, -1.22957460015)}, 
+#        "CVSO-165": {"GAIA-DR3-3217473697810165504": (084.75978669326, -1.34115742897),
+#                     "CVSO-165B": (,)},
+        "CVSO-36": {"CVSO-36B": (81.45900692210, 1.82725967070)}}
+     
+    for targ in comps:
+        d = comps[targ]
+        for comp in d:
+            files = glob.glob(os.path.join(datadir, targ, outdir0, f"*{comp}*x1d.fits"))
+            for item in files:
+                with pf.open(item, mode="update") as hdulist:
+                    hdulist[0].header["RA_TARG"] = d[comp][0]
+                    hdulist[0].header["DEC_TARG"] = d[comp][1]
+
+    mains = {"CVSO-165": [("oe9j2s010_x1d.fits", "CVSO-165A"),
+                          ("oe9j2s020_x1d.fits", "CVSO-165A"),
+                          ("oe9j2s030_x1d.fits", "CVSO-165A")],
+             "CVSO-36": [("oe9k5s010_x1d.fits", "CVSO-36A"),
+                         ("oe9k5s020_x1d.fits", "CVSO-36A"),
+                         ("oe9k5s030_x1d.fits", "CVSO-36A")],
+             "CVSO-109": [("oe9k2s010_x1d.fits", "CVSO-109A"),
+                          ("oe9k2s020_x1d.fits", "CVSO-109A"),
+                          ("oe9k2s030_x1d.fits", "CVSO-109A")]}
+    for targ in mains:
+        d = mains[targ]
+        files = glob.glob(os.path.join(datadir, targ, outdir0, d[0]))
+        if len(files) > 0:
+            print(f"something went wrong with {targ}")
+            continue
+        x1d = files[0]
+        with pf.open(x1d, mode="update") as hdulist:
+            hdulist[0].header["TARGNAME"] = d[1]
 
 def check_x1d(newfile, oldfile, targ, outdir):
     new = pf.getdata(newfile)
@@ -247,3 +281,4 @@ def plotdiff(new, newname, old, oldname, targ, outdir):
 if __name__ == "__main__":
     make_ccd_x1ds()
     make_mama_x1ds()
+    rename_targs()
