@@ -20,7 +20,6 @@ filestoedit = {
 "AV69":          {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
 "SK-67D211":     {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
 "SK-68D135":     {"minwl": [1150],      "maxwl":[-1],           "dq":[1]},
-"BAT99-105":     {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
 "AV47":          {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
 "SK-69D191":     {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
 "NGC346-ELS-07": {"minwl": [0,1082.5],  "maxwl":[987.5,1094.2], "dq":[2,2]},
@@ -134,7 +133,7 @@ fuse_dr1 = [
  'SK-68D155',
  'N11-ELS-018',
  'AV456',
- 'BAT99-105',
+# 'BAT99-105',
  'AV332',
  'AV75',
  'AV327',
@@ -156,5 +155,5 @@ for targ in fuse_dr1:
         pars = filestoedit[targ] 
         add_dq_col(vofile, outfile, pars["minwl"], pars["maxwl"], pars["dq"], overwrite=True)
     else:
-        add_dq_col(vofile, outfile, [], [], [], overwrite=True)      
+        add_dq_col(vofile, outfile, [], [], [], overwrite=True)
 
