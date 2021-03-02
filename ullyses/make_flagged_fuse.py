@@ -1,3 +1,4 @@
+import shutil
 from astropy.io import fits as pf
 import glob
 import os
@@ -5,6 +6,8 @@ import numpy as np
 import matplotlib.pyplot as pl
 
 from fuse_add_dq import add_dq_col
+
+drdir = "/astro/ullyses/all_vetted_data_dr2"
 
 # DR1 FUSE targets that require custom flagging
 filestoedit = {
@@ -156,4 +159,6 @@ for targ in fuse_dr1:
         add_dq_col(vofile, outfile, pars["minwl"], pars["maxwl"], pars["dq"], overwrite=True)
     else:
         add_dq_col(vofile, outfile, [], [], [], overwrite=True)
+
+    shutil.copy(outfile, os.path.join(drdir, targ.lower()))
 
