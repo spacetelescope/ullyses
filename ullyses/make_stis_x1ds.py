@@ -6,6 +6,7 @@ from astropy.io import fits as pf
 import matplotlib
 import matplotlib.pyplot as pl
 from stistools import x1d
+import subprocess
 
 from coadd import STISSegmentList
 from calibrate_stis_data import Stisdata
@@ -16,7 +17,7 @@ tts = ["CVSO-104", "CVSO-107", "CVSO-109", "CVSO-146", "CVSO-165", "CVSO-17",
 
 drdir = "/astro/ullyses/all_vetted_data_dr2"
 datadir = "/astro/ullyses/tts_dr2"
-outdir0 = "v1"
+outdir0 = "v2"
 
 config_dir = "/user/jotaylor/git/ullyses_dp/high_level_science_products/high_level_science_products/config_files"
 
@@ -47,6 +48,7 @@ def make_ccd_x1ds():
 #                        check_x1d(S.sx1, S.sx1, targ, outdir)
                     print("#"*80)
                     print("")
+    subprocess.run(["chmod", "-R", "777", datadir])
     print(f"Files that did not calibrate properly: {bad}")
 
 def make_mama_x1ds():
@@ -174,6 +176,7 @@ def make_mama_x1ds():
     with pf.open(outfile, mode="update") as hdulist:
         hdulist[0].header["HLSP_LVL"] = 0
     print("#"*80, "\n")
+    subprocess.run(["chmod", "-R", "777", datadir])
 
 def rename_targs():
     comps = {"CVSO-104": {"GAIA-DR3-3217634157789741952": (83.02660499856, -1.18336721131)}, 
@@ -211,6 +214,7 @@ def rename_targs():
         x1d = files[0]
         with pf.open(x1d, mode="update") as hdulist:
             hdulist[0].header["TARGNAME"] = item[1]
+    subprocess.run(["chmod", "-R", "777", datadir])
 
 def copy_files():
     files = glob.glob(os.path.join(datadir, "*", outdir0, "*x1d.fits"))
@@ -226,6 +230,10 @@ def copy_files():
         if os.path.exists(sx1file):
             os.remove(sx1file)
             print(f"Removed {sx1file}")
+        destx1d = os.path.join(dest, x1d)
+        if os.path.exists(destx1d):
+            os.remove(destx1d)
+            print(f"Removed {destx1d}")
         shutil.copy(item, dest)
 
 class STIScoadd(STISSegmentList):
