@@ -1,3 +1,4 @@
+import shutil
 import numpy as np
 import os
 import glob
@@ -16,6 +17,7 @@ tts = ["CVSO-104", "CVSO-107", "CVSO-109", "CVSO-146", "CVSO-17",
        "CVSO-176", "CVSO-36", "CVSO-58", "CVSO-90", "V-TX-ORI", "V505-ORI",
        "V510-ORI"]
 
+drdir = "/astro/ullyses/all_vetted_data_dr2"
 datadir = "/astro/ullyses/tts_dr2"
 outdir0 = "v1"
 
@@ -212,6 +214,23 @@ def rename_targs():
         with pf.open(x1d, mode="update") as hdulist:
             hdulist[0].header["TARGNAME"] = item[1]
 
+def copy_files():
+    files = glob.glob(os.path.join(datadir, "*", outdir0, "*x1d.fits"))
+    for item in files:
+        targ0 = pf.getval(item, "targname")
+        targ = targ0.lower()
+        dest = os.path.join(drdir, targ)
+        if not os.path.exists(dest):
+            os.makedirs(dest)
+        x1d = os.path.basename(item)
+        sx1 = x1d.replace("x1d.fits", "sx1.fits")
+        sx1file = os.path.join(dest, sx1)
+        if os.path.exists(sx1file):
+            os.remove(sx1file)
+            print(f"Removed {sx1file}")
+        shutil.copy(item, dest)
+
+
 def check_x1d(newfile, oldfile, targ, outdir):
     new = pf.getdata(newfile)
     old = pf.getdata(oldfile)
@@ -281,6 +300,7 @@ def plotdiff(new, newname, old, oldname, targ, outdir):
     pl.close()
 
 if __name__ == "__main__":
-    make_ccd_x1ds()
-    make_mama_x1ds()
-    rename_targs()
+#    make_ccd_x1ds()
+#    make_mama_x1ds()
+#    rename_targs()
+    copy_files()
