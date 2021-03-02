@@ -18,6 +18,7 @@ CAL_VER = 0.1
 RED = "\033[1;31m"
 RESET = "\033[0;0m"
 
+
 class SegmentList:
 
     def __init__(self, grating, path='.'):
@@ -42,8 +43,10 @@ class SegmentList:
         self.target = ''
         self.prog_id = ''
         self.datasets = []
+        self.level0 = False
 
-        x1dfiles = glob.glob(os.path.join(path, '*_x1d.fits'))
+        vofiles = glob.glob(os.path.join(path, '*_vo.fits'))
+        x1dfiles = glob.glob(os.path.join(path, '*_x1d.fits')) + glob.glob(os.path.join(path, '*_sx1.fits'))
 
         gratinglist = []
 
@@ -60,10 +63,33 @@ class SegmentList:
                     target = prihdr['TARGNAME']
                     if target not in self.targname:
                         self.targname.append(target.strip())
+                    try:
+                        if prihdr['HLSP_LVL'] == 0:
+                            self.level0 = True
+                    except:
+                        pass
                 else:
                     print('{} has no data'.format(file))
             else:
                 f1.close()
+
+        if grating == 'FUSE':
+            for file in vofiles:
+                f1 = fits.open(file)
+                prihdr = f1[0].header
+                data = f1[1].data
+                if len(data) > 0:
+                    print('{} added to file list for FUSE'.format(file))
+                    gratinglist.append(f1)
+                    self.instrument = 'FUSE'
+                    aperture = prihdr["APERTURE"]
+                    self.aperture = aperture
+                    self.datasets.append(file)
+                    target = prihdr['TARGNAME']
+                    if target not in self.targname:
+                        self.targname.append(target.strip())
+                else:
+                    print('{} has no data'.format(file))
 
         self.members = []
         self.primary_headers = []
@@ -76,10 +102,16 @@ class SegmentList:
                 if len(data) > 0:
                     self.primary_headers.append(hdulist[0].header)
                     self.first_headers.append(hdulist[1].header)
-                    sdqflags = hdulist[1].header['SDQFLAGS']
-                    if self.instrument == "STIS" and (sdqflags&16) == 16:
-                        sdqflags -= 16
-                    exptime = hdulist[1].header['EXPTIME']
+                    if self.instrument == 'FUSE':
+                        sdqflags = 3
+                    else:
+                        sdqflags = hdulist[1].header['SDQFLAGS']
+                        if self.instrument == "STIS" and (sdqflags&16) == 16:
+                            sdqflags -= 16
+                    if self.instrument == 'FUSE':
+                        exptime = hdulist[1].header['EXPOSURE']
+                    else:
+                        exptime = hdulist[1].header['EXPTIME']
                     for row in data:
                         segment = Segment()
                         segment.data = row
@@ -88,20 +120,8 @@ class SegmentList:
                         if self.instrument == 'COS':
                             cenwave = hdulist[0].header['CENWAVE']
                             fppos = hdulist[0].header['FPPOS']
-                            if cenwave == 1096 and fppos == 1:
-                                self.fix_cos_1096_dq(segment)
                         self.members.append(segment)
 
-    def fix_cos_1096_dq(self, segment):
-        print('Fixing COS 1096 FPPOS=1 data')
-        segmentname = segment.data['segment']
-        lastgoodwavelength = {'FUVA': 1239.75, 'FUVB': 1085.75}
-        wavelength = segment.data['wavelength']
-        good_indices = np.where(wavelength <= lastgoodwavelength[segmentname])
-        lastgoodindex = good_indices[0][-1]
-        segment.data['dq'][lastgoodindex+1:] |= 8
-        return
-        
     def create_output_wavelength_grid(self):
         min_wavelength = 10000.0
         max_wavelength = 0.0
@@ -143,23 +163,24 @@ class SegmentList:
         wavelength = index * self.delta_wavelength + self.min_wavelength
         return wavelength
 
-    def get_gross_counts(self, segment):
+    def get_flux_weight(self, segment):
         pass
 
     def coadd(self):
-        self.target = self.ull_targname()
-        self.targ_ra, self.targ_dec = self.ull_coords()
         
         for segment in self.members:
             goodpixels = np.where((segment.data['dq'] & segment.sdqflags) == 0)
             wavelength = segment.data['wavelength'][goodpixels]
             indices = self.wavelength_to_index(wavelength)
-            gross_counts = self.get_gross_counts(segment)
+            gross_counts = self.get_flux_weight(segment)
             weight = gross_counts[goodpixels]
             flux = segment.data['flux'][goodpixels]
             self.output_sumweight[indices] = self.output_sumweight[indices] + weight
             self.output_sumflux[indices] = self.output_sumflux[indices] + flux * weight
             self.output_exptime[indices] = self.output_exptime[indices] + segment.exptime
+        good_dq = np.where(self.output_exptime > 0.)
+        self.first_good_wavelength = self.output_wavelength[good_dq][0]
+        self.last_good_wavelength = self.output_wavelength[good_dq][-1]
         nonzeros = np.where(self.output_sumweight != 0)
         if self.instrument == 'COS':
             # Using the variances (which only COS has) gives spikes in the error when the flux goes negative.
@@ -182,8 +203,8 @@ class SegmentList:
         hdr1['TIMEUNIT'] = ('s', 'Time unit for durations')
         hdr1['TREFPOS'] = ('GEOCENTER', 'Time reference position')
 
-        mjd_beg = self.combine_keys("expstart", 1, "min")
-        mjd_end = self.combine_keys("expend", 1, "max")
+        mjd_beg = self.combine_keys("expstart", "min")
+        mjd_end = self.combine_keys("expend", "max")
         dt_beg = Time(mjd_beg, format="mjd").datetime
         dt_end = Time(mjd_end, format="mjd").datetime
         hdr1['DATE-BEG'] = (dt.strftime(dt_beg, "%Y-%m-%dT%H:%M:%S"), 'Date-time of first observation start')
@@ -193,7 +214,7 @@ class SegmentList:
         hdr1['DATE-END'] = (dt.strftime(dt_end, "%Y-%m-%dT%H:%M:%S"), 'Date-time of last observation end')
         hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
         hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
-        hdr1['XPOSURE'] = (self.combine_keys("exptime", 1, "sum"), '[s] Sum of exposure durations')
+        hdr1['XPOSURE'] = (self.combine_keys("exptime", "sum"), '[s] Sum of exposure durations')
     
         # set up the table columns
         nelements = len(self.output_wavelength)
@@ -223,16 +244,16 @@ class SegmentList:
         hdr0['ORIGIN'] = ('Space Telescope Science Institute', 'FITS file originator')
         hdr0['DATE'] = (str(datetime.date.today()), 'Date this file was written')
         hdr0['FILENAME'] = (os.path.basename(filename), 'Name of this file')
-        hdr0['TELESCOP'] = (self.combine_keys("telescop", 0, "multi"), 'Telescope used to acquire data')
-        hdr0['INSTRUME'] = (self.combine_keys("instrume", 0, "multi"), 'Instrument used to acquire data')
+        hdr0['TELESCOP'] = (self.combine_keys("telescop", "multi"), 'Telescope used to acquire data')
+        hdr0['INSTRUME'] = (self.combine_keys("instrume", "multi"), 'Instrument used to acquire data')
         hdr0.add_blank('', after='TELESCOP')
         hdr0.add_blank('              / SCIENCE INSTRUMENT CONFIGURATION', before='INSTRUME')
-        hdr0['DETECTOR'] = (self.combine_keys("detector", 0, "multi"), 'Detector or channel used to acquire data')
-        hdr0['DISPERSR'] = (self.combine_keys("opt_elem", 0, "multi"), 'Identifier of disperser')
-        hdr0['CENWAVE'] = (self.combine_keys("cenwave", 0, "multi"), 'Central wavelength setting for disperser')
-        hdr0['APERTURE'] = (self.combine_keys("aperture", 0, "multi"), 'Identifier of entrance aperture')
+        hdr0['DETECTOR'] = (self.combine_keys("detector", "multi"), 'Detector or channel used to acquire data')
+        hdr0['DISPERSR'] = (self.combine_keys("opt_elem", "multi"), 'Identifier of disperser')
+        hdr0['CENWAVE'] = (self.combine_keys("cenwave", "multi"), 'Central wavelength setting for disperser')
+        hdr0['APERTURE'] = (self.combine_keys("aperture", "multi"), 'Identifier of entrance aperture')
         hdr0['S_REGION'] = (self.obs_footprint(), 'Region footprint')
-        hdr0['OBSMODE'] = (self.combine_keys("obsmode", 0, "multi"), 'Instrument operating mode (ACCUM | TIME-TAG)')
+        hdr0['OBSMODE'] = (self.combine_keys("obsmode", "multi"), 'Instrument operating mode (ACCUM | TIME-TAG)')
         hdr0['TARGNAME'] = self.targname[0]
         hdr0.add_blank(after='OBSMODE')
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
@@ -240,7 +261,7 @@ class SegmentList:
         hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
-        hdr0['PROPOSID'] = (self.combine_keys("proposid", 0, "multi"), 'Program identifier')
+        hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi"), 'Program identifier')
         hdr0.add_blank(after='TARG_DEC')
         hdr0.add_blank('           / PROVENANCE INFORMATION', before='PROPOSID')
         hdr0['CAL_VER'] = (f'ULLYSES Cal {CAL_VER}', 'HLSP processing software version')
@@ -254,11 +275,11 @@ class SegmentList:
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
         hdr0['REFERENC'] = ('TBD', 'Bibliographic ID of primary paper')
     
-        hdr0['CENTRWV'] = (self.combine_keys("centrwv", 0, "average"), 'Central wavelength of the data')
+        hdr0['CENTRWV'] = (self.combine_keys("centrwv", "average"), 'Central wavelength of the data')
         hdr0.add_blank(after='REFERENC')
         hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')
-        hdr0['MINWAVE'] = (self.combine_keys("minwave", 0, "min"), 'Minimum wavelength in spectrum')
-        hdr0['MAXWAVE'] = (self.combine_keys("maxwave", 0, "max"), 'Maximum wavelength in spectrum')
+        hdr0['MINWAVE'] = (self.combine_keys("minwave", "min"), 'Minimum wavelength in spectrum')
+        hdr0['MAXWAVE'] = (self.combine_keys("maxwave", "max"), 'Maximum wavelength in spectrum')
 
         primary = fits.PrimaryHDU(header=hdr0)
 
@@ -268,25 +289,25 @@ class SegmentList:
         hdr2 = fits.Header()
         hdr2['EXTNAME'] = ('PROVENANCE', 'Metadata for contributing observations')
         # set up the table columns
-        cfn = fits.Column(name='FILENAME', array=np.array([h["filename"] for h in self.primary_headers]), format='A32')
-        cpid = fits.Column(name='PROPOSID', array=np.array([h["proposid"] for h in self.primary_headers]), format='A32')
-        ctel = fits.Column(name='TELESCOPE', array=np.array([h["telescop"] for h in self.primary_headers]), format='A32')
-        cins = fits.Column(name='INSTRUMENT', array=np.array([h["instrume"] for h in self.primary_headers]), format='A32')
-        cdet = fits.Column(name='DETECTOR', array=np.array([h["detector"] for h in self.primary_headers]), format='A32')
-        cdis = fits.Column(name='DISPERSER', array=np.array([h["opt_elem"] for h in self.primary_headers]), format='A32')
-        ccen = fits.Column(name='CENWAVE', array=np.array([h["cenwave"] for h in self.primary_headers]), format='A32')
-        cap = fits.Column(name='APERTURE', array=np.array([h["aperture"] for h in self.primary_headers]), format='A32')
-        csr = fits.Column(name='SPECRES', array=np.array([h["specres"] for h in self.primary_headers]), format='F8.1')
-        ccv = fits.Column(name='CAL_VER', array=np.array([h["cal_ver"] for h in self.primary_headers]), format='A32')
-        mjd_begs = np.array([h["expstart"] for h in self.first_headers])
-        mjd_ends = np.array([h["expend"] for h in self.first_headers])
+        cfn = fits.Column(name='FILENAME', array=self.combine_keys("filename", "arr"), format='A32')
+        cpid = fits.Column(name='PROPOSID', array=self.combine_keys("proposid", "arr"), format='A32')
+        ctel = fits.Column(name='TELESCOPE', array=self.combine_keys("telescop", "arr"), format='A32')
+        cins = fits.Column(name='INSTRUMENT', array=self.combine_keys("instrume", "arr"), format='A32')
+        cdet = fits.Column(name='DETECTOR', array=self.combine_keys("detector", "arr"), format='A32')
+        cdis = fits.Column(name='DISPERSER', array=self.combine_keys("opt_elem", "arr"), format='A32')
+        ccen = fits.Column(name='CENWAVE', array=self.combine_keys("cenwave", "arr"), format='A32')
+        cap = fits.Column(name='APERTURE', array=self.combine_keys("aperture", "arr"), format='A32')
+        csr = fits.Column(name='SPECRES', array=self.combine_keys("specres", "arr"), format='F8.1')
+        ccv = fits.Column(name='CAL_VER', array=self.combine_keys("cal_ver", "arr"), format='A32')
+        mjd_begs = self.combine_keys("expstart", "arr")
+        mjd_ends = self.combine_keys("expend", "arr")
         mjd_mids = (mjd_ends + mjd_begs) / 2.
         cdb = fits.Column(name='MJD_BEG', array=mjd_begs, format='F15.9', unit='d')
         cdm = fits.Column(name='MJD_MID', array=mjd_mids, format='F15.9', unit='d')
         cde = fits.Column(name='MJD_END', array=mjd_ends, format='F15.9', unit='d')
-        cexp = fits.Column(name='XPOSURE', array=np.array([h["exptime"] for h in self.first_headers]), format='F15.9', unit='s')
-        cmin = fits.Column(name='MINWAVE', array=np.array([h["minwave"] for h in self.primary_headers]), format='F9.4', unit='Angstrom')
-        cmax = fits.Column(name='MAXWAVE', array=np.array([h["maxwave"] for h in self.primary_headers]), format='F9.4', unit='Angstrom')
+        cexp = fits.Column(name='XPOSURE', array=self.combine_keys("exptime", "arr"), format='F15.9', unit='s')
+        cmin = fits.Column(name='MINWAVE', array=self.combine_keys("minwave", "arr"), format='F9.4', unit='Angstrom')
+        cmax = fits.Column(name='MAXWAVE', array=self.combine_keys("maxwave", "arr"), format='F9.4', unit='Angstrom')
     
         cd2 = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv, cdb, cdm, cde, cexp, cmin ,cmax])
     
@@ -362,14 +383,54 @@ class SegmentList:
             return avg_ra, avg_dec    
                                       
                                       
-    def combine_keys(self, key, hdrno, method):
-        # Allowable methods are min, max, average, sum, multi
-        if hdrno == 0:
-            hdrs = self.primary_headers
-        else:
-            hdrs = self.first_headers
+    def combine_keys(self, key, method):
+        keymap= {"HST": {"expstart": ("expstart", 1),
+                         "expend": ("expend", 1),
+                         "exptime": ("exptime", 1),
+                         "telescop": ("telescop", 0),
+                         "instrume": ("instrume", 0),
+                         "detector": ("detector", 0),
+                         "opt_elem": ("opt_elem", 0),
+                         "cenwave": ("cenwave", 0),
+                         "aperture": ("aperture", 0),
+                         "obsmode": ("obsmode", 0),
+                         "proposid": ("proposid", 0),
+                         "centrwv": ("centrwv", 0),
+                         "minwave": ("minwave", 0),
+                         "maxwave": ("maxwave", 0),
+                         "filename": ("filename", 0),
+                         "specres": ("specres", 0),
+                         "cal_ver": ("cal_ver", 0)},
+                "FUSE": {"expstart": ("obsstart", 0),
+                         "expend": ("obsend", 0),
+                         "exptime": ("obstime", 0),
+                         "telescop": ("telescop", 0),
+                         "instrume": ("instrume", 0),
+                         "detector": ("detector", 0),
+                         "opt_elem": ("detector", 0),
+                         "cenwave": ("centrwv", 0),
+                         "aperture": ("aperture", 0),
+                         "obsmode": ("instmode", 0),
+                         "proposid": ("prgrm_id", 0),
+                         "centrwv": ("centrwv", 0),
+                         "minwave": ("wavemin", 0),
+                         "maxwave": ("wavemax", 0),
+                         "filename": ("filename", 0),
+                         "specres": ("spec_rp", 1),
+                         "cal_ver": ("cf_vers", 0)}}
+        
+        vals = []
+        for i in range(len(self.primary_headers)):
+            tel = self.primary_headers[i]["telescop"]
+            actual_key = keymap[tel][key][0]
+            hdrno = keymap[tel][key][1]
+            if hdrno == 0:
+                val = self.primary_headers[i][actual_key]
+            else:
+                val = self.first_headers[i][actual_key]
+            vals.append(val)
 
-        vals = [h[key] for h in hdrs]
+        # Allowable methods are min, max, average, sum, multi, arr
         if method == "multi":
             keys_set = list(set(vals))
             if len(keys_set) > 1:
@@ -384,23 +445,91 @@ class SegmentList:
             return np.average(vals)
         elif method == "sum":
             return np.sum(vals)
+        elif method == "arr":
+            return np.array(vals)
+
+
+# Weight functions for STIS
+weight_function = {
+    'gross':      lambda x, y, z: x,
+    'exptime':    lambda x, y, z: x * y,
+    'throughput': lambda x, y, z: x * y * z
+}
 
 class STISSegmentList(SegmentList):
 
-    def get_gross_counts(self, segment):
+    def __init__(self, grating, path, weighting_method='throughput'):
+        SegmentList.__init__(self, grating, path)
+
+        self.weighting_method = weighting_method
+
+    def get_flux_weight(self, segment):
        exptime = segment.exptime
        gross = segment.data['gross']
-       return np.abs(gross*exptime)
+       net = segment.data['net']
+       flux = segment.data['flux']
+
+       weighted_gross = weight_function[self.weighting_method](gross, exptime, net/flux)
+
+       return np.abs(weighted_gross)
+
 
 class COSSegmentList(SegmentList):
 
-    def get_gross_counts(self, segment):
+    def get_flux_weight(self, segment):
         try:
             gross = segment.data['variance_counts'] + segment.data['variance_bkg'] + segment.data['variance_flat']
             return gross
         except KeyError:
             gross = segment.data['gcounts']
             return gross
+
+class FUSESegmentList(SegmentList):
+
+    def get_gross_counts(self, segment):
+        print("FUSE doesn't use gross counts")
+        return
+
+    def create_output_wavelength_grid(self):
+        #
+        # For FUSE data, we just need to return the wavelength grid associated
+        # with the data, and make sure we appropriately populate the same attributes
+        # as the base class
+        segment = self.members[0]
+        self.min_wavelength = segment.data['wave'].min()
+        self.max_wavelength = segment.data['wave'].max()
+    
+        self.delta_wavelength = None
+    
+        self.output_wavelength = segment.data['wave']
+        self.nelements = len(self.output_wavelength)
+        self.output_sumflux = np.zeros(self.nelements)
+        self.output_sumweight = np.zeros(self.nelements)
+        self.output_flux = np.zeros(self.nelements)
+        self.output_errors = np.zeros(self.nelements)
+        self.signal_to_noise = np.zeros(self.nelements)
+        self.output_exptime = np.zeros(self.nelements)
+
+        return self.output_wavelength
+
+    def coadd(self):
+        
+        segment = self.members[0]
+        nelements = len(self.output_wavelength)
+        try:
+            dq = segment.data['dq']
+        except KeyError:
+            dq = np.ones(nelements).astype(np.int32)
+        goodpixels = np.where((dq & segment.sdqflags) == 0)
+        self.output_exptime[goodpixels] = segment.exptime
+        self.output_flux[goodpixels] = segment.data['flux'][goodpixels]
+        self.output_errors[goodpixels] = segment.data['sigma'][goodpixels]
+        nonzeros = np.where(self.output_errors != 0.0)
+        self.signal_to_noise[nonzeros] = self.output_flux[nonzeros] / self.output_errors[nonzeros]
+        good_dq = np.where(self.output_exptime > 0.)
+        self.first_good_wavelength = self.output_wavelength[good_dq][0]
+        self.last_good_wavelength = self.output_wavelength[good_dq][-1]
+        return
 
 
 class Segment:
@@ -409,6 +538,7 @@ class Segment:
         self.data = None
         self.sdqflags = None
         self.exptime = None
+
 
 def abut(product_short, product_long):
     """Abut the spectra in 2 products.  Assumes the first argument is the shorter
@@ -426,8 +556,14 @@ def abut(product_short, product_long):
             transition_index_long = long_indices[0][0]
         else:
             # No overlap
-            transition_index_short = product_short.nelements
-            transition_index_long = 0
+            goodshort = np.where(product_short.output_exptime > 0.)
+            goodlong = np.where(product_long.output_exptime > 0.)
+            last_good_short = product_short.output_wavelength[goodshort][-1]
+            first_good_long = product_long.output_wavelength[goodlong][0]
+            short_indices = np.where(product_short.output_wavelength < last_good_short)
+            transition_index_short = short_indices[0][-1]
+            long_indices = np.where(product_long.output_wavelength > first_good_long)
+            transition_index_long = long_indices[0][0]
         output_grating = product_short.grating + '-' + product_long.grating
         product_abutted = SegmentList(output_grating)
         nout = len(product_short.output_wavelength[:transition_index_short])
@@ -453,7 +589,9 @@ def abut(product_short, product_long):
         product_abutted.grating = output_grating
         product_short.target = product_short.ull_targname()
         product_long.target = product_long.ull_targname()
-        if product_short.instrument == product_long.instrument:
+        if product_short.instrument in product_long.instrument:
+            product_abutted.instrument = product_long.instrument
+        if product_long.instrument in product_short.instrument:
             product_abutted.instrument = product_short.instrument
         else:
             product_abutted.instrument = product_short.instrument + '-' + product_long.instrument
@@ -482,6 +620,7 @@ def abut(product_short, product_long):
     
     product_abutted.targ_ra, product_abutted.targ_dec = product_abutted.ull_coords()
     return product_abutted
+
 
 def find_transition_wavelength(product_short, product_long):
     """Find the wavelength below which we use product_short and above
