@@ -208,12 +208,16 @@ def rename_targs():
         mapping = mains[targ]
         for item in mapping:
             files = glob.glob(os.path.join(datadir, targ, outdir0, item[0]))
-        if len(files) != 1:
-            print(f"something went wrong with {targ}")
-            continue
-        x1d = files[0]
-        with pf.open(x1d, mode="update") as hdulist:
-            hdulist[0].header["TARGNAME"] = item[1]
+            if len(files) > 1:
+                print(f"something went wrong with {targ}")
+                continue
+            if len(files) == 0: #already copied
+                continue
+            x1d = files[0]
+            with pf.open(x1d, mode="update") as hdulist:
+                hdulist[0].header["TARGNAME"] = item[1]
+            newname = x1d.replace("x1d.fits", f"{item[1]}_x1d.fits")
+            shutil.move(x1d, newname)
     subprocess.run(["chmod", "-R", "777", datadir])
 
 def copy_files():
