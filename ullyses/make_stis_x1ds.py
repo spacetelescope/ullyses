@@ -220,7 +220,20 @@ def rename_targs():
                 hdulist[0].header["TARGNAME"] = item[1]
             newname = x1d.replace("x1d.fits", f"{item[1]}_x1d.fits")
             shutil.move(x1d, newname)
+            print(f"Moved {x1d} to {newname}")
     subprocess.run(["chmod", "-R", "777", datadir])
+
+def copy_mama_x1ds():
+    for targ in tts:
+        outdir_files = glob.glob(os.path.join(datadir, targ, outdir0, "*x1d.fits"))
+        gratings = [pf.getval(x, "detector") for x in outdir_files]
+        if "NUV-MAMA" not in gratings:
+            mama_files = glob.glob(os.path.join(datadir, targ, "mast_products", "*010_x1d.fits"))
+            if len(mama_files) != 1:
+                print(f"something went wrong with MAMA checks for {targ}")
+            mama_file = mama_files[0]
+            shutil.copy(mama_file, os.path.join(datadir, targ, outdir0))
+            print(f"Copied {mama_file} to {os.path.join(datadir, targ, outdir0)}")
 
 def copy_files():
     files = glob.glob(os.path.join(datadir, "*", outdir0, "*x1d.fits"))
@@ -241,6 +254,7 @@ def copy_files():
             os.remove(destx1d)
             print(f"Removed {destx1d}")
         shutil.copy(item, dest)
+        print(f"Copied {item} to {dest}")
 
 class STIScoadd(STISSegmentList):
     def create_output_wavelength_grid(self):
@@ -316,6 +330,7 @@ def coadd_1d_spectra():
                 os.mkdir(coadd_dir)
             for item in filenames:
                 shutil.copy(item, coadd_dir)
+                print(f"Copied {item} to {coadd_dir}")
             root = files[0][:9]
             combined0 = f"{root}_{targ}_x1d.fits"
             combined = os.path.join(coadd_dir, combined0)
@@ -407,12 +422,13 @@ def copy_yamlfiles():
         newname = f"hlsp_ullyses_hst_stis_{targ}_{grating}_{version}_spec.yaml"
         dest = os.path.join(hlspdir, targ, "dr2")
         shutil.copyfile(item, os.path.join(dest, newname))
+        print(f"Copied {item} to {os.path.join(dest, newname)}")
 
 
 if __name__ == "__main__":
-    make_ccd_x1ds()
-    make_mama_x1ds()
+#    make_ccd_x1ds()
+#    make_mama_x1ds()
+    copy_mama_x1ds()
     rename_targs()
     copy_files()
-    copy_yamlfiles()
-#    coadd_1d_spectra()
+#    copy_yamlfiles()
