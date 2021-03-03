@@ -289,7 +289,7 @@ class SegmentList:
         hdr2 = fits.Header()
         hdr2['EXTNAME'] = ('PROVENANCE', 'Metadata for contributing observations')
         # set up the table columns
-        cfn = fits.Column(name='FILENAME', array=self.combine_keys("filename", "arr"), format='A32')
+        cfn = fits.Column(name='FILENAME', array=self.combine_keys("filename", "arr"), format='A40')
         cpid = fits.Column(name='PROPOSID', array=self.combine_keys("proposid", "arr"), format='A32')
         ctel = fits.Column(name='TELESCOPE', array=self.combine_keys("telescop", "arr"), format='A32')
         cins = fits.Column(name='INSTRUMENT', array=self.combine_keys("instrume", "arr"), format='A32')
@@ -430,6 +430,8 @@ class SegmentList:
                 val = self.primary_headers[i][actual_key]
             else:
                 val = self.first_headers[i][actual_key]
+            if tel == "FUSE" and key == "filename":
+                val = val.replace(".fit", "_vo.fits")
             vals.append(val)
 
         # Allowable methods are min, max, average, sum, multi, arr
