@@ -15,6 +15,8 @@ tts = ["CVSO-104", "CVSO-107", "CVSO-109", "CVSO-146", "CVSO-165", "CVSO-17",
        "CVSO-176", "CVSO-36", "CVSO-58", "CVSO-90", "V-TX-ORI", "V505-ORI",
        "V510-ORI"]
 
+version = "dr2"
+hlspdir = "/astro/ullyses/ULLYSES_HLSP"
 drdir = "/astro/ullyses/all_vetted_data_dr2"
 datadir = "/astro/ullyses/tts_dr2"
 outdir0 = "v2"
@@ -394,9 +396,23 @@ def plotdiff(new, newname, old, oldname, targ, outdir):
     pl.cla()
     pl.close()
 
+def copy_yamlfiles():
+    yamlfiles0 = glob.glob("config_files/*yaml")
+    yamlfiles = [x for x in yamlfiles0 if os.path.basename(x) != "target_grating.yaml"]
+    for item in yamlfiles:
+        f = os.path.basename(item)
+        spl = f.split("_")
+        targ = spl[0]
+        grating = spl[1].split(".")[0]
+        newname = f"hlsp_ullyses_hst_stis_{targ}_{grating}_{version}_spec.yaml"
+        dest = os.path.join(hlspdir, targ, "dr2")
+        shutil.copyfile(item, os.path.join(dest, newname))
+
+
 if __name__ == "__main__":
     make_ccd_x1ds()
     make_mama_x1ds()
     rename_targs()
     copy_files()
+    copy_yamlfiles()
 #    coadd_1d_spectra()
