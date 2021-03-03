@@ -145,6 +145,7 @@ def main(indir, outdir, version=default_version, clobber=False):
         # Manually write out a FUSE level3 product.
         if products['FUSE/FUSE'] is not None:
             filename = create_output_file_name(products['FUSE/FUSE'], version, level=level)
+            filename = os.path.join(outdir, filename)
             products['FUSE/FUSE'].write(filename, clobber, level=level, version=version)
 
 
