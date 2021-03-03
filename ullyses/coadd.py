@@ -358,7 +358,8 @@ class SegmentList:
             ull_targname = self.primary_headers[0]["targname"]
         targ_matched = False
         for targ in self.targname:
-            mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ)).any(), axis=1)
+            targ_upper = targ.upper()
+            mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ_upper)).any(), axis=1)
             if set(mask) != {False}:
                 targ_matched = True
                 ull_targname = aliases[mask]["ULL_MAST_name"].values[0]
@@ -376,6 +377,7 @@ class SegmentList:
             return avg_ra, avg_dec
         
         master_list = pd.read_json("pd_targetinfo.json", orient="split")
+        master_list = master_list.apply(lambda x: x.astype(str).str.upper())
         coords = master_list.loc[master_list["mast_targname"] == self.target][["ra", "dec"]].values
         if len(coords) != 0:
             return coords[0][0], coords[0][1]
@@ -617,7 +619,6 @@ def abut(product_short, product_long):
             product_abutted = product_long
         else:
             product_abutted = None
-    
     product_abutted.targ_ra, product_abutted.targ_dec = product_abutted.ull_coords()
     return product_abutted
 
