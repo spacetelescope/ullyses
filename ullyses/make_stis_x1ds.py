@@ -60,7 +60,7 @@ def make_mama_x1ds():
         os.remove(outfile)
     x1d.x1d(os.path.join(datadir, "CVSO-104/mast_products/oe9k1s020_flt.fits"),
             output=outfile,
-            xoffset=2.1295
+            xoffset=2.1295,
             a2center=410,
             maxsrch=10,
             extrsize=7)
@@ -493,10 +493,10 @@ def copy_yamlfiles():
 
 
 if __name__ == "__main__":
-    make_ccd_x1ds()
+#    make_ccd_x1ds()
     make_mama_x1ds()
     copy_mama_x1ds()
     rename_targs()
     coadd_1d_spectra()
     copy_files()
-    copy_yamlfiles()
+#    copy_yamlfiles()
