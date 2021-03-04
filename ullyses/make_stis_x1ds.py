@@ -350,7 +350,7 @@ def coadd_1d_spectra():
                 print(f"Copied {item} to {coadd_dir}")
             root = files[0][:9]
             combined0 = f"{root}_{targ}_x1d.fits"
-            combined = os.path.join(coadd_dir, combined0)
+            combined = os.path.join(datadir, targ, outdir0, combined0)
             if os.path.exists(combined):
                 os.remove(combined)
                 print(f"Removed {combined}")
@@ -360,8 +360,7 @@ def coadd_1d_spectra():
             prod.create_output_wavelength_grid()
             ignore_file = os.path.join(coadd_dir, files[1])
             prod.coadd(ignore_dq_file=ignore_file)
-            prod.write(combined, overwrite=True, level=0, version=version)
-            print(f"Wrote {combined}")
+
             nelements = len(prod.output_net)
             wl_arr = prod.output_wavelength.reshape(1, nelements)
             flux_arr = prod.output_flux.reshape(1, nelements)
@@ -392,6 +391,7 @@ def coadd_1d_spectra():
             new_hdulist = pf.HDUList(final_hdus)
             new_hdulist.writeto(combined, overwrite=True)
             print(f"Wrote {combined}")
+    subprocess.run(["chmod", "-R", "777", datadir])
 #            add_column(combined, combined, 1, "WAVELENGTH", f"{nelements}D", wl_arr, colunit="Angstroms", overwrite=True)
 #            add_column(combined, combined, 1, "FLUX", f"{nelements}E", flux_arr, colunit="erg/s/cm**2/Angstrom", overwrite=True)
 #            add_column(combined, combined, 1, "ERROR", f"{nelements}E", err_arr, colunit="erg/s/cm**2/Angstrom", overwrite=True)
@@ -482,10 +482,10 @@ def copy_yamlfiles():
 
 
 if __name__ == "__main__":
-#    make_ccd_x1ds()
-#    make_mama_x1ds()
-#    copy_mama_x1ds()
-#    rename_targs()
-#    copy_files()
-#    copy_yamlfiles()
+    make_ccd_x1ds()
+    make_mama_x1ds()
+    copy_mama_x1ds()
+    rename_targs()
     coadd_1d_spectra()
+    copy_files()
+    copy_yamlfiles()
