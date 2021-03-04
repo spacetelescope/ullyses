@@ -209,10 +209,7 @@ def rename_targs():
                     hdulist[0].header["DEC_TARG"] = d[comp][1]
                     hdulist[0].header["TARGNAME"] = comp
 
-    mains = {"CVSO-36": [("oe9k5s010_x1d.fits", "CVSO-36A"),
-                         ("oe9k5s020_x1d.fits", "CVSO-36A"),
-                         ("oe9k5s030_x1d.fits", "CVSO-36A")],
-             "CVSO-109": [("oe9k2s010_x1d.fits", "CVSO-109A"),
+    mains = {"CVSO-109": [("oe9k2s010_x1d.fits", "CVSO-109A"),
                           ("oe9k2s020_x1d.fits", "CVSO-109A"),
                           ("oe9k2s030_x1d.fits", "CVSO-109A")],
             "CVSO-165": [("oe9j2s010_x1d.fits", "CVSO-165A"),
