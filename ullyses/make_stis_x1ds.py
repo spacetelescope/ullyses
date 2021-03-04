@@ -290,10 +290,13 @@ class STIScoadd(STISSegmentList):
         return wavegrid
 
 
-    def coadd(self):
+    def coadd(self, ignore_dq_file):
         self.output_dq = np.zeros(self.nelements).astype(int)
-        for segment in self.members:
-            goodpixels = np.where((segment.data['dq'] & segment.sdqflags) == 0)
+        for i,segment in enumerate(self.members):
+            if self.datasets[i] == ignore_dq_file:
+                goodpixels = np.arange(len(segment.data['dq']))
+            else:
+                goodpixels = np.where((segment.data['dq'] & segment.sdqflags) == 0)
             wavelength = segment.data['wavelength'][goodpixels]
             indices = self.wavelength_to_index(wavelength)
             all_indices = self.wavelength_to_index(segment.data['wavelength'])
@@ -318,8 +321,8 @@ class STIScoadd(STISSegmentList):
   
 
 def coadd_1d_spectra():
-    targs = {"CVSO-109": {"G430L": ("oe9k2s020_x1d.fits", "oe9k2s020_CVSO-109B_x1d.fits"),
-                          "G750L": ("oe9k2s030_x1d.fits", "oe9k2s030_CVSO-109B_x1d.fits")}}
+    targs = {"CVSO-109": {"G430L": ("oe9k2s020_CVSO-109A_x1d.fits", "oe9k2s020_CVSO-109B_x1d.fits"),
+                          "G750L": ("oe9k2s030_CVSO-109A_x1d.fits", "oe9k2s030_CVSO-109B_x1d.fits")}}
     for targ in targs:
         d = targs[targ]
         for grating in d:
@@ -340,8 +343,10 @@ def coadd_1d_spectra():
             prod.target = prod.ull_targname()
             prod.targ_ra, prod.targ_dec = prod.ull_coords()
             prod.create_output_wavelength_grid()
-            prod.coadd()
+            ignore_file = os.path.join(coadd_dir, files[1])
+            prod.coadd(ignore_dq_file=ignore_file)
             prod.write(combined, overwrite=True, level=0, version="dr2")
+            print(f"Wrote {combined}")
 
 def check_x1d(newfile, oldfile, targ, outdir):
     new = pf.getdata(newfile)
@@ -428,7 +433,8 @@ def copy_yamlfiles():
 if __name__ == "__main__":
 #    make_ccd_x1ds()
 #    make_mama_x1ds()
-    copy_mama_x1ds()
-    rename_targs()
-    copy_files()
+#    copy_mama_x1ds()
+#    rename_targs()
+#    copy_files()
 #    copy_yamlfiles()
+    coadd_1d_spectra()
