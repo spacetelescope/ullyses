@@ -335,7 +335,8 @@ class STIScoadd(STISSegmentList):
 
 def coadd_1d_spectra():
     targs = {"CVSO-109": {"G430L": ("oe9k2s020_CVSO-109A_x1d.fits", "oe9k2s020_CVSO-109B_x1d.fits"),
-                          "G750L": ("oe9k2s030_CVSO-109A_x1d.fits", "oe9k2s030_CVSO-109B_x1d.fits")}}
+                          "G750L": ("oe9k2s030_CVSO-109A_x1d.fits", "oe9k2s030_CVSO-109B_x1d.fits"),
+                          "G230L": ("oe9k2s010_CVSO-109A_x1d.fits", "oe9k2s010_CVSO-109B_x1d.fits")}}
     for targ in targs:
         d = targs[targ]
         for grating in d:
@@ -352,7 +353,7 @@ def coadd_1d_spectra():
             combined = os.path.join(coadd_dir, combined0)
             if os.path.exists(combined):
                 os.remove(combined)
-            shutil.copy(filenames[0], combined)
+                print(f"Removed {combined}")
             prod = STIScoadd(grating, path=coadd_dir, weighting_method='unity')
             prod.target = prod.ull_targname()
             prod.targ_ra, prod.targ_dec = prod.ull_coords()
@@ -369,6 +370,7 @@ def coadd_1d_spectra():
             gross_arr = prod.output_gross.reshape(1, nelements)
             dq_arr = prod.output_dq.reshape(1, nelements)
             hdr0 = pf.getheader(filenames[0], 0)
+            hdr0["TARGNAME"] = targ
             new_hdu0 = pf.PrimaryHDU(header=hdr0)
             cols = []
             cols.append(pf.Column(name="WAVELENGTH", format=f"{nelements}D", 
