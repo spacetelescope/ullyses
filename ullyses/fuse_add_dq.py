@@ -22,7 +22,7 @@ def add_column(infile, outfile, colext, colname, colformat, colvals,
 
     nextend = fits.getval(infile, "nextend")
     new_tables = []
-    for ext in range(0+nextend, 1+nextend):
+    for ext in range(1, nextend):
         data = fits.getdata(infile, ext)
         cols = data.columns
         names = data.names
