@@ -60,9 +60,19 @@ def make_mama_x1ds():
         os.remove(outfile)
     x1d.x1d(os.path.join(datadir, "CVSO-104/mast_products/oe9k1s020_flt.fits"),
             output=outfile,
+            xoffset=2.1295
             a2center=410,
             maxsrch=10,
             extrsize=7)
+    with pf.open(outfile, mode="update") as hdulist:
+        hdulist[0].header["HLSP_LVL"] = 0
+    print("#"*80, "\n")
+    outfile = os.path.join(datadir, "CVSO-104", outdir0, "oe9k1s020_x1d.fits")
+    if os.path.exists(outfile):
+        os.remove(outfile)
+    x1d.x1d(os.path.join(datadir, "CVSO-104/mast_products/oe9k1s020_flt.fits"),
+            output=outfile,
+            xoffset=2.1295)
     with pf.open(outfile, mode="update") as hdulist:
         hdulist[0].header["HLSP_LVL"] = 0
     print("#"*80, "\n")
@@ -82,6 +92,7 @@ def make_mama_x1ds():
         os.remove(outfile)
     x1d.x1d(os.path.join(datadir, "CVSO-109/mast_products/oe9k2s010_flt.fits"),
             output=outfile,
+            xoffset=22.0115,
             a2center=516.3,
             maxsrch=0,
             extrsize=7)
