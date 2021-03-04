@@ -7,7 +7,7 @@ import numpy as np
 
 from astropy.io import fits
 
-from coadd import COSSegmentList, STISSegmentList, FUSESegmentList
+from coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDSegmentList
 from coadd import abut
 
 default_version = 'dr2'
@@ -161,7 +161,7 @@ def main(indir, outdir, version=default_version, clobber=False):
         minwls = []
         maxwls = []
         ins = []
-        for instrument, grating in uniqmodes:
+        for instrument, grating, detector in uniqmodes:
             ins.append(instrument)
             gratings.append(grating)
             minwls.append(products[instrument+"/"+grating].first_good_wavelength)
