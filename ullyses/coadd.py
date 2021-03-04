@@ -535,6 +535,98 @@ class FUSESegmentList(SegmentList):
         self.last_good_wavelength = self.output_wavelength[good_dq][-1]
         return
 
+class CCDSegmentList(SegmentList):
+
+    def create_output_wavelength_grid(self):
+        if len(self.members) == 1:
+            #
+            # For STIS CCD data when there is only 1 segment, we just need
+            # to return the wavelength grid associated
+            # with the data, and make sure we appropriately populate the same attributes
+            # as the base class
+            segment = self.members[0]
+            self.min_wavelength = segment.data['wavelength'].min()
+            self.max_wavelength = segment.data['wavelength'].max()
+
+            self.delta_wavelength = None
+
+            self.output_wavelength = segment.data['wavelength']
+        else:
+            min_wavelength = 20000.0
+            max_wavelength = 0.0
+            for segment in self.members:
+                minwave = segment.data['wavelength'].min()
+                maxwave = segment.data['wavelength'].max()
+                if minwave < min_wavelength: min_wavelength = minwave
+                if maxwave > max_wavelength: max_wavelength = maxwave
+            self.min_wavelength = int(min_wavelength)
+            self.max_wavelength = int(max_wavelength) + 1
+    
+            max_delta_wavelength = 0.0
+    
+            for segment in self.members:
+                wavediffs = segment.data['wavelength'][1:] - segment.data['wavelength'][:-1]
+                max_delta_wavelength = max(max_delta_wavelength, wavediffs.max())
+    
+            self.delta_wavelength = max_delta_wavelength
+    
+            wavegrid = np.arange(self.min_wavelength, self.max_wavelength, self.delta_wavelength)
+
+            self.output_wavelength = wavegrid
+
+        self.nelements = len(self.output_wavelength)
+        self.output_sumflux = np.zeros(self.nelements)
+        self.output_sumweight = np.zeros(self.nelements)
+        self.output_flux = np.zeros(self.nelements)
+        self.output_errors = np.zeros(self.nelements)
+        self.signal_to_noise = np.zeros(self.nelements)
+        self.output_exptime = np.zeros(self.nelements)
+
+        return self.output_wavelength
+
+    def coadd(self):
+        if len(self.members) == 1:
+            segment = self.members[0]
+            nelements = len(self.output_wavelength)
+            try:
+                dq = segment.data['dq']
+            except KeyError:
+                dq = np.ones(nelements).astype(np.int32)
+            goodpixels = np.where((dq & segment.sdqflags) == 0)
+            self.output_exptime[goodpixels] = segment.exptime
+            self.output_flux[goodpixels] = segment.data['flux'][goodpixels]
+            self.output_errors[goodpixels] = segment.data['error'][goodpixels]
+            nonzeros = np.where(self.output_errors != 0.0)
+            self.signal_to_noise[nonzeros] = self.output_flux[nonzeros] / self.output_errors[nonzeros]
+            good_dq = np.where(self.output_exptime > 0.)
+            self.first_good_wavelength = self.output_wavelength[good_dq][0]
+            self.last_good_wavelength = self.output_wavelength[good_dq][-1]
+        else:
+            for segment in self.members:
+                goodpixels = np.where((segment.data['dq'] & segment.sdqflags) == 0)
+                wavelength = segment.data['wavelength'][goodpixels]
+                indices = self.wavelength_to_index(wavelength)
+                inverse_variance = self.get_inverse_variance(segment)
+                weight = inverse_variance[goodpixels]
+                flux = segment.data['flux'][goodpixels]
+                self.output_sumweight[indices] = self.output_sumweight[indices] + weight
+                self.output_sumflux[indices] = self.output_sumflux[indices] + flux * weight
+                self.output_exptime[indices] = self.output_exptime[indices] + segment.exptime
+            good_dq = np.where(self.output_exptime > 0.)
+            self.first_good_wavelength = self.output_wavelength[good_dq][0]
+            self.last_good_wavelength = self.output_wavelength[good_dq][-1]
+            nonzeros = np.where(self.output_sumweight != 0)
+            self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / self.output_sumweight[nonzeros]
+            # For the moment calculate errors from the gross counts
+            self.output_errors[nonzeros] = np.sqrt(self.output_sumweight[nonzeros])
+            self.signal_to_noise[nonzeros] = self.output_sumweight[nonzeros] / self.output_errors[nonzeros]
+            self.output_errors[nonzeros] = np.abs(self.output_flux[nonzeros] / self.signal_to_noise[nonzeros])
+        return
+
+    def get_inverse_variance(self, segment):
+        error = segment.data['error']
+        inverse_variance = 1.0 / (error*error)
+        return inverse_variance
 
 class Segment:
 
