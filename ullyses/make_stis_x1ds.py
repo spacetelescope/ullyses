@@ -10,6 +10,7 @@ import subprocess
 
 from coadd import STISSegmentList
 from calibrate_stis_data import Stisdata
+from fuse_add_dq import add_column
 
 tts = ["CVSO-104", "CVSO-107", "CVSO-109", "CVSO-146", "CVSO-165", "CVSO-17",
        "CVSO-176", "CVSO-36", "CVSO-58", "CVSO-90", "V-TX-ORI", "V505-ORI",
@@ -292,6 +293,10 @@ class STIScoadd(STISSegmentList):
 
     def coadd(self, ignore_dq_file):
         self.output_dq = np.zeros(self.nelements).astype(int)
+        self.output_gross = np.zeros(self.nelements)
+        self.output_net = np.zeros(self.nelements)
+        self.output_sumgross = np.zeros(self.nelements)
+        self.output_sumnet = np.zeros(self.nelements)
         for i,segment in enumerate(self.members):
             if self.datasets[i] == ignore_dq_file:
                 goodpixels = np.arange(len(segment.data['dq']))
@@ -299,11 +304,16 @@ class STIScoadd(STISSegmentList):
                 goodpixels = np.where((segment.data['dq'] & segment.sdqflags) == 0)
             wavelength = segment.data['wavelength'][goodpixels]
             indices = self.wavelength_to_index(wavelength)
-            all_indices = self.wavelength_to_index(segment.data['wavelength'])
             gross_counts = self.get_flux_weight(segment)
             weight = gross_counts[goodpixels]
             flux = segment.data['flux'][goodpixels]
-            self.output_dq[all_indices] = self.output_dq[all_indices] | segment.data['dq']
+            gross = segment.data['gross'][goodpixels]
+            net = segment.data['net'][goodpixels]
+            self.output_sumgross[indices] += gross
+            self.output_sumnet[indices] += net
+            if self.datasets[i] != ignore_dq_file:
+                all_indices = self.wavelength_to_index(segment.data['wavelength'])
+                self.output_dq[all_indices] = self.output_dq[all_indices] | segment.data['dq']
             self.output_sumweight[indices] = self.output_sumweight[indices] + weight
             self.output_sumflux[indices] = self.output_sumflux[indices] + flux * weight
             self.output_exptime[indices] = self.output_exptime[indices] + segment.exptime
@@ -312,7 +322,9 @@ class STIScoadd(STISSegmentList):
         self.last_good_wavelength = self.output_wavelength[good_dq][-1]
         nummembers = len(self.members)
         nonzeros = np.where(self.output_sumweight == nummembers)
-        self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / 1
+        self.output_flux[nonzeros] = self.output_sumflux[nonzeros]
+        self.output_gross[nonzeros] = self.output_sumgross[nonzeros]
+        self.output_net[nonzeros] = self.output_sumnet[nonzeros]
         # For the moment calculate errors from the gross counts
         self.output_errors[nonzeros] = np.sqrt(self.output_sumweight[nonzeros])
         self.signal_to_noise[nonzeros] = self.output_sumweight[nonzeros] / self.output_errors[nonzeros]
@@ -347,6 +359,13 @@ def coadd_1d_spectra():
             prod.coadd(ignore_dq_file=ignore_file)
             prod.write(combined, overwrite=True, level=0, version="dr2")
             print(f"Wrote {combined}")
+            nelements = len(prod.output_net)
+            net_arr = prod.output_net.reshape(1, nelements)
+            gross_arr = prod.output_gross.reshape(1, nelements)
+            dq_arr = prod.output_dq.reshape(1, nelements)
+            add_column(combined, combined, 1, "NET", f"{nelements}E", net_arr, colunit="Counts/s", overwrite=True)
+            add_column(combined, combined, 1, "GROSS", f"{nelements}E", gross_arr, colunit="Counts/s", overwrite=True)
+            add_column(combined, combined, 1, "DQ", f"{nelements}I", dq_arr, overwrite=True)
 
 def check_x1d(newfile, oldfile, targ, outdir):
     new = pf.getdata(newfile)
