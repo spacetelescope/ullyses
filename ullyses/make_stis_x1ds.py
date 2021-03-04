@@ -344,7 +344,9 @@ class STIScoadd(STISSegmentList):
 def coadd_1d_spectra():
     targs = {"CVSO-109": {"G430L": ("oe9k2s020_CVSO-109A_x1d.fits", "oe9k2s020_CVSO-109B_x1d.fits"),
                           "G750L": ("oe9k2s030_CVSO-109A_x1d.fits", "oe9k2s030_CVSO-109B_x1d.fits"),
-                          "G230L": ("oe9k2s010_CVSO-109A_x1d.fits", "oe9k2s010_CVSO-109B_x1d.fits")}}
+                          "G230L": ("oe9k2s010_CVSO-109A_x1d.fits", "oe9k2s010_CVSO-109B_x1d.fits")},
+             "CVSO-165": {"G230L": ("oe9j2s010_CVSO-165A_x1d.fits", "oe9j2s010_CVSO-165B_x1d.fits")}}
+
     for targ in targs:
         d = targs[targ]
         for grating in d:
@@ -490,10 +492,10 @@ def copy_yamlfiles():
 
 
 if __name__ == "__main__":
-#    make_ccd_x1ds()
+    make_ccd_x1ds()
     make_mama_x1ds()
     copy_mama_x1ds()
     rename_targs()
     coadd_1d_spectra()
     copy_files()
-#    copy_yamlfiles()
+    copy_yamlfiles()
