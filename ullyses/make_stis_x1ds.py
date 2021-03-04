@@ -297,6 +297,7 @@ class STIScoadd(STISSegmentList):
         self.output_net = np.zeros(self.nelements)
         self.output_sumgross = np.zeros(self.nelements)
         self.output_sumnet = np.zeros(self.nelements)
+        self.output_sumerrors = np.zeros(self.nelements)
         for i,segment in enumerate(self.members):
             if self.datasets[i] == ignore_dq_file:
                 goodpixels = np.arange(len(segment.data['dq']))
@@ -309,6 +310,8 @@ class STIScoadd(STISSegmentList):
             flux = segment.data['flux'][goodpixels]
             gross = segment.data['gross'][goodpixels]
             net = segment.data['net'][goodpixels]
+            err = segment.data['error'][goodpixels]
+            self.output_sumerrors[indices] = np.sqrt((self.output_sumerrors[indices]**2) + (err**2))
             self.output_sumgross[indices] += gross
             self.output_sumnet[indices] += net
             if self.datasets[i] != ignore_dq_file:
@@ -325,10 +328,8 @@ class STIScoadd(STISSegmentList):
         self.output_flux[nonzeros] = self.output_sumflux[nonzeros]
         self.output_gross[nonzeros] = self.output_sumgross[nonzeros]
         self.output_net[nonzeros] = self.output_sumnet[nonzeros]
-        # For the moment calculate errors from the gross counts
-        self.output_errors[nonzeros] = np.sqrt(self.output_sumweight[nonzeros])
+        self.output_errors[nonzeros] = self.output_sumerrors[nonzeros]
         self.signal_to_noise[nonzeros] = self.output_sumweight[nonzeros] / self.output_errors[nonzeros]
-        self.output_errors[nonzeros] = np.abs(self.output_flux[nonzeros] / self.signal_to_noise[nonzeros])
         return
   
 
@@ -351,21 +352,50 @@ def coadd_1d_spectra():
             combined = os.path.join(coadd_dir, combined0)
             if os.path.exists(combined):
                 os.remove(combined)
+            shutil.copy(filenames[0], combined)
             prod = STIScoadd(grating, path=coadd_dir, weighting_method='unity')
             prod.target = prod.ull_targname()
             prod.targ_ra, prod.targ_dec = prod.ull_coords()
             prod.create_output_wavelength_grid()
             ignore_file = os.path.join(coadd_dir, files[1])
             prod.coadd(ignore_dq_file=ignore_file)
-            prod.write(combined, overwrite=True, level=0, version="dr2")
+            prod.write(combined, overwrite=True, level=0, version=version)
             print(f"Wrote {combined}")
             nelements = len(prod.output_net)
+            wl_arr = prod.output_wavelength.reshape(1, nelements)
+            flux_arr = prod.output_flux.reshape(1, nelements)
+            err_arr = prod.output_errors.reshape(1, nelements)
             net_arr = prod.output_net.reshape(1, nelements)
             gross_arr = prod.output_gross.reshape(1, nelements)
             dq_arr = prod.output_dq.reshape(1, nelements)
-            add_column(combined, combined, 1, "NET", f"{nelements}E", net_arr, colunit="Counts/s", overwrite=True)
-            add_column(combined, combined, 1, "GROSS", f"{nelements}E", gross_arr, colunit="Counts/s", overwrite=True)
-            add_column(combined, combined, 1, "DQ", f"{nelements}I", dq_arr, overwrite=True)
+            hdr0 = pf.getheader(filenames[0], 0)
+            new_hdu0 = pf.PrimaryHDU(header=hdr0)
+            cols = []
+            cols.append(pf.Column(name="WAVELENGTH", format=f"{nelements}D", 
+                array=wl_arr, unit="Angstroms"))
+            cols.append(pf.Column(name="FLUX", format=f"{nelements}E", 
+                array=flux_arr, unit="erg/s/cm**2/Angstrom"))
+            cols.append(pf.Column(name="ERROR", format=f"{nelements}E", 
+                array=err_arr, unit="erg/s/cm**2/Angstrom"))
+            cols.append(pf.Column(name="NET", format=f"{nelements}E", 
+                array=net_arr, unit="Counts/s"))
+            cols.append(pf.Column(name="GROSS", format=f"{nelements}E", 
+                array=gross_arr, unit="Counts/s"))
+            cols.append(pf.Column(name="DQ", format=f"{nelements}I", 
+                array=dq_arr, unit=None))
+            coldefs = pf.ColDefs(cols)
+            hdr = pf.getheader(filenames[0], 1)
+            t = pf.BinTableHDU.from_columns(coldefs, header=hdr)
+            final_hdus = [new_hdu0, t]
+            new_hdulist = pf.HDUList(final_hdus)
+            new_hdulist.writeto(combined, overwrite=True)
+            print(f"Wrote {combined}")
+#            add_column(combined, combined, 1, "WAVELENGTH", f"{nelements}D", wl_arr, colunit="Angstroms", overwrite=True)
+#            add_column(combined, combined, 1, "FLUX", f"{nelements}E", flux_arr, colunit="erg/s/cm**2/Angstrom", overwrite=True)
+#            add_column(combined, combined, 1, "ERROR", f"{nelements}E", err_arr, colunit="erg/s/cm**2/Angstrom", overwrite=True)
+#            add_column(combined, combined, 1, "NET", f"{nelements}E", net_arr, colunit="Counts/s", overwrite=True)
+#            add_column(combined, combined, 1, "GROSS", f"{nelements}E", gross_arr, colunit="Counts/s", overwrite=True)
+#            add_column(combined, combined, 1, "DQ", f"{nelements}I", dq_arr, overwrite=True)
 
 def check_x1d(newfile, oldfile, targ, outdir):
     new = pf.getdata(newfile)
