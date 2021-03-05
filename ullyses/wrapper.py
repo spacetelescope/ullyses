@@ -7,7 +7,7 @@ import numpy as np
 
 from astropy.io import fits
 
-from coadd import COSSegmentList, STISSegmentList, FUSESegmentList
+from coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDSegmentList
 from coadd import abut
 
 default_version = 'dr2'
@@ -46,7 +46,7 @@ def main(indir, outdir, version=default_version, clobber=False):
         for myfile in spec1d:
             f1 = fits.open(myfile)
             prihdr = f1[0].header
-            obsmode = (prihdr['INSTRUME'], prihdr['OPT_ELEM'])
+            obsmode = (prihdr['INSTRUME'], prihdr['OPT_ELEM'], prihdr['DETECTOR'])
             if obsmode not in uniqmodes:
                 uniqmodes.append(obsmode)
             f1.close()
@@ -55,7 +55,7 @@ def main(indir, outdir, version=default_version, clobber=False):
             if len(vofiles) != 1:
                 print("More than 1 FUSE data file, aborting")
             else:
-                obsmode = ('FUSE', 'FUSE')
+                obsmode = ('FUSE', 'FUSE', 'FUSE')
                 uniqmodes.append(obsmode)
 
         if not uniqmodes:
@@ -66,17 +66,20 @@ def main(indir, outdir, version=default_version, clobber=False):
         products = defaultdict(lambda: None)
 
         level = 2
-        for instrument, grating in uniqmodes:
+        for instrument, grating, detector in uniqmodes:
             # this instantiates the class
             if instrument == 'COS':
                 prod = COSSegmentList(grating, path=root)
             elif instrument == 'STIS':
-                prod = STISSegmentList(grating, path=root)
+                if detector == 'CCD':
+                    prod = CCDSegmentList(grating, path=root)
+                else:
+                    prod = STISSegmentList(grating, path=root)
             elif instrument == 'FUSE':
                 prod = FUSESegmentList(grating, path=root)
                 products[f'{instrument}/{grating}'] = prod
             else:
-                print(f'Unknown mode [{instrument}, {grating}]')
+                print(f'Unknown mode [{instrument}, {grating}, {detector}]')
                 continue
 
             prod.target = prod.ull_targname()
@@ -158,7 +161,7 @@ def main(indir, outdir, version=default_version, clobber=False):
         minwls = []
         maxwls = []
         ins = []
-        for instrument, grating in uniqmodes:
+        for instrument, grating, detector in uniqmodes:
             ins.append(instrument)
             gratings.append(grating)
             minwls.append(products[instrument+"/"+grating].first_good_wavelength)
