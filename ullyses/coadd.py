@@ -149,6 +149,7 @@ class SegmentList:
 
         self.output_wavelength = wavegrid
         self.nelements = len(wavegrid)
+        self.output_sumgcounts = np.zeros(self.nelements)
         self.output_sumflux = np.zeros(self.nelements)
         self.output_sumweight = np.zeros(self.nelements)
         self.output_flux = np.zeros(self.nelements)
@@ -177,9 +178,12 @@ class SegmentList:
             wavelength = segment.data['wavelength'][goodpixels]
             indices = self.wavelength_to_index(wavelength)
             gross_counts = self.get_flux_weight(segment)
+            gcounts0 = np.abs(segment.data['gross'] * segment.exptime)
+            gcounts = gcounts0[goodpixels]
             weight = gross_counts[goodpixels]
             flux = segment.data['flux'][goodpixels]
             self.output_sumweight[indices] = self.output_sumweight[indices] + weight
+            self.output_sumgcounts[indices] = self.output_sumgcounts[indices] + gcounts
             self.output_sumflux[indices] = self.output_sumflux[indices] + flux * weight
             self.output_exptime[indices] = self.output_exptime[indices] + segment.exptime
         good_dq = np.where(self.output_exptime > 0.)
@@ -189,11 +193,16 @@ class SegmentList:
         if self.instrument == 'COS':
             # Using the variances (which only COS has) gives spikes in the error when the flux goes negative.
             self.output_sumweight[nonzeros] = np.where(self.output_sumweight[nonzeros] < 0.5, 0.5, self.output_sumweight[nonzeros])
-        self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / self.output_sumweight[nonzeros]
-        # For the moment calculate errors from the gross counts
-        self.output_errors[nonzeros] = np.sqrt(self.output_sumweight[nonzeros])
-        self.signal_to_noise[nonzeros] = self.output_sumweight[nonzeros] / self.output_errors[nonzeros]
-        self.output_errors[nonzeros] = np.abs(self.output_flux[nonzeros] / self.signal_to_noise[nonzeros])
+            self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / self.output_sumweight[nonzeros]
+            self.output_errors[nonzeros] = np.sqrt(self.output_sumweight[nonzeros])
+            self.signal_to_noise[nonzeros] = self.output_sumweight[nonzeros] / self.output_errors[nonzeros]
+            self.output_errors[nonzeros] = np.abs(self.output_flux[nonzeros] / self.signal_to_noise[nonzeros])
+        else:
+            # For the moment calculate errors from the gross counts
+            self.output_errors[nonzeros] = np.sqrt(self.output_sumgcounts[nonzeros])
+            self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / self.output_sumweight[nonzeros]
+            self.signal_to_noise[nonzeros] = self.output_sumgcounts[nonzeros] / self.output_errors[nonzeros]
+            self.output_errors[nonzeros] = np.abs(self.output_flux[nonzeros] / self.signal_to_noise[nonzeros])
         return
 
     def write(self, filename, overwrite=False, level="", version=""):
