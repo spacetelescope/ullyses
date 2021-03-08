@@ -98,10 +98,11 @@ def main(indir, outdir, version=default_version, clobber=False):
                     outdir = os.path.join(PROD_DIR, target, version)
                 if not os.path.exists(outdir):
                     os.makedirs(outdir)
-                outname = create_output_file_name(prod, version, level=level)
-                outname = os.path.join(outdir, outname)
-                prod.write(outname, clobber, level=level, version=version)
-                print(f"   Wrote {outname}")
+                if instrument != 'FUSE': # FUSE data is written as level 3 product below
+                    outname = create_output_file_name(prod, version, level=level)
+                    outname = os.path.join(outdir, outname)
+                    prod.write(outname, clobber, level=level, version=version)
+                    print(f"   Wrote {outname}")
                 products[f'{instrument}/{grating}'] = prod
             else:
                 print(f"No valid data for grating {grating}")
@@ -148,6 +149,7 @@ def main(indir, outdir, version=default_version, clobber=False):
         # Manually write out a FUSE level3 product.
         if products['FUSE/FUSE'] is not None:
             filename = create_output_file_name(products['FUSE/FUSE'], version, level=level)
+            filename = os.path.join(outdir, filename)
             products['FUSE/FUSE'].write(filename, clobber, level=level, version=version)
 
 

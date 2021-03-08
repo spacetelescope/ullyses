@@ -286,7 +286,7 @@ class SegmentList:
         hdr0['HLSP_LVL'] = (level, 'ULLYSES HLSP Level')
         hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
-        hdr0['REFERENC'] = ('TBD', 'Bibliographic ID of primary paper')
+        hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')
     
         hdr0['CENTRWV'] = (self.combine_keys("centrwv", "average"), 'Central wavelength of the data')
         hdr0.add_blank(after='REFERENC')
@@ -302,7 +302,7 @@ class SegmentList:
         hdr2 = fits.Header()
         hdr2['EXTNAME'] = ('PROVENANCE', 'Metadata for contributing observations')
         # set up the table columns
-        cfn = fits.Column(name='FILENAME', array=self.combine_keys("filename", "arr"), format='A32')
+        cfn = fits.Column(name='FILENAME', array=self.combine_keys("filename", "arr"), format='A40')
         cpid = fits.Column(name='PROPOSID', array=self.combine_keys("proposid", "arr"), format='A32')
         ctel = fits.Column(name='TELESCOPE', array=self.combine_keys("telescop", "arr"), format='A32')
         cins = fits.Column(name='INSTRUMENT', array=self.combine_keys("instrume", "arr"), format='A32')
@@ -371,7 +371,8 @@ class SegmentList:
             ull_targname = self.primary_headers[0]["targname"]
         targ_matched = False
         for targ in self.targname:
-            mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ)).any(), axis=1)
+            targ_upper = targ.upper()
+            mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ_upper)).any(), axis=1)
             if set(mask) != {False}:
                 targ_matched = True
                 ull_targname = aliases[mask]["ULL_MAST_name"].values[0]
@@ -389,6 +390,7 @@ class SegmentList:
             return avg_ra, avg_dec
         
         master_list = pd.read_json("pd_targetinfo.json", orient="split")
+        master_list = master_list.apply(lambda x: x.astype(str).str.upper())
         coords = master_list.loc[master_list["mast_targname"] == self.target][["ra", "dec"]].values
         if len(coords) != 0:
             return coords[0][0], coords[0][1]
@@ -441,6 +443,8 @@ class SegmentList:
                 val = self.primary_headers[i][actual_key]
             else:
                 val = self.first_headers[i][actual_key]
+            if tel == "FUSE" and key == "filename":
+                val = val.replace(".fit", "_vo.fits")
             vals.append(val)
 
         # Allowable methods are min, max, average, sum, multi, arr
@@ -722,7 +726,6 @@ def abut(product_short, product_long):
             product_abutted = product_long
         else:
             product_abutted = None
-    
     product_abutted.targ_ra, product_abutted.targ_dec = product_abutted.ull_coords()
     return product_abutted
 
