@@ -222,7 +222,7 @@ def rename_targs():
             if len(files) > 1:
                 print(f"something went wrong with {targ}")
                 continue
-            if len(files) == 0: #already copied
+            if len(files) == 0: #already changed filename
                 continue
             x1d = files[0]
             with pf.open(x1d, mode="update") as hdulist:
@@ -230,7 +230,48 @@ def rename_targs():
             newname = x1d.replace("x1d.fits", f"{item[1]}_x1d.fits")
             shutil.move(x1d, newname)
             print(f"Moved {x1d} to {newname}")
+
+    filenames = {"CVSO-165": [("oe9j2s010_CVSO-165_x1d.fits", "oe9j2s010_x1d.fits"),
+                      ("oe9j2s020_CVSO-165_x1d.fits", "oe9j2s020_x1d.fits"),
+                      ("oe9j2s030_CVSO-165_x1d.fits", "oe9j2s030_x1d.fits"),
+                      ("oe9j2s010_CVSO-165A_x1d.fits", "oe9j2s010_x1d.fits"),
+                      ("oe9j2s020_CVSO-165A_x1d.fits", "oe9j2s020_x1d.fits"),
+                      ("oe9j2s030_CVSO-165A_x1d.fits", "oe9j2s030_x1d.fits"),
+                      ("oe9j2s010_CVSO-165B_x1d.fits", "oe9j2s010_x1d.fits"),
+                      ("oe9j2s020_CVSO-165B_x1d.fits", "oe9j2s020_x1d.fits"),
+                      ("oe9j2s030_CVSO-165B_x1d.fits", "oe9j2s030_x1d.fits"),
+                      ("oe9j2s010_GAIA-DR3-3217473697810165504_x1d.fits", "oe9j2s010_x1d.fits"),
+                      ("oe9j2s020_GAIA-DR3-3217473697810165504_x1d.fits", "oe9j2s020_x1d.fits"),
+                      ("oe9j2s030_GAIA-DR3-3217473697810165504_x1d.fits", "oe9j2s030_x1d.fits")],
+             "CVSO-109": [("oe9k2s010_CVSO-109_x1d.fits", "oe9k2s010_x1d.fits"),
+                      ("oe9k2s020_CVSO-109_x1d.fits", "oe9k2s020_x1d.fits"),
+                      ("oe9k2s030_CVSO-109_x1d.fits", "oe9k2s030_x1d.fits"),
+                      ("oe9k2s010_CVSO-109A_x1d.fits", "oe9k2s010_x1d.fits"),
+                      ("oe9k2s020_CVSO-109A_x1d.fits", "oe9k2s020_x1d.fits"),
+                      ("oe9k2s030_CVSO-109A_x1d.fits", "oe9k2s030_x1d.fits"),
+                      ("oe9k2s010_CVSO-109B_x1d.fits", "oe9k2s010_x1d.fits"),
+                      ("oe9k2s020_CVSO-109B_x1d.fits", "oe9k2s020_x1d.fits"),
+                      ("oe9k2s030_CVSO-109B_x1d.fits", "oe9k2s030_x1d.fits")],
+             "CVSO-36": [("oe9k5s020_CVSO-36B_x1d.fits", "oe9k5s020_x1d.fits"),
+                      ("oe9k5s030_CVSO-36B_x1d.fits", "oe9k5s030_x1d.fits")],
+             "CVSO-104": [("oe9k1s020_GAIA-DR3-3217634157789741952_x1d.fits", "oe9k1s020_x1d.fits"),
+                      ("oe9k1s030_GAIA-DR3-3217634157789741952_x1d.fits", "oe9k1s030_x1d.fits"),
+                      ("oe9k1s040_GAIA-DR3-3217634157789741952_x1d.fits", "oe9k1s040_x1d.fits")]}
+
+    for targ in filenames:
+        fmapping = filenames[targ]
+        for item in fmapping:
+            files = glob.glob(os.path.join(datadir, targ, outdir0, item[0]))
+            if len(files) > 1:
+                print(f"something went wrong with {targ}")
+                continue
+            x1d = files[0]
+            key = item[1]
+            with pf.open(x1d, mode="update") as hdulist:
+                hdulist[0].header["FILENAME"] = key
     subprocess.run(["chmod", "-R", "777", datadir])
+
+
 
 def copy_mama_x1ds():
     for targ in tts:
