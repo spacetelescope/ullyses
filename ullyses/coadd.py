@@ -498,7 +498,17 @@ class STISSegmentList(SegmentList):
 class COSSegmentList(SegmentList):
 
     def get_flux_weight(self, segment):
-        weight = (segment.data['net']/segment.data['flux']) * segment.exptime
+        thru_nans = segment.data['net'] / segment.data['flux']
+        if set(np.isnan(thru_nans)) == {False}:
+            weight = thru_nans * segment.exptime
+        else:
+            xpix = np.arange(len(thru_nans))
+            good = np.where( np.isnan(thru_nans) == False)
+            good_xpix = xpix[good]
+            good_thru_nans = thru_nans[good]
+            thru = np.interp(xpix, good_xpix, good_thru_nans)
+            weight = thru * segment.exptime
+
         return np.abs(weight)
 
 class FUSESegmentList(SegmentList):
