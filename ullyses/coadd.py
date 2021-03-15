@@ -14,7 +14,7 @@ from astropy.time import Time
 # coadd data
 #
 
-CAL_VER = 0.1
+CAL_VER = 1.0
 RED = "\033[1;31m"
 RESET = "\033[0;0m"
 
@@ -152,9 +152,11 @@ class SegmentList:
         self.output_sumgcounts = np.zeros(self.nelements)
         self.output_sumflux = np.zeros(self.nelements)
         self.output_sumweight = np.zeros(self.nelements)
+        self.output_varsum = np.zeros(self.nelements)
         self.output_flux = np.zeros(self.nelements)
         self.output_errors = np.zeros(self.nelements)
         self.signal_to_noise = np.zeros(self.nelements)
+        self.sumnetcounts = np.zeros(self.nelements)
         self.output_exptime = np.zeros(self.nelements)
 
         return wavegrid
@@ -177,11 +179,16 @@ class SegmentList:
             goodpixels = np.where((segment.data['dq'] & segment.sdqflags) == 0)
             wavelength = segment.data['wavelength'][goodpixels]
             indices = self.wavelength_to_index(wavelength)
-            gross_counts = self.get_flux_weight(segment)
+            flux_weight = self.get_flux_weight(segment)
             gcounts0 = np.abs(segment.data['gross'] * segment.exptime)
             gcounts = gcounts0[goodpixels]
-            weight = gross_counts[goodpixels]
+            weight = flux_weight[goodpixels]
+            net_counts = segment.data['net'][goodpixels] * segment.exptime
+            if self.instrument == 'COS':
+                variances = segment.data['variance_counts'] + segment.data['variance_bkg'] + segment.data['variance_flat']
+                self.output_varsum[indices] = self.output_varsum[indices] + variances[goodpixels]
             flux = segment.data['flux'][goodpixels]
+            self.sumnetcounts[indices] = self.sumnetcounts[indices] + net_counts
             self.output_sumweight[indices] = self.output_sumweight[indices] + weight
             self.output_sumgcounts[indices] = self.output_sumgcounts[indices] + gcounts
             self.output_sumflux[indices] = self.output_sumflux[indices] + flux * weight
@@ -192,16 +199,18 @@ class SegmentList:
         nonzeros = np.where(self.output_sumweight != 0)
         if self.instrument == 'COS':
             # Using the variances (which only COS has) gives spikes in the error when the flux goes negative.
-            self.output_sumweight[nonzeros] = np.where(self.output_sumweight[nonzeros] < 0.5, 0.5, self.output_sumweight[nonzeros])
+            self.output_varsum[nonzeros] = np.where(self.output_varsum[nonzeros] < 0.5, 0.5, self.output_varsum[nonzeros])
             self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / self.output_sumweight[nonzeros]
-            self.output_errors[nonzeros] = np.sqrt(self.output_sumweight[nonzeros])
-            self.signal_to_noise[nonzeros] = self.output_sumweight[nonzeros] / self.output_errors[nonzeros]
+            self.output_errors[nonzeros] = np.sqrt(self.output_varsum[nonzeros])
+            # Calculate signal to noise with both signal and noise in counts
+            self.signal_to_noise[nonzeros] = self.sumnetcounts[nonzeros] / self.output_errors[nonzeros]
+            # Use signal to noise to calculate error in flux units (erg/cm^2/s/Ang)
             self.output_errors[nonzeros] = np.abs(self.output_flux[nonzeros] / self.signal_to_noise[nonzeros])
         else:
             # For the moment calculate errors from the gross counts
             self.output_errors[nonzeros] = np.sqrt(self.output_sumgcounts[nonzeros])
             self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / self.output_sumweight[nonzeros]
-            self.signal_to_noise[nonzeros] = self.output_sumgcounts[nonzeros] / self.output_errors[nonzeros]
+            self.signal_to_noise[nonzeros] = self.sumnetcounts[nonzeros] / self.output_errors[nonzeros]
             self.output_errors[nonzeros] = np.abs(self.output_flux[nonzeros] / self.signal_to_noise[nonzeros])
         return
 
@@ -470,7 +479,7 @@ class SegmentList:
 weight_function = {
     'gross':      lambda x, y, z: x,
     'exptime':    lambda x, y, z: x * y,
-    'throughput': lambda x, y, z: x * y * z
+    'throughput': lambda x, y, z: y * z
 }
 
 class STISSegmentList(SegmentList):
@@ -494,12 +503,18 @@ class STISSegmentList(SegmentList):
 class COSSegmentList(SegmentList):
 
     def get_flux_weight(self, segment):
-        try:
-            gross = segment.data['variance_counts'] + segment.data['variance_bkg'] + segment.data['variance_flat']
-            return gross
-        except KeyError:
-            gross = segment.data['gcounts']
-            return gross
+        thru_nans = segment.data['net'] / segment.data['flux']
+        if set(np.isnan(thru_nans)) == {False}:
+            weight = thru_nans * segment.exptime
+        else:
+            xpix = np.arange(len(thru_nans))
+            good = np.where( np.isnan(thru_nans) == False)
+            good_xpix = xpix[good]
+            good_thru_nans = thru_nans[good]
+            thru = np.interp(xpix, good_xpix, good_thru_nans)
+            weight = thru * segment.exptime
+
+        return np.abs(weight)
 
 class FUSESegmentList(SegmentList):
 
