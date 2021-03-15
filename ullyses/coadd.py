@@ -14,7 +14,7 @@ from astropy.time import Time
 # coadd data
 #
 
-CAL_VER = 0.1
+CAL_VER = 1.0
 RED = "\033[1;31m"
 RESET = "\033[0;0m"
 
@@ -149,11 +149,14 @@ class SegmentList:
 
         self.output_wavelength = wavegrid
         self.nelements = len(wavegrid)
+        self.output_sumgcounts = np.zeros(self.nelements)
         self.output_sumflux = np.zeros(self.nelements)
         self.output_sumweight = np.zeros(self.nelements)
+        self.output_varsum = np.zeros(self.nelements)
         self.output_flux = np.zeros(self.nelements)
         self.output_errors = np.zeros(self.nelements)
         self.signal_to_noise = np.zeros(self.nelements)
+        self.sumnetcounts = np.zeros(self.nelements)
         self.output_exptime = np.zeros(self.nelements)
 
         return wavegrid
@@ -176,10 +179,18 @@ class SegmentList:
             goodpixels = np.where((segment.data['dq'] & segment.sdqflags) == 0)
             wavelength = segment.data['wavelength'][goodpixels]
             indices = self.wavelength_to_index(wavelength)
-            gross_counts = self.get_flux_weight(segment)
-            weight = gross_counts[goodpixels]
+            flux_weight = self.get_flux_weight(segment)
+            gcounts0 = np.abs(segment.data['gross'] * segment.exptime)
+            gcounts = gcounts0[goodpixels]
+            weight = flux_weight[goodpixels]
+            net_counts = segment.data['net'][goodpixels] * segment.exptime
+            if self.instrument == 'COS':
+                variances = segment.data['variance_counts'] + segment.data['variance_bkg'] + segment.data['variance_flat']
+                self.output_varsum[indices] = self.output_varsum[indices] + variances[goodpixels]
             flux = segment.data['flux'][goodpixels]
+            self.sumnetcounts[indices] = self.sumnetcounts[indices] + net_counts
             self.output_sumweight[indices] = self.output_sumweight[indices] + weight
+            self.output_sumgcounts[indices] = self.output_sumgcounts[indices] + gcounts
             self.output_sumflux[indices] = self.output_sumflux[indices] + flux * weight
             self.output_exptime[indices] = self.output_exptime[indices] + segment.exptime
         good_dq = np.where(self.output_exptime > 0.)
@@ -188,12 +199,19 @@ class SegmentList:
         nonzeros = np.where(self.output_sumweight != 0)
         if self.instrument == 'COS':
             # Using the variances (which only COS has) gives spikes in the error when the flux goes negative.
-            self.output_sumweight[nonzeros] = np.where(self.output_sumweight[nonzeros] < 0.5, 0.5, self.output_sumweight[nonzeros])
-        self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / self.output_sumweight[nonzeros]
-        # For the moment calculate errors from the gross counts
-        self.output_errors[nonzeros] = np.sqrt(self.output_sumweight[nonzeros])
-        self.signal_to_noise[nonzeros] = self.output_sumweight[nonzeros] / self.output_errors[nonzeros]
-        self.output_errors[nonzeros] = np.abs(self.output_flux[nonzeros] / self.signal_to_noise[nonzeros])
+            self.output_varsum[nonzeros] = np.where(self.output_varsum[nonzeros] < 0.5, 0.5, self.output_varsum[nonzeros])
+            self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / self.output_sumweight[nonzeros]
+            self.output_errors[nonzeros] = np.sqrt(self.output_varsum[nonzeros])
+            # Calculate signal to noise with both signal and noise in counts
+            self.signal_to_noise[nonzeros] = self.sumnetcounts[nonzeros] / self.output_errors[nonzeros]
+            # Use signal to noise to calculate error in flux units (erg/cm^2/s/Ang)
+            self.output_errors[nonzeros] = np.abs(self.output_flux[nonzeros] / self.signal_to_noise[nonzeros])
+        else:
+            # For the moment calculate errors from the gross counts
+            self.output_errors[nonzeros] = np.sqrt(self.output_sumgcounts[nonzeros])
+            self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / self.output_sumweight[nonzeros]
+            self.signal_to_noise[nonzeros] = self.sumnetcounts[nonzeros] / self.output_errors[nonzeros]
+            self.output_errors[nonzeros] = np.abs(self.output_flux[nonzeros] / self.signal_to_noise[nonzeros])
         return
 
     def write(self, filename, overwrite=False, level="", version=""):
@@ -277,7 +295,7 @@ class SegmentList:
         hdr0['HLSP_LVL'] = (level, 'ULLYSES HLSP Level')
         hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
-        hdr0['REFERENC'] = ('TBD', 'Bibliographic ID of primary paper')
+        hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')
     
         hdr0['CENTRWV'] = (self.combine_keys("centrwv", "average"), 'Central wavelength of the data')
         hdr0.add_blank(after='REFERENC')
@@ -293,7 +311,7 @@ class SegmentList:
         hdr2 = fits.Header()
         hdr2['EXTNAME'] = ('PROVENANCE', 'Metadata for contributing observations')
         # set up the table columns
-        cfn = fits.Column(name='FILENAME', array=self.combine_keys("filename", "arr"), format='A32')
+        cfn = fits.Column(name='FILENAME', array=self.combine_keys("filename", "arr"), format='A40')
         cpid = fits.Column(name='PROPOSID', array=self.combine_keys("proposid", "arr"), format='A32')
         ctel = fits.Column(name='TELESCOPE', array=self.combine_keys("telescop", "arr"), format='A32')
         cins = fits.Column(name='INSTRUMENT', array=self.combine_keys("instrume", "arr"), format='A32')
@@ -362,7 +380,8 @@ class SegmentList:
             ull_targname = self.primary_headers[0]["targname"]
         targ_matched = False
         for targ in self.targname:
-            mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ)).any(), axis=1)
+            targ_upper = targ.upper()
+            mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ_upper)).any(), axis=1)
             if set(mask) != {False}:
                 targ_matched = True
                 ull_targname = aliases[mask]["ULL_MAST_name"].values[0]
@@ -380,6 +399,7 @@ class SegmentList:
             return avg_ra, avg_dec
         
         master_list = pd.read_json("pd_targetinfo.json", orient="split")
+        master_list = master_list.apply(lambda x: x.astype(str).str.upper())
         coords = master_list.loc[master_list["mast_targname"] == self.target][["ra", "dec"]].values
         if len(coords) != 0:
             return coords[0][0], coords[0][1]
@@ -432,6 +452,8 @@ class SegmentList:
                 val = self.primary_headers[i][actual_key]
             else:
                 val = self.first_headers[i][actual_key]
+            if tel == "FUSE" and key == "filename":
+                val = val.replace(".fit", "_vo.fits")
             vals.append(val)
 
         # Allowable methods are min, max, average, sum, multi, arr
@@ -458,7 +480,7 @@ weight_function = {
     'unity':      lambda x, y, z: np.ones(len(x)),
     'gross':      lambda x, y, z: x,
     'exptime':    lambda x, y, z: x * y,
-    'throughput': lambda x, y, z: x * y * z
+    'throughput': lambda x, y, z: y * z
 }
 
 class STISSegmentList(SegmentList):
@@ -482,12 +504,18 @@ class STISSegmentList(SegmentList):
 class COSSegmentList(SegmentList):
 
     def get_flux_weight(self, segment):
-        try:
-            gross = segment.data['variance_counts'] + segment.data['variance_bkg'] + segment.data['variance_flat']
-            return gross
-        except KeyError:
-            gross = segment.data['gcounts']
-            return gross
+        thru_nans = segment.data['net'] / segment.data['flux']
+        if set(np.isnan(thru_nans)) == {False}:
+            weight = thru_nans * segment.exptime
+        else:
+            xpix = np.arange(len(thru_nans))
+            good = np.where( np.isnan(thru_nans) == False)
+            good_xpix = xpix[good]
+            good_thru_nans = thru_nans[good]
+            thru = np.interp(xpix, good_xpix, good_thru_nans)
+            weight = thru * segment.exptime
+
+        return np.abs(weight)
 
 class FUSESegmentList(SegmentList):
 
@@ -714,7 +742,6 @@ def abut(product_short, product_long):
             product_abutted = product_long
         else:
             product_abutted = None
-    
     product_abutted.targ_ra, product_abutted.targ_dec = product_abutted.ull_coords()
     return product_abutted
 
