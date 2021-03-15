@@ -156,6 +156,7 @@ class SegmentList:
         self.output_flux = np.zeros(self.nelements)
         self.output_errors = np.zeros(self.nelements)
         self.signal_to_noise = np.zeros(self.nelements)
+        self.sumnetcounts = np.zeros(self.nelements)
         self.output_exptime = np.zeros(self.nelements)
 
         return wavegrid
@@ -182,10 +183,12 @@ class SegmentList:
             gcounts0 = np.abs(segment.data['gross'] * segment.exptime)
             gcounts = gcounts0[goodpixels]
             weight = flux_weight[goodpixels]
+            net_counts = segment.data['net'][goodpixels] * segment.exptime
             if self.instrument == 'COS':
                 variances = segment.data['variance_counts'] + segment.data['variance_bkg'] + segment.data['variance_flat']
                 self.output_varsum[indices] = self.output_varsum[indices] + variances[goodpixels]
             flux = segment.data['flux'][goodpixels]
+            self.sumnetcounts[indices] = self.sumnetcounts[indices] + net_counts
             self.output_sumweight[indices] = self.output_sumweight[indices] + weight
             self.output_sumgcounts[indices] = self.output_sumgcounts[indices] + gcounts
             self.output_sumflux[indices] = self.output_sumflux[indices] + flux * weight
@@ -199,13 +202,15 @@ class SegmentList:
             self.output_varsum[nonzeros] = np.where(self.output_varsum[nonzeros] < 0.5, 0.5, self.output_varsum[nonzeros])
             self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / self.output_sumweight[nonzeros]
             self.output_errors[nonzeros] = np.sqrt(self.output_varsum[nonzeros])
-            self.signal_to_noise[nonzeros] = self.output_varsum[nonzeros] / self.output_errors[nonzeros]
+            # Calculate signal to noise with both signal and noise in counts
+            self.signal_to_noise[nonzeros] = self.sumnetcounts[nonzeros] / self.output_errors[nonzeros]
+            # Use signal to noise to calculate error in flux units (erg/cm^2/s/Ang)
             self.output_errors[nonzeros] = np.abs(self.output_flux[nonzeros] / self.signal_to_noise[nonzeros])
         else:
             # For the moment calculate errors from the gross counts
             self.output_errors[nonzeros] = np.sqrt(self.output_sumgcounts[nonzeros])
             self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / self.output_sumweight[nonzeros]
-            self.signal_to_noise[nonzeros] = self.output_sumgcounts[nonzeros] / self.output_errors[nonzeros]
+            self.signal_to_noise[nonzeros] = self.sumnetcounts[nonzeros] / self.output_errors[nonzeros]
             self.output_errors[nonzeros] = np.abs(self.output_flux[nonzeros] / self.signal_to_noise[nonzeros])
         return
 
