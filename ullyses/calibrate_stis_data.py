@@ -13,8 +13,11 @@ import stistools
 from stistools import x1d
 from stistools.ocrreject import ocrreject
 import stis_cti
+from matplotlib import pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 
 from readwrite_yaml import read_config, write_config
+from plot_stis_x1ds import plot_all
 os.environ["oref"] = "/grp/hst/cdbs/oref/"
 
 OREF_DIR = "/grp/hst/cdbs/oref"
@@ -230,13 +233,13 @@ class StisData():
         
             outfile = os.path.join(self.outdir, f"{self.rootname}_{target}_x1d.fits")
             self.target_dict[target]["out_x1d"] = outfile
+            kwargs = {}
             if "out_drj" not in target_pars:
                 if self.detector == "CCD":
                     infile = self.crj
                     kwargs = {"ctecorr": "omit" if self.do_perform_cti is True else "perform"}
                 else:
                     infile = self.flt
-                    kwargs = {}
             else:
                 infile = target_pars["out_drj"]
             
@@ -283,6 +286,11 @@ class StisData():
                 hdulist[0].header["HLSP_LVL"] = 0
                 hdulist[0].header["ULL_CAL"] = "COMPLETE"
                 hdulist[0].header["CAL_DATE"] = nowdt_str
+                hdulist[0].header["TARGNAME"] = target.upper()
+                hdulist[0].header["FILENAME"] = os.path.basename(target_pars["out_x1d"])
+                if "coords" in target_pars:
+                    hdulist[0].header["RA_TARG"] = target_pars["coords"]["ra"]
+                    hdulist[0].header["DEC_TARG"] = target_pars["coords"]["dec"]
 
 
     def printintro(self):
@@ -293,6 +301,17 @@ class StisData():
         print("Target(s):")
         for target in self.target_dict:
             print(f"\t{target}")
+
+
+    def compare_x1ds(self):
+        if self.x1d_mast is None:
+            return
+        print("\n", f" CREATING DIAGNOSTIC PLOTS ".center(NCOLS, SYM), "\n")
+        mastx1d = self.x1d_mast
+        for target,target_pars in self.target_dict.items():
+            customx1d = target_pars['out_x1d']
+            pdffile = plot_all(customx1d, mastx1d, target, self.outdir)
+            self.target_dict[target]["out_plot"] = pdffile
 
 
 class StisCcd(StisData):
@@ -553,6 +572,7 @@ class StisCcd(StisData):
         self.defringe()
         self.extract_spectra()
         self.update_header()
+        self.compare_x1ds()
         self.printfinal()
     
 
@@ -573,6 +593,9 @@ class StisCcd(StisData):
         for target,target_pars in self.target_dict.items():
             print(f"\t{target_pars['out_x1d']}")
         print(f"MAST X1D file: {self.x1d_mast}")
+        print(f"Comparison plots:")
+        for target,target_pars in self.target_dict.items():
+            print(f"\t{target_pars['out_plot']}")
 
         print("")
         if self.do_perform_cti is True:
@@ -616,6 +639,7 @@ class StisMama(StisData):
             self.custom_dq16()
         self.extract_spectra()
         self.update_header()
+        self.compare_x1ds()
         self.printfinal()
     
 
@@ -631,6 +655,9 @@ class StisMama(StisData):
         for target,target_pars in self.target_dict.items():
             print(f"\t{target_pars['out_x1d']}")
         print(f"MAST X1D file: {self.x1d_mast}")
+        print(f"Comparison plots:")
+        for target,target_pars in self.target_dict.items():
+            print(f"\t{target_pars['out_plot']}")
 
         print("")
         if self.custom_dq16_applied is True:
