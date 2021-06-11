@@ -12,7 +12,7 @@ import sys
 import stistools
 from stistools import x1d
 from stistools.ocrreject import ocrreject
-import stis_cti
+#import stis_cti
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
