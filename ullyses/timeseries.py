@@ -63,9 +63,22 @@ def sort_x1ds(min_exptime=20.0):
     sorted_x1dlist = sorted(x1dlist, key=lambda x: x[1])
     return sorted_x1dlist
 
-def create_ensemble_segmentlist():
+def create_ensemble_segmentlist(wavelength_binning=1):
     a = coadd.COSSegmentList('G160M')
     a.create_output_wavelength_grid()
+    if wavelength_binning != 1:
+        a.delta_wavelength = a.delta_wavelength * wavelength_binning
+        a.output_wavelength = np.arange(a.min_wavelength, a.max_wavelength, a.delta_wavelength)
+        nelements = len(a.output_wavelength)
+        a.output_sumgcounts = np.zeros(nelements)
+        a.output_sumflux = np.zeros(nelements)
+        a.output_sumweight = np.zeros(nelements)
+        a.output_varsum = np.zeros(nelements)
+        a.output_flux = np.zeros(nelements)
+        a.output_errors = np.zeros(nelements)
+        a.signal_to_noise = np.zeros(nelements)
+        a.sumnetcounts = np.zeros(nelements)
+        a.output_exptime = np.zeros(nelements)
     return a
 
 def rename_all_x1ds():
@@ -92,8 +105,8 @@ def transfer_from_ensemble(ensemble, segmentlist):
     segmentlist.output_exptime = np.zeros(segmentlist.nelements)
     return
 
-def process_all_files():
-    ensemble = create_ensemble_segmentlist()
+def process_all_files(outfile, wavelength_binning=1):
+    ensemble = create_ensemble_segmentlist(wavelength_binning)
     rename_all_x1ds()
     withoutfiles = glob.glob('split*_without.fits')
     sorted_withoutfiles = sort_x1ds()
@@ -120,9 +133,10 @@ def process_all_files():
     for oldfile, expstart in sorted_withoutfiles:
         newfile = oldfile.replace('_without.fits', '_x1d.fits')
         os.rename(oldfile, newfile)
-    return output_flux, output_error, times, wavelengths
+    write_product(output_flux, output_error, times, wavelengths, outfile)
+    return
 
-def write_product(flux, error, wavelengths, times):
+def write_product(flux, error, times, wavelengths, outfile):
     nrows, ncolumns = flux.shape
     npixels = nrows*ncolumns
     columns = []
@@ -141,7 +155,8 @@ def write_product(flux, error, wavelengths, times):
     hdulist = fits.HDUList()
     hdulist.append(prihdu)
     hdulist.append(table1)
-    return hdulist
+    hdulist.writeto(outfile)
+    return
 
 if __name__ == '__main__':
     grating = 'G160M'
