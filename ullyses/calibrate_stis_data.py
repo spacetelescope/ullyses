@@ -57,7 +57,8 @@ class StisData():
     
         self.do_flag_negatives = self.negatives_flagged = False
         self.custom_dq16_applied = False
-        
+        self.plots_made = False
+            
         self.yamlfile = yamlfile
         config = read_config(yamlfile)
         self.force_dq16 = config["force_dq16"]
@@ -306,6 +307,7 @@ class StisData():
     def compare_x1ds(self):
         if self.x1d_mast is None:
             return
+        self.plots_made = True
         print("\n", f" CREATING DIAGNOSTIC PLOTS ".center(NCOLS, SYM), "\n")
         mastx1d = self.x1d_mast
         for target,target_pars in self.target_dict.items():
@@ -593,9 +595,10 @@ class StisCcd(StisData):
         for target,target_pars in self.target_dict.items():
             print(f"\t{target_pars['out_x1d']}")
         print(f"MAST X1D file: {self.x1d_mast}")
-        print(f"Comparison plots:")
-        for target,target_pars in self.target_dict.items():
-            print(f"\t{target_pars['out_plot']}")
+        if self.plots_made is True:
+            print(f"Comparison plots:")
+            for target,target_pars in self.target_dict.items():
+                print(f"\t{target_pars['out_plot']}")
 
         print("")
         if self.do_perform_cti is True:
@@ -655,9 +658,10 @@ class StisMama(StisData):
         for target,target_pars in self.target_dict.items():
             print(f"\t{target_pars['out_x1d']}")
         print(f"MAST X1D file: {self.x1d_mast}")
-        print(f"Comparison plots:")
-        for target,target_pars in self.target_dict.items():
-            print(f"\t{target_pars['out_plot']}")
+        if self.plots_made is True:
+            print(f"Comparison plots:")
+            for target,target_pars in self.target_dict.items():
+                print(f"\t{target_pars['out_plot']}")
 
         print("")
         if self.custom_dq16_applied is True:
