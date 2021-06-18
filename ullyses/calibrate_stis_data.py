@@ -1,5 +1,4 @@
 #! /usr/bin/env python
-
 import datetime
 import argparse
 import os
@@ -25,6 +24,16 @@ SYM = "~"
 NCOLS = 72
 SEP = f"\n!{'~'*70}!\n"
 
+class Tee():
+    def __init__(self, *files):
+        self.files = files
+    def write(self, obj):
+        for f in self.files:
+            f.write(obj)
+            f.flush() # If you want the output to be visible immediately
+    def flush(self) :
+        for f in self.files:
+            f.flush()
 
 class StisData():
     """
@@ -47,12 +56,15 @@ class StisData():
         x1d (list): List of final x1d products. 
         
     """
-    def __init__(self, infile, yamlfile, outdir=None, overwrite=True): 
+    def __init__(self, infile, yamlfile, dolog=True, logfile=None, outdir=None, 
+                 overwrite=True): 
         """
         Args:
             infiles: List or wildcard describing all input files.
             outdir: Output directory for products.
         """
+        nowdt = datetime.datetime.now()
+        
         self.raw = self.flt = self.x1d = self.x1d_mast = None
     
         self.do_flag_negatives = self.negatives_flagged = False
@@ -67,11 +79,16 @@ class StisData():
         self.infile = infile
         self.basedir = os.path.dirname(self.infile)
         if outdir is None:
-            nowdt = datetime.datetime.now()
             outdir = os.path.join(self.basedir, nowdt.strftime("%Y%m%d_%H%M"))
         self.outdir = outdir
         if not os.path.exists(outdir):
             os.mkdir(outdir)
+        self.dolog = dolog
+        if dolog is True:
+            if logfile is None:
+                logfile = os.path.join(outdir, f"{nowdt.strftime('%Y%m%d_%H%M')}_cal.log")
+            sys.stdout = Tee(open(logfile, "w"), sys.stdout)
+        self.logfile = logfile
         
         self.rootname = fits.getval(infile, "rootname")
         self.visit = self.rootname[4:6]
@@ -317,8 +334,9 @@ class StisData():
 
 
 class StisCcd(StisData):
-    def __init__(self, infile, yamlfile, outdir=None, overwrite=True):
-        super().__init__(infile, yamlfile, outdir, overwrite)
+    def __init__(self, infile, yamlfile, dolog=True, logfile=None, outdir=None, 
+                 overwrite=True): 
+        super().__init__(infile, yamlfile, dolog, logfile, outdir, overwrite)
         self.detector = "CCD"
         
         prod = os.path.join(self.basedir, self.rootname+"_sx1.fits")
@@ -580,9 +598,12 @@ class StisCcd(StisData):
 
     def printfinal(self):
         print("\n", f" RECALIBRATION SUMMARY ".center(NCOLS, SYM), "\n")
+        if self.dolog is True:
+            print(f"Log saved at {self.logfile}")
         print("Target(s):")
         for target in self.target_dict:
             print(f"\t{target}")
+        print(f"Grating: {self.opt_elem}")
         print(f"YAML file: {self.yamlfile}")
         print(f"Input file: {self.infile}")
         print(f"FLT: {self.flt}")
@@ -621,8 +642,9 @@ class StisCcd(StisData):
 
 
 class StisMama(StisData):
-    def __init__(self, infile, yamlfile, outdir=None, overwrite=True):
-        super().__init__(infile, yamlfile, outdir, overwrite)
+    def __init__(self, infile, yamlfile, dolog=True, logfile=None, outdir=None, 
+                 overwrite=True): 
+        super().__init__(infile, yamlfile, dolog, logfile, outdir, overwrite)
         self.detector = "MAMA"
         self.do_custom_dq16 = True
         self.do_defringe = False
@@ -648,9 +670,12 @@ class StisMama(StisData):
 
     def printfinal(self):
         print("\n", f" RECALIBRATION SUMMARY ".center(NCOLS, SYM), "\n")
+        if self.dolog is True:
+            print(f"Log saved at {self.logfile}")
         print("Target(s):")
         for target in self.target_dict:
             print(f"\t{target}")
+        print(f"Grating: {self.opt_elem}")
         print(f"YAML file: {self.yamlfile}")
         print(f"Input file: {self.infile}")
         print(f"FLT(s): {self.flt}")
@@ -671,15 +696,18 @@ class StisMama(StisData):
         print("* Custom extraction performed")
 
 
-def wrapper(indir, yamlfile, outdir=None, overwrite=True):
+def wrapper(indir, yamlfile, dolog=True, logfile=None, outdir=None, 
+            overwrite=True):
     config = read_config(yamlfile)
     infile = os.path.join(indir, config["infile"])
     detector = fits.getval(infile, "detector")
     opt_elem = fits.getval(infile, "opt_elem")
     if detector == "CCD" and opt_elem !="MIRVIS":
-        S = StisCcd(infile, yamlfile, outdir, overwrite)
+        S = StisCcd(infile=infile, yamlfile=yamlfile, dolog=dolog, 
+                    logfile=logfile, outdir=outdir, overwrite=overwrite)
     else:
-        S = StisMama(infile, yamlfile, outdir, overwrite)
+        S = StisMama(infile=infile, yamlfile=yamlfile, dolog=dolog, 
+                     logfile=logfile, outdir=outdir, overwrite=overwrite)
     S.run_all()
 
 
@@ -693,7 +721,13 @@ if __name__ == "__main__":
                         help="Directory for output products")
     parser.add_argument("-c", "--clobber", default=False,
                         action="store_true",
-                         help="If True, overwrite existing products")
+                        help="If True, overwrite existing products")
+    parser.add_argument("--nolog", default=False, action="store_true",
+                        help="If True, do not produce log file")
+    parser.add_argument("-l", "--logfile", default=None,
+                        help="Name of output log file")
     args = parser.parse_args()
-    wrapper(args.indir, args.yaml, args.outdir, args.clobber)
+    dolog = not args.nolog
+    wrapper(args.indir, args.yaml, dolog, args.logfile, args.outdir, 
+            args.clobber)
 
