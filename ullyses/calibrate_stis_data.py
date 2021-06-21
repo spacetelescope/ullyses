@@ -354,6 +354,7 @@ class StisCcd(StisData):
         self.do_perform_cti = self.custom_cti_applied = False
         self.cti_proc = 10
         self.needs_crrej = self.do_crrej = self.custom_crrej_applied = False
+        self.do_definge = False
         self.defringe_applied = False
         
         self._sci_dir = self.outdir
@@ -517,9 +518,9 @@ class StisCcd(StisData):
         
         for target,target_pars in self.target_dict.items():
             print("\n", f" DEFRINGING {target} ".center(NCOLS, SYM), "\n")
-            if target_pars["do_defringe"] is False:
-                return
             if self.opt_elem not in ["G750L", "G750M"]:
+                return
+            if target_pars["do_defringe"] is False:
                 return
             self.do_defringe = True 
             
