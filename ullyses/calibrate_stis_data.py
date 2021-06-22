@@ -354,7 +354,7 @@ class StisCcd(StisData):
         self.do_perform_cti = self.custom_cti_applied = False
         self.cti_proc = 10
         self.needs_crrej = self.do_crrej = self.custom_crrej_applied = False
-        self.do_definge = False
+        self.do_defringe = False
         self.defringe_applied = False
         
         self._sci_dir = self.outdir
