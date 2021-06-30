@@ -16,7 +16,7 @@ from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
 from readwrite_yaml import read_config, write_config
-from plot_stis_x1ds import plot_all
+import plot_stis_data
 os.environ["oref"] = "/grp/hst/cdbs/oref/"
 
 OREF_DIR = "/grp/hst/cdbs/oref"
@@ -95,6 +95,10 @@ class StisData():
         self.opt_elem = fits.getval(infile, "opt_elem")
         self.darkfile = fits.getval(infile, "darkfile")
         
+        raws = glob.glob(os.path.join(self.basedir, "o*raw.fits"))
+        for item in raws:
+            if fits.getval(item, "obsmode") == "ACQ":
+                self.acq = item
 
     def flag_negatives(self, change_sci_val=False, sci_val=10000, dq=4, thresh=-100):
         """
@@ -321,17 +325,25 @@ class StisData():
             print(f"\t{target}")
 
 
-    def compare_x1ds(self):
-        if self.x1d_mast is None:
-            return
+    def make_plots(self):
+        if self.x1d_mast is not None:
+            self.plots_made = True
+            print("\n", f" CREATING DIAGNOSTIC PLOTS ".center(NCOLS, SYM), "\n")
+            mastx1d = self.x1d_mast
+            for target,target_pars in self.target_dict.items():
+                customx1d = target_pars['out_x1d']
+                pdffile = plot_stis_data.plot_all_x1d(customx1d, mastx1d, target, self.outdir)
+                self.target_dict[target]["oned_plot"] = pdffile
+
         self.plots_made = True
-        print("\n", f" CREATING DIAGNOSTIC PLOTS ".center(NCOLS, SYM), "\n")
-        mastx1d = self.x1d_mast
+        if self.detector == "CCD":
+            twod_im = self.crj
+        else:
+            twod_im = self.flt
         for target,target_pars in self.target_dict.items():
             customx1d = target_pars['out_x1d']
-            pdffile = plot_all(customx1d, mastx1d, target, self.outdir)
-            self.target_dict[target]["out_plot"] = pdffile
-
+            pdffile = plot_stis_data.plot_all_2d(twod_im, self.acq, customx1d, target, self.outdir)
+            self.target_dict[target]["twod_plot"] = pdffile
 
 class StisCcd(StisData):
     def __init__(self, infile, yamlfile, dolog=True, logfile=None, outdir=None, 
@@ -593,7 +605,7 @@ class StisCcd(StisData):
         self.defringe()
         self.extract_spectra()
         self.update_header()
-        self.compare_x1ds()
+        self.make_plots()
         self.printfinal()
     
 
@@ -618,9 +630,11 @@ class StisCcd(StisData):
             print(f"\t{target_pars['out_x1d']}")
         print(f"MAST X1D file: {self.x1d_mast}")
         if self.plots_made is True:
-            print(f"Comparison plots:")
+            print(f"Diagnostic plots:")
             for target,target_pars in self.target_dict.items():
-                print(f"\t{target_pars['out_plot']}")
+                if "oned_plot" in target_pars:
+                    print(f"\t{target_pars['oned_plot']}")
+                print(f"\t{target_pars['twod_plot']}")
 
         print("")
         if self.do_perform_cti is True:
@@ -665,7 +679,7 @@ class StisMama(StisData):
             self.custom_dq16()
         self.extract_spectra()
         self.update_header()
-        self.compare_x1ds()
+        self.make_plots()
         self.printfinal()
     
 
@@ -685,9 +699,11 @@ class StisMama(StisData):
             print(f"\t{target_pars['out_x1d']}")
         print(f"MAST X1D file: {self.x1d_mast}")
         if self.plots_made is True:
-            print(f"Comparison plots:")
+            print(f"Diagnostic plots:")
             for target,target_pars in self.target_dict.items():
-                print(f"\t{target_pars['out_plot']}")
+                if "oned_plot" in target_pars:
+                    print(f"\t{target_pars['oned_plot']}")
+                print(f"\t{target_pars['twod_plot']}")
 
         print("")
         if self.custom_dq16_applied is True:
