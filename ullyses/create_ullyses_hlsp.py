@@ -1,14 +1,22 @@
 import os
 import astropy
 from astropy.io import fits
+import numpy as np
+import datetime
 from datetime import datetime as dt
+from astropy.time import Time
 
 class Ullyses():
-    def __init__(self, files, hlspname, targname, ra, dec, cal_ver, version, level, hlsp_type="spectral"):
+    def __init__(self, files, hlspname, targname, ra, dec, cal_ver, version, level, hlsp_type="spectral", overwrite=True):
         self.files = files
+        self.primary_headers = []
+        self.first_headers = []
+        self.second_headers = []
         for item in files:
             self.primary_headers.append(fits.getheader(item))
             self.first_headers.append(fits.getheader(item, 1))
+            if hlsp_type == "drizzled":
+                self.second_headers.append(fits.getheader(item, 2))
         self.targname = targname
         self.targ_ra = ra
         self.targ_dec = dec
@@ -17,6 +25,43 @@ class Ullyses():
         self.cal_ver = cal_ver
         self.version = version
         self.level = level
+        self.overwrite = overwrite
+
+    def make_hdrs_and_prov(self):
+        if self.hlsp_type == "spectral":
+            self.make_spectral_hdr0()
+            self.make_spectral_hdr1()
+            self.make_spectral_prov_ext()
+        elif self.hlsp_type == "imaging":
+            self.make_imaging_hdr0()
+            self.make_imaging_hdr1()
+            self.make_imaging_prov_ext()
+        elif self.hlsp_type == "drizzled":
+            assert len(self.files) == 1, f"{len(self.files)} provided, can only handle 1"
+            self.make_imaging_hdr0()
+            self.make_drizzled_data_ext()
+            self.make_drizzled_wgt_ext()
+            self.make_drizzled_prov_ext()
+        else:
+            print(f"ERROR: HLSP type not '{self.hlsp_type}' recognized. Must be 'spectral', 'imaging', or 'drizzled'")
+
+        
+    def write_file(self):
+        if self.hlsp_type == "spectral":
+            pass
+        elif self.hlsp_type == "imaging":
+            pass
+        elif self.hlsp_type == "drizzled":
+            assert len(self.files) == 1, f"{len(self.files)} provided, can only handle 1"
+            primary = fits.PrimaryHDU(header=self.hdr0)
+            ext1 =  self.hdu1
+            ext2 = self.hdu2
+            prov = self.prov_hdu
+            hdulist = fits.HDUList([primary, ext1, ext2, prov])
+            hdulist.writeto(self.hlspname, overwrite=self.overwrite)
+            print(f"Wrote {self.hlspname}")
+        else:
+            print(f"ERROR: HLSP type not '{self.hlsp_type}' recognized. Must be 'spectral', 'imaging', or 'drizzled'")
 
 
     def make_spectral_hdr0(self):
@@ -27,7 +72,7 @@ class Ullyses():
         hdr0['FITS_SW'] = ('astropy.io.fits v' + astropy.__version__, 'FITS file creation software')
         hdr0['ORIGIN'] = ('Space Telescope Science Institute', 'FITS file originator')
         hdr0['DATE'] = (str(datetime.date.today()), 'Date this file was written')
-        hdr0['FILENAME'] = (os.path.basename(hlpsname), 'Name of this file')
+        hdr0['FILENAME'] = (os.path.basename(self.hlspname), 'Name of this file')
         hdr0['TELESCOP'] = (self.combine_keys("telescop", "multi"), 'Telescope used to acquire data')
         hdr0['INSTRUME'] = (self.combine_keys("instrume", "multi"), 'Instrument used to acquire data')
         hdr0.add_blank('', after='TELESCOP')
@@ -48,13 +93,13 @@ class Ullyses():
         hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi"), 'Program identifier')
         hdr0.add_blank(after='TARG_DEC')
         hdr0.add_blank('           / PROVENANCE INFORMATION', before='PROPOSID')
-        hdr0['CAL_VER'] = (f'ULLYSES Cal {CAL_VER}', 'HLSP processing software version')
+        hdr0['CAL_VER'] = (f'ULLYSES Cal {self.cal_ver}', 'HLSP processing software version')
         hdr0['HLSPID'] = ('ULLYSES', 'Name ID of this HLSP collection')
         hdr0['HSLPNAME'] = ('Hubble UV Legacy Library of Young Stars as Essential Standards',
                         'Name ID of this HLSP collection')
         hdr0['HLSPLEAD'] = ('Julia Roman-Duval', 'Full name of HLSP project lead')
-        hdr0['HLSP_VER'] = (version, 'HLSP data release version identifier')
-        hdr0['HLSP_LVL'] = (level, 'ULLYSES HLSP Level')
+        hdr0['HLSP_VER'] = (self.version, 'HLSP data release version identifier')
+        hdr0['HLSP_LVL'] = (self.level, 'ULLYSES HLSP Level')
         hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
         hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')  
@@ -64,17 +109,19 @@ class Ullyses():
         hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')                                           
         hdr0['MINWAVE'] = (self.combine_keys("minwave", "min"), 'Minimum wavelength in spectrum')                          
         hdr0['MAXWAVE'] = (self.combine_keys("maxwave", "max"), 'Maximum wavelength in spectrum')
+    
         self.hdr0 = hdr0 
 
 
     def make_imaging_hdr0(self):
+        hdr0 = fits.Header()
         hdr0['EXTEND'] = ('T', 'FITS file may contain extensions')
         hdr0['NEXTEND'] = 3
         hdr0['FITS_VER'] = 'Definition of the Flexible Image Transport System (FITS) v4.0 https://fits.gsfc.nasa.gov/standard40/fits_standard40aa-le.pdf'
         hdr0['FITS_SW'] = ('astropy.io.fits v' + astropy.__version__, 'FITS file creation software')
         hdr0['ORIGIN'] = ('Space Telescope Science Institute', 'FITS file originator')
         hdr0['DATE'] = (str(datetime.date.today()), 'Date this file was written')
-        hdr0['FILENAME'] = (os.path.basename(hlpsname), 'Name of this file')
+        hdr0['FILENAME'] = (os.path.basename(self.hlspname), 'Name of this file')
         telescop = self.combine_keys("telescop", "multi")
         hdr0['TELESCOP'] = (telescop, 'Telescope used to acquire data')
         instrume = self.combine_keys("instrume", "multi")
@@ -84,14 +131,14 @@ class Ullyses():
         hdr0['DETECTOR'] = (self.combine_keys("detector", "multi"), 'Detector or channel used to acquire data')
         hdr0['FILTER'] = (self.combine_keys("filter", "multi"), 'Identifier of disperser')
         hdr0['APERTURE'] = (self.combine_keys("aperture", "multi"), 'Identifier of entrance aperture')
-        if telescop == "HST"
+        if telescop == "HST":
             hdr0["FGSLOCK"] = (self.combine_keys("fgslock", "multi"), "Commanded FGS lock (FINE,COARSE,GYROS,UNKNOWN)")
             hdr0['GYROMODE'] = (self.combine_keys("gyromode", "multi"), "Number of gyros scheduled, T=3+OBAD")
             if instrume == "WFC3":
-                hdr0["FLASHDUR"] = self.combine_keys("flashdur", "multi"), "Post flash exposure time in seconds: 0.1 to 409.5")
-                hdr0["FLASHCUR"] = self.combine_keys("flashcur", "multi"), "Post flash current (zero, low, medium, high)")
-                hdr0["FLASHLVL"] = self.combine_keys("flashlvl", "multi"), "Post flash requested flash level")
-                hdr0["FLASHSTA"] = self.combine_keys("flashsta", "multi"), "Post flash status: SUCCESSFUL, ABORTED, NOT PERFORMED")
+                hdr0["FLASHDUR"] = (self.combine_keys("flashdur", "multi"), "Post flash exposure time in seconds: 0.1 to 409.5")
+                hdr0["FLASHCUR"] = (self.combine_keys("flashcur", "multi"), "Post flash current (zero, low, medium, high)")
+                hdr0["FLASHLVL"] = (self.combine_keys("flashlvl", "multi"), "Post flash requested flash level")
+                hdr0["FLASHSTA"] = (self.combine_keys("flashsta", "multi"), "Post flash status: SUCCESSFUL, ABORTED, NOT PERFORMED")
         hdr0['OBSMODE'] = (self.combine_keys("obsmode", "multi"), 'Instrument operating mode (ACCUM | TIME-TAG)')
         hdr0['TARGNAME'] = self.targname
         hdr0.add_blank(after='OBSMODE')
@@ -103,16 +150,17 @@ class Ullyses():
         hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi"), 'Program identifier')
         hdr0.add_blank(after='TARG_DEC')
         hdr0.add_blank('           / PROVENANCE INFORMATION', before='PROPOSID')
-        hdr0['CAL_VER'] = (f'ULLYSES Cal {CAL_VER}', 'HLSP processing software version')
+        hdr0['CAL_VER'] = (f'ULLYSES Cal {self.cal_ver}', 'HLSP processing software version')
         hdr0['HLSPID'] = ('ULLYSES', 'Name ID of this HLSP collection')
         hdr0['HSLPNAME'] = ('Hubble UV Legacy Library of Young Stars as Essential Standards',
                         'Name ID of this HLSP collection')
         hdr0['HLSPLEAD'] = ('Julia Roman-Duval', 'Full name of HLSP project lead')
-        hdr0['HLSP_VER'] = (version, 'HLSP data release version identifier')
-        hdr0['HLSP_LVL'] = (level, 'ULLYSES HLSP Level')
+        hdr0['HLSP_VER'] = (self.version, 'HLSP data release version identifier')
+        hdr0['HLSP_LVL'] = (self.level, 'ULLYSES HLSP Level')
         hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
         hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')  
+    
         self.hdr0 = hdr0
 
 
@@ -135,6 +183,7 @@ class Ullyses():
         hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
         hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
         hdr1['XPOSURE'] = (self.combine_keys("exptime", "sum"), '[s] Sum of exposure durations')
+    
         self.hdr1 = hdr1
                                                                                                                            
     def make_imaging_hdr1(self):
@@ -144,8 +193,8 @@ class Ullyses():
         hdr1['TIMEUNIT'] = ('s', 'Time unit for durations')
         hdr1['TREFPOS'] = ('GEOCENTER', 'Time reference position')
 
-        mjd_beg = self.combine_keys("expstart", "min")
-        mjd_end = self.combine_keys("expend", "max")
+        mjd_beg = self.combine_keys("expstart", "min", "WFC3")
+        mjd_end = self.combine_keys("expend", "max", "WFC3")
         dt_beg = Time(mjd_beg, format="mjd").datetime
         dt_end = Time(mjd_end, format="mjd").datetime
         hdr1['DATE-BEG'] = (dt.strftime(dt_beg, "%Y-%m-%dT%H:%M:%S"), 'Date-time of first observation start')
@@ -155,22 +204,43 @@ class Ullyses():
         hdr1['DATE-END'] = (dt.strftime(dt_end, "%Y-%m-%dT%H:%M:%S"), 'Date-time of last observation end')
         hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
         hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
-        hdr1['XPOSURE'] = (self.combine_keys("exptime", "sum"), '[s] Sum of exposure durations')
+        hdr1['XPOSURE'] = (self.combine_keys("exptime", "sum", "WFC3"), '[s] Sum of exposure durations')
+    
         self.hdr1 = hdr1
 
 
-    def make_drizzled_hdr1(self):
+    def make_drizzled_data_ext(self):
         hdr1 = self.first_headers[0]
-        del hdr1["rootname"]
-        del hdr1["expname"]
-        del hdr1["hdrname"]
-        del hdr1["idctab"]
+        del hdr1["ROOTNAME"]
+        del hdr1["EXPNAME"]
+        del hdr1["HDRNAME"]
+        del hdr1["IDCTAB"]
         del hdr1["FITNAMEB"]
         hdr1["DRIZSCAL"] = (self.primary_headers[0]["D001SCAL"], "Drizzle: pixel size (arcsec) of output image")
         hdr1["DRIZISCL"] = (self.primary_headers[0]["D001ISCL"], "Drizzle: default IDCTAB pixel size(arcsec)")
         hdr1["DRIZPIXF"] = (self.primary_headers[0]["D001PIXF"], "Drizzle: linear size of drop")
+        
+        data1 = fits.getdata(self.files[0], 1)
+
         self.hdr1 = hdr1
+        self.data1 = data1
+        self.hdu1 = fits.ImageHDU(data1, header=hdr1) 
     
+    
+    def make_drizzled_wgt_ext(self):
+        hdr2 = self.second_headers[0]
+        del hdr2["ROOTNAME"]
+        del hdr2["EXPNAME"]
+        hdr2["DRIZSCAL"] = (self.primary_headers[0]["D001SCAL"], "Drizzle: pixel size (arcsec) of output image")
+        hdr2["DRIZISCL"] = (self.primary_headers[0]["D001ISCL"], "Drizzle: default IDCTAB pixel size(arcsec)")
+        hdr2["DRIZPIXF"] = (self.primary_headers[0]["D001PIXF"], "Drizzle: linear size of drop")
+        
+        data2 = fits.getdata(self.files[0], 2)
+
+        self.hdr2 = hdr2
+        self.data2 = data2
+        self.hdu2 = fits.ImageHDU(data2, header=hdr2) 
+          
 
     def make_spectral_prov_ext(self):
         hdr = fits.Header()
@@ -208,6 +278,7 @@ class Ullyses():
 
         cd2 = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv, cdb, cdm, cde, cexp, cmin ,cmax])
         table2 = fits.BinTableHDU.from_columns(cd2, header=hdr)
+
         self.prov_hdr = hdr
         self.prov_data = cd2
         self.prov_hdu = table2
@@ -233,16 +304,17 @@ class Ullyses():
             format='A32')
         ccv = fits.Column(name='CAL_VER', array=self.combine_keys("cal_ver", "arr"), 
             format='A32')
-        mjd_begs = self.combine_keys("expstart", "arr")
-        mjd_ends = self.combine_keys("expend", "arr")
+        mjd_begs = self.combine_keys("expstart", "arr", "WFC3")
+        mjd_ends = self.combine_keys("expend", "arr", "WFC3")
         mjd_mids = (mjd_ends + mjd_begs) / 2.
         cdb = fits.Column(name='MJD_BEG', array=mjd_begs, format='F15.9', unit='d')
         cdm = fits.Column(name='MJD_MID', array=mjd_mids, format='F15.9', unit='d')
         cde = fits.Column(name='MJD_END', array=mjd_ends, format='F15.9', unit='d')
-        cexp = fits.Column(name='XPOSURE', array=self.combine_keys("exptime", "arr"), format='F15.9', unit='s')
+        cexp = fits.Column(name='XPOSURE', array=self.combine_keys("exptime", "arr", "WFC3"), format='F15.9', unit='s')
 
         cd2 = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cfil, cap, ccv, cdb, cdm, cde, cexp])
         table2 = fits.BinTableHDU.from_columns(cd2, header=hdr)
+
         self.prov_hdr = hdr
         self.prov_data = cd2
         self.prov_hdu = table2
@@ -263,6 +335,8 @@ class Ullyses():
             format='A32')
         cdet = fits.Column(name='DETECTOR', array=data["detector"],
             format='A32')
+        cchip = fits.Column(name='CCDCHIP', array=data["ccdchip"],
+            format='A32')
         cfil = fits.Column(name='FILTER', array=data["filter"],
             format='A32')
         cap = fits.Column(name='APERTURE', array=data["aperture"],
@@ -275,16 +349,17 @@ class Ullyses():
         cdb = fits.Column(name='MJD_BEG', array=mjd_begs, format='F15.9', unit='d')
         cdm = fits.Column(name='MJD_MID', array=mjd_mids, format='F15.9', unit='d')
         cde = fits.Column(name='MJD_END', array=mjd_ends, format='F15.9', unit='d')
-        cexp = fits.Column(name='XPOSURE', data["exptime"], format='F15.9', unit='s')
+        cexp = fits.Column(name='XPOSURE', array=data["exptime"], format='F15.9', unit='s')
 
-        cd2 = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cfil, cap, ccv, cdb, cdm, cde, cexp])
+        cd2 = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cchip, cfil, cap, ccv, cdb, cdm, cde, cexp])
         table2 = fits.BinTableHDU.from_columns(cd2, header=hdr)
+        
         self.prov_hdr = hdr
         self.prov_data = cd2
         self.prov_hdu = table2
 
 
-    def combine_keys(self, key, method):
+    def combine_keys(self, key, method, dict_key=None):
         keymap= {"HST": {"expstart": ("expstart", 1),
                          "expend": ("expend", 1),
                          "exptime": ("exptime", 1),
@@ -292,6 +367,13 @@ class Ullyses():
                          "instrume": ("instrume", 0),
                          "detector": ("detector", 0),
                          "opt_elem": ("opt_elem", 0),
+                         "filter": ("filter", 0),
+                         "fgslock": ("fgslock", 0),
+                         "gyromode": ("gyromode", 0),
+                         "flashdur": ("flashdur", 0),
+                         "flashcur": ("flashcur", 0),
+                         "flashlvl": ("flashlvl", 0),
+                         "flashsta": ("flashsta", 0),
                          "cenwave": ("cenwave", 0),
                          "aperture": ("aperture", 0),
                          "obsmode": ("obsmode", 0),
@@ -302,6 +384,9 @@ class Ullyses():
                          "filename": ("filename", 0),
                          "specres": ("specres", 0),
                          "cal_ver": ("cal_ver", 0)},
+                "WFC3": {"expstart": ("expstart", 0),
+                         "expend": ("expend", 0),
+                         "exptime": ("exptime", 0)},
                 "FUSE": {"expstart": ("obsstart", 0),
                          "expend": ("obsend", 0),
                          "exptime": ("obstime", 0),
@@ -314,7 +399,7 @@ class Ullyses():
                          "obsmode": ("instmode", 0),
                          "proposid": ("prgrm_id", 0),
                          "centrwv": ("centrwv", 0),
-                         "minwave": ("wavemin", 0),                                          
+                         "minwave": ("wavemin", 0), 
                          "maxwave": ("wavemax", 0),
                          "filename": ("filename", 0),
                          "specres": ("spec_rp", 1),
@@ -322,7 +407,10 @@ class Ullyses():
 
         vals = []
         for i in range(len(self.primary_headers)):
-            tel = self.primary_headers[i]["telescop"]
+            if dict_key is None:
+                tel = self.primary_headers[i]["telescop"]
+            else:
+                tel = dict_key
             actual_key = keymap[tel][key][0]
             hdrno = keymap[tel][key][1]
             if hdrno == 0:
