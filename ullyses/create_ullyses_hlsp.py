@@ -36,6 +36,10 @@ class Ullyses():
             self.make_imaging_hdr0()
             self.make_imaging_hdr1()
             self.make_imaging_prov_ext()
+        elif self.hlsp_type == "lcogt":
+            self.make_lcogt_imaging_hdr0()
+            self.make_lcogt_imaging_hdr1()
+            self.make_lcogt_imaging_prov_ext()
         elif self.hlsp_type == "drizzled":
             assert len(self.files) == 1, f"{len(self.files)} provided, can only handle 1"
             self.make_imaging_hdr0()
@@ -43,7 +47,7 @@ class Ullyses():
             self.make_drizzled_wgt_ext()
             self.make_drizzled_prov_ext()
         else:
-            print(f"ERROR: HLSP type not '{self.hlsp_type}' recognized. Must be 'spectral', 'imaging', or 'drizzled'")
+            print(f"ERROR: HLSP type not '{self.hlsp_type}' recognized. Must be 'spectral', 'imaging', 'drizzled', or 'lcogt'")
 
         
     def write_file(self):
@@ -61,7 +65,7 @@ class Ullyses():
             hdulist.writeto(self.hlspname, overwrite=self.overwrite)
             print(f"Wrote {self.hlspname}")
         else:
-            print(f"ERROR: HLSP type not '{self.hlsp_type}' recognized. Must be 'spectral', 'imaging', or 'drizzled'")
+            print(f"ERROR: HLSP type not '{self.hlsp_type}' recognized. Must be 'spectral', 'imaging', 'drizzled', or 'lcogt'")
 
 
     def make_spectral_hdr0(self):
@@ -162,6 +166,49 @@ class Ullyses():
         hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')  
     
         self.hdr0 = hdr0
+    
+
+    def make_lcogt_imaging_hdr0(self):
+        hdr0 = fits.Header()
+        hdr0['EXTEND'] = ('T', 'FITS file may contain extensions')
+        hdr0['NEXTEND'] = 3
+        hdr0['FITS_VER'] = 'Definition of the Flexible Image Transport System (FITS) v4.0 https://fits.gsfc.nasa.gov/standard40/fits_standard40aa-le.pdf'
+        hdr0['FITS_SW'] = ('astropy.io.fits v' + astropy.__version__, 'FITS file creation software')
+        hdr0['ORIGIN'] = ('Space Telescope Science Institute', 'FITS file originator')
+        hdr0['DATE'] = (str(datetime.date.today()), 'Date this file was written')
+        hdr0['FILENAME'] = (os.path.basename(self.hlspname), 'Name of this file')
+        telescop = self.combine_keys("telescop", "multi", constant="LCOGT")
+        hdr0['TELESCOP'] = (telescop, 'Telescope used to acquire data')
+        instrume = self.combine_keys("instrume", "multi", dict_key="LCOGT")
+        hdr0['INSTRUME'] = (instrume, 'Instrument used to acquire data')
+        hdr0.add_blank('', after='TELESCOP')
+        hdr0.add_blank('              / SCIENCE INSTRUMENT CONFIGURATION', before='INSTRUME')
+        hdr0['DETECTOR'] = (self.combine_keys("detector", "multi", constant="LCOGT"), 'Detector or channel used to acquire data')
+        hdr0['FILTER'] = (self.combine_keys("filter", "multi", dict_key="LCOGT"), 'Identifier of disperser')
+        hdr0['APERTURE'] = (self.combine_keys("aperture", "multi", constant="LCOGT"), 'Identifier of entrance aperture')
+        hdr0['OBSMODE'] = (self.combine_keys("obsmode", "multi", constant="IMAGING"), 'Instrument operating mode (ACCUM | TIME-TAG)')
+        hdr0['TARGNAME'] = self.targname
+        hdr0.add_blank(after='OBSMODE')
+        hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
+
+        hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
+        hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
+        hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
+        hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi", dict_key="LCOGT"), 'Program identifier')
+        hdr0.add_blank(after='TARG_DEC')
+        hdr0.add_blank('           / PROVENANCE INFORMATION', before='PROPOSID')
+        hdr0['CAL_VER'] = (f'ULLYSES Cal {self.cal_ver}', 'HLSP processing software version')
+        hdr0['HLSPID'] = ('ULLYSES', 'Name ID of this HLSP collection')
+        hdr0['HSLPNAME'] = ('Hubble UV Legacy Library of Young Stars as Essential Standards',
+                        'Name ID of this HLSP collection')
+        hdr0['HLSPLEAD'] = ('Julia Roman-Duval', 'Full name of HLSP project lead')
+        hdr0['HLSP_VER'] = (self.version, 'HLSP data release version identifier')
+        hdr0['HLSP_LVL'] = (self.level, 'ULLYSES HLSP Level')
+        hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
+        hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
+        hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')  
+    
+        self.hdr0 = hdr0
 
 
     def make_spectral_hdr1(self):
@@ -207,6 +254,39 @@ class Ullyses():
         hdr1['XPOSURE'] = (self.combine_keys("exptime", "sum", "WFC3"), '[s] Sum of exposure durations')
     
         self.hdr1 = hdr1
+    
+
+    def make_lcogt_imaging_hdr1(self):
+        hdr1 = fits.Header()
+        hdr1['EXTNAME'] = ('SCIENCE', 'Spectrum science arrays')
+        hdr1['TIMESYS'] = ('UTC', 'Time system in use')
+        hdr1['TIMEUNIT'] = ('s', 'Time unit for durations')
+        hdr1['TREFPOS'] = ('GEOCENTER', 'Time reference position')
+
+        mjd_beg = self.combine_keys("expstart", "min", "LCOGT")
+        mjd_end = self.combine_keys("expend", "max", "LCOGT")
+        dt_beg = Time(mjd_beg, format="mjd").datetime
+        dt_end = Time(mjd_end, format="mjd").datetime
+        hdr1['DATE-BEG'] = (dt.strftime(dt_beg, "%Y-%m-%dT%H:%M:%S"), 'Date-time of first observation start')
+        hdr1.add_blank('', after='TREFPOS')
+        hdr1.add_blank('              / FITS TIME COORDINATE KEYWORDS', before='DATE-BEG')
+
+        hdr1['DATE-END'] = (dt.strftime(dt_end, "%Y-%m-%dT%H:%M:%S"), 'Date-time of last observation end')
+        hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
+        hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
+        hdr1['XPOSURE'] = (self.combine_keys("exptime", "sum", "LCOGT"), '[s] Sum of exposure durations')
+    
+        self.hdr1 = hdr1
+
+
+    def make_drizzled_data_ext(self):
+        hdr1 = self.first_headers[0]
+        del hdr1["ROOTNAME"]
+        del hdr1["EXPNAME"]
+        del hdr1["HDRNAME"]
+        del hdr1["IDCTAB"]
+        del hdr1["FITNAMEB"]
+        hdr1["DRIZSCAL"] = (self.primary_headers[0]["D001SCAL"], "Drizzle: pixel size (arcsec) of output image")
 
 
     def make_drizzled_data_ext(self):
@@ -318,6 +398,42 @@ class Ullyses():
         self.prov_hdr = hdr
         self.prov_data = cd2
         self.prov_hdu = table2
+    
+
+    def make_lcogt_imaging_prov_ext(self):
+        hdr = fits.Header()
+        hdr['EXTNAME'] = ('PROVENANCE', 'Metadata for contributing observations')
+        # set up the table columns
+        cfn = fits.Column(name='FILENAME', array=self.combine_keys("filename", "arr", "LCOGT"), 
+            format='A40')
+        cpid = fits.Column(name='PROPOSID', array=self.combine_keys("proposid", "arr", "LCOGT"), 
+            format='A32')
+        ctel = fits.Column(name='TELESCOPE', array=self.combine_keys("telescop", "arr", constant="LCOGT"), 
+            format='A32')
+        cins = fits.Column(name='INSTRUMENT', array=self.combine_keys("instrume", "arr", "LCOGT"), 
+            format='A32')
+        cdet = fits.Column(name='DETECTOR', array=self.combine_keys("detector", "arr", constant="LCOGT"), 
+            format='A32')
+        cfil = fits.Column(name='FILTER', array=self.combine_keys("filter", "arr", "LCOGT"), 
+            format='A32')
+        cap = fits.Column(name='APERTURE', array=self.combine_keys("aperture", "arr", constant="LCOGT"), 
+            format='A32')
+        ccv = fits.Column(name='CAL_VER', array=self.combine_keys("cal_ver", "arr", "LCOGT"), 
+            format='A32')
+        mjd_begs = self.combine_keys("expstart", "arr", "LCOGT")
+        mjd_ends = self.combine_keys("expend", "arr", "LCOGT")
+        mjd_mids = (mjd_ends + mjd_begs) / 2.
+        cdb = fits.Column(name='MJD_BEG', array=mjd_begs, format='F15.9', unit='d')
+        cdm = fits.Column(name='MJD_MID', array=mjd_mids, format='F15.9', unit='d')
+        cde = fits.Column(name='MJD_END', array=mjd_ends, format='F15.9', unit='d')
+        cexp = fits.Column(name='XPOSURE', array=self.combine_keys("exptime", "arr", "LCOGT"), format='F15.9', unit='s')
+
+        cd2 = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cfil, cap, ccv, cdb, cdm, cde, cexp])
+        table2 = fits.BinTableHDU.from_columns(cd2, header=hdr)
+
+        self.prov_hdr = hdr
+        self.prov_data = cd2
+        self.prov_hdu = table2
 
 
     def make_drizzled_prov_ext(self):
@@ -359,7 +475,7 @@ class Ullyses():
         self.prov_hdu = table2
 
 
-    def combine_keys(self, key, method, dict_key=None):
+    def combine_keys(self, key, method, dict_key=None, constant=None):
         keymap= {"HST": {"expstart": ("expstart", 1),
                          "expend": ("expend", 1),
                          "exptime": ("exptime", 1),
@@ -403,23 +519,46 @@ class Ullyses():
                          "maxwave": ("wavemax", 0),
                          "filename": ("filename", 0),
                          "specres": ("spec_rp", 1),
-                         "cal_ver": ("cf_vers", 0)}}
+                         "cal_ver": ("cf_vers", 0)},
+               "LCOGT": {"expstart": ("mjd-obs", 1),
+                         "expend": ("exptime", 1),
+                         "exptime": ("exptime", 1),
+                         "telescop": ("telescop", 1),
+                         "instrume": ("telescop", 1),
+                         "detector": ("telescop", 1),
+                         "opt_elem": ("telescop", 1),
+                         "proposid": ("propid", 1),
+                         "filename": ("origname", 1),
+                         "filter": ("filter", 1),
+                         "cal_ver": ("pipever", 1)}
+                         }
 
-        vals = []
-        for i in range(len(self.primary_headers)):
-            if dict_key is None:
-                tel = self.primary_headers[i]["telescop"]
-            else:
-                tel = dict_key
-            actual_key = keymap[tel][key][0]
-            hdrno = keymap[tel][key][1]
-            if hdrno == 0:
-                val = self.primary_headers[i][actual_key]
-            else:
-                val = self.first_headers[i][actual_key]
-            if tel == "FUSE" and key == "filename":
-                val = val.replace(".fit", "_vo.fits")
-            vals.append(val)
+        if constant is not None:
+            vals = [constant]
+        else:
+            vals = []
+            for i in range(len(self.primary_headers)):
+                if dict_key is None:
+                    tel = self.primary_headers[i]["telescop"]
+                else:
+                    tel = dict_key
+                actual_key = keymap[tel][key][0]
+                hdrno = keymap[tel][key][1]
+                if hdrno == 0:
+                    val = self.primary_headers[i][actual_key]
+                else:
+                    val = self.first_headers[i][actual_key]
+                if tel == "FUSE" and key == "filename":
+                    val = val.replace(".fit", "_vo.fits")
+                if tel == "LCOGT":
+                    if key == "expend":
+                        expstart = self.first_headers[i]["mjd-obs"]
+                        exptime = self.first_headers[i]["exptime"]
+                        val = expstart + (exptime/86400) # seconds in a day
+                    elif key == "telescop":
+                        val = f"LCOGT-{val}"
+
+                vals.append(val)
 
         # Allowable methods are min, max, average, sum, multi, arr
         if method == "multi":
@@ -432,12 +571,12 @@ class Ullyses():
             return min(vals)
         elif method == "max":
             return max(vals)                                                                 
-        elif method == "average":                                                            
-            return np.average(vals)                                                          
-        elif method == "sum":                                                                
-            return np.sum(vals)                                                              
-        elif method == "arr":                                                                
-            return np.array(vals)                                                            
+        elif method == "average": 
+            return np.average(vals)
+        elif method == "sum":
+            return np.sum(vals)
+        elif method == "arr":
+            return np.array(vals)
 
     def obs_footprint(self):
         # Not using WCS at the moment
