@@ -1,5 +1,6 @@
 import os
 import astropy
+import pandas as pd
 from astropy.io import fits
 import numpy as np
 import datetime
@@ -7,7 +8,8 @@ from datetime import datetime as dt
 from astropy.time import Time
 
 class Ullyses():
-    def __init__(self, files, hlspname, targname, ra, dec, cal_ver, version, level, hlsp_type="spectral", overwrite=True):
+    def __init__(self, files, hlspname, targname, ra, dec, cal_ver, version, 
+                 level, hlsp_type="spectral", overwrite=True, photfile=None):
         self.files = files
         self.primary_headers = []
         self.first_headers = []
@@ -22,6 +24,9 @@ class Ullyses():
         self.targ_dec = dec
         self.hlspname = hlspname
         self.hlsp_type = hlsp_type
+        if hlsp_type == "lcogt":
+            assert photfile is not None, "Photometry file must be supplied for LCOGT data"
+            self.photfile = photfile
         self.cal_ver = cal_ver
         self.version = version
         self.level = level
@@ -37,9 +42,9 @@ class Ullyses():
             self.make_imaging_hdr1()
             self.make_imaging_prov_ext()
         elif self.hlsp_type == "lcogt":
-            self.make_lcogt_imaging_hdr0()
-            self.make_lcogt_imaging_hdr1()
-            self.make_lcogt_imaging_prov_ext()
+            self.make_lcogt_timeseries_hdr0()
+            self.make_lcogt_timeseries_data_ext()
+            self.make_lcogt_timeseries_prov_ext()
         elif self.hlsp_type == "drizzled":
             assert len(self.files) == 1, f"{len(self.files)} provided, can only handle 1"
             self.make_imaging_hdr0()
@@ -55,6 +60,11 @@ class Ullyses():
             pass
         elif self.hlsp_type == "imaging":
             pass
+        elif self.hlsp_type == "lcogt":
+            primary = fits.PrimaryHDU(header=self.hdr0)
+            ext1 = self.hdu1
+            prov = self.prov_hdu
+            hdulist = fits.HDUList([primary, ext1, prov])
         elif self.hlsp_type == "drizzled":
             assert len(self.files) == 1, f"{len(self.files)} provided, can only handle 1"
             primary = fits.PrimaryHDU(header=self.hdr0)
@@ -62,10 +72,10 @@ class Ullyses():
             ext2 = self.hdu2
             prov = self.prov_hdu
             hdulist = fits.HDUList([primary, ext1, ext2, prov])
-            hdulist.writeto(self.hlspname, overwrite=self.overwrite)
-            print(f"Wrote {self.hlspname}")
         else:
             print(f"ERROR: HLSP type not '{self.hlsp_type}' recognized. Must be 'spectral', 'imaging', 'drizzled', or 'lcogt'")
+        hdulist.writeto(self.hlspname, overwrite=self.overwrite)
+        print(f"Wrote {self.hlspname}")
 
 
     def make_spectral_hdr0(self):
@@ -168,7 +178,7 @@ class Ullyses():
         self.hdr0 = hdr0
     
 
-    def make_lcogt_imaging_hdr0(self):
+    def make_lcogt_timeseries_hdr0(self):
         hdr0 = fits.Header()
         hdr0['EXTEND'] = ('T', 'FITS file may contain extensions')
         hdr0['NEXTEND'] = 3
@@ -256,7 +266,7 @@ class Ullyses():
         self.hdr1 = hdr1
     
 
-    def make_lcogt_imaging_hdr1(self):
+    def make_lcogt_timeseries_data_ext(self):
         hdr1 = fits.Header()
         hdr1['EXTNAME'] = ('SCIENCE', 'Spectrum science arrays')
         hdr1['TIMESYS'] = ('UTC', 'Time system in use')
@@ -278,6 +288,44 @@ class Ullyses():
     
         self.hdr1 = hdr1
 
+        df = pd.read_csv(self.photfile, names=["filter", "mjd", "mag", "err"],
+                         header=None, delim_whitespace=True)
+        df = df.sort_values("mjd")
+        nrows = len(df["mjd"])
+        ncols = len(set(df["filter"]))
+        output_flux = np.zeros((nrows, ncols))
+        output_err = np.zeros((nrows, ncols))
+        output_time = df["mjd"].values
+        wavelengths = self.filter_to_wl(df["filter"].values)
+        df["wl"] = wavelengths
+        output_wl = np.array(list(set(wavelengths)))
+        output_wl.sort()
+        fluxes = self.mag_to_flux(df["mag"].values, df["filter"].values)
+        df["flux"] = fluxes
+        for i in range(len(df)):
+            wlind = np.where(output_wl == df.iloc[i]["wl"])[0]
+            output_flux[i, wlind] = df.iloc[i]["flux"]
+            output_err[i, wlind] = df.iloc[i]["err"]
+
+        npixels = nrows * ncols
+        array_dimensions = '(' + str(ncols) + ', ' + str(nrows) + ')'
+        columns = []
+        columns.append(fits.Column(name='TIME', format=str(nrows)+'D', unit='Day'))
+        columns.append(fits.Column(name='WAVELENGTH', format=str(ncols)+'E', 
+                                   unit='Angstrom'))
+        columns.append(fits.Column(name='FLUX', format=str(npixels)+'E', 
+                                   dim=array_dimensions, unit='erg /s /cm**2 /Angstrom'))
+        columns.append(fits.Column(name='ERROR', format=str(npixels)+'E', 
+                                   dim=array_dimensions, unit='erg /s /cm**2 /Angstrom'))
+        cd = fits.ColDefs(columns)
+        table1 = fits.BinTableHDU.from_columns(cd, header=hdr1, nrows=1)
+        table1.data[0]["wavelength"] = output_wl
+        table1.data[0]["time"] = output_time
+        table1.data[0]["flux"] = output_flux
+        table1.data[0]["error"] = output_err
+
+        self.data1 = cd
+        self.hdu1 = table1
 
     def make_drizzled_data_ext(self):
         hdr1 = self.first_headers[0]
@@ -400,7 +448,7 @@ class Ullyses():
         self.prov_hdu = table2
     
 
-    def make_lcogt_imaging_prov_ext(self):
+    def make_lcogt_timeseries_prov_ext(self):
         hdr = fits.Header()
         hdr['EXTNAME'] = ('PROVENANCE', 'Metadata for contributing observations')
         # set up the table columns
@@ -408,7 +456,7 @@ class Ullyses():
             format='A40')
         cpid = fits.Column(name='PROPOSID', array=self.combine_keys("proposid", "arr", "LCOGT"), 
             format='A32')
-        ctel = fits.Column(name='TELESCOPE', array=self.combine_keys("telescop", "arr", constant="LCOGT"), 
+        ctel = fits.Column(name='TELESCOPE', array=self.combine_keys("telescop", "arr", "LCOGT"), 
             format='A32')
         cins = fits.Column(name='INSTRUMENT', array=self.combine_keys("instrume", "arr", "LCOGT"), 
             format='A32')
@@ -534,7 +582,7 @@ class Ullyses():
                          }
 
         if constant is not None:
-            vals = [constant]
+            vals = [constant for x in self.primary_headers]
         else:
             vals = []
             for i in range(len(self.primary_headers)):
@@ -595,3 +643,19 @@ class Ullyses():
         center_ra = self.targ_ra
         center_dec = self.targ_dec
 
+
+    def filter_to_wl(self, filts):
+        conv = {"V": 5500, "ip": 7718.28}
+        wl = np.array([conv[x] for x in filts])
+        return wl
+
+
+    def mag_to_flux(self, mags, filts):
+        """
+        Vega magnitude V zero points from Bessell et al. (1998) 
+        AB magnitude i' zero points from http://svo2.cab.inta-csic.es/svo/theory/fps3/index.php?mode=browse&gname=SLOAN&asttype=
+        """
+        zpts = {"V": 363.1e-11, "ip": 1.27e-9} # Flambda zero points
+        filt_zpts = np.array([zpts[x] for x in filts])
+        flux = (10 ** (-mags / 2.5)) * filt_zpts
+        return flux
