@@ -174,10 +174,10 @@ if __name__ == "__main__":
     corrtagfiles = glob.glob(os.path.join(cwdir, indir, '*corrtag*'))
 
     # g160m = [x for x in corrtagfiles if fits.getval(x, 'opt_elem') == 'G160M']
-    g230l = [x for x in corrtagfiles if fits.getval(x, 'opt_elem') == 'G230L']
+    # g230l = [x for x in corrtagfiles if fits.getval(x, 'opt_elem') == 'G230L']
 
     # run splittag on all the corrtags
-    for corrtag in g230l:
+    for corrtag in corrtagfiles:
         runsplittag(corrtag, start, incr, end, tlist)
 
     # splittag outputs to the cwd, so move to the right output folder
