@@ -5,10 +5,11 @@
 # figure out the wavelength scale from all the x1ds
 # coadd each of the x1d files into a new 1-d array of flux.  Each file will have the same wavelength array
 # put the flux arrays into an array, one spectrum -> 1 row of array
-
+import argparse
 import astropy
 from astropy.io import fits
 from astropy.time import Time
+
 import datetime
 from datetime import datetime as dt
 import re
@@ -121,8 +122,11 @@ def process_all_files(grating, outfile, wavelength_binning=1):
     output_flux = np.zeros((nrows, ncols))
     output_error = np.zeros((nrows, ncols))
     row = 0
-    times = []
+    starttimes = []
+    endtimes = []
     wavelengths = ensemble.output_wavelength
+    ensemble.primary_headers = []
+    ensemble.first_headers = []
     for oldfile, expstart in sorted_withoutfiles:
         newfile = oldfile.replace('_without.fits', '_x1d.fits')
         os.rename(oldfile, newfile)
@@ -130,24 +134,28 @@ def process_all_files(grating, outfile, wavelength_binning=1):
         transfer_from_ensemble(ensemble, a)
         a.coadd()
         start_time = a.first_headers[0]['expend'] - a.first_headers[0]['exptime']/SECONDS_PER_DAY
-        times.append(start_time)
+        endtimes.append(a.first_headers[0]['expend'])
+        starttimes.append(start_time)
         output_flux[row] = a.output_flux
         output_error[row] = a.output_errors
         print(f'finished row {row}')
         row = row + 1
         os.rename(newfile, oldfile)
+        ensemble.primary_headers.append(a.primary_headers[0])
+        ensemble.first_headers.append(a.first_headers[0])
     for oldfile, expstart in sorted_withoutfiles:
         newfile = oldfile.replace('_without.fits', '_x1d.fits')
         os.rename(oldfile, newfile)
-    write_product(output_flux, output_error, times, wavelengths, ensemble, outfile)
+    write_product(output_flux, output_error, starttimes, endtimes, wavelengths, ensemble, outfile)
     return
 
-def write_product(flux, error, times, wavelengths, ensemble, outfile):
+def write_product(flux, error, starttimes, endtimes, wavelengths, ensemble, outfile):
     nrows, ncolumns = flux.shape
     npixels = nrows*ncolumns
     columns = []
     array_dimensions = '(' + str(ncolumns) + ', ' + str(nrows) + ')'
-    columns.append(fits.Column(name='TIME', format=str(nrows)+'D', unit='Day'))
+    columns.append(fits.Column(name='MJDSTART', format=str(nrows)+'D', unit='Day'))
+    columns.append(fits.Column(name='MJDEND', format=str(nrows) + 'D', unit='Day'))
     columns.append(fits.Column(name='WAVELENGTH', format=str(ncolumns)+'E', unit='Angstrom'))
     columns.append(fits.Column(name='FLUX', format=str(npixels)+'E', dim=array_dimensions, unit='erg /s /cm**2 /Angstrom'))
     columns.append(fits.Column(name='ERROR', format=str(npixels)+'E', dim=array_dimensions, unit='erg /s /cm**2 /Angstrom'))
@@ -155,7 +163,8 @@ def write_product(flux, error, times, wavelengths, ensemble, outfile):
     hdr1 = create_extension_1_header(ensemble)
     table1 = fits.BinTableHDU.from_columns(cd, header=hdr1, nrows=1)
     table1.data[0]['wavelength'] = wavelengths
-    table1.data[0]['time'] = times
+    table1.data[0]['mjdstart'] = starttimes
+    table1.data[0]['mjdend'] = endtimes
     table1.data[0]['flux'] = flux
     table1.data[0]['error'] = error
     prihdu = create_primary_header(ensemble, outfile)
@@ -192,8 +201,9 @@ def create_primary_header(ensemble, filename):
     hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
     hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
-    hdr0['TARG_RA'] =  (ensemble.targ_ra,  '[deg] Target right ascension')
-    hdr0['TARG_DEC'] =  (ensemble.targ_dec,  '[deg] Target declination')
+    ra, dec = ensemble.ull_coords()
+    hdr0['TARG_RA'] =  (ra,  '[deg] Target right ascension')
+    hdr0['TARG_DEC'] =  (dec,  '[deg] Target declination')
     hdr0['PROPOSID'] = (ensemble.combine_keys("proposid", "multi"), 'Program identifier')
     hdr0.add_blank(after='TARG_DEC')
     hdr0.add_blank('           / PROVENANCE INFORMATION', before='PROPOSID')
@@ -266,12 +276,31 @@ def create_extension_2(ensemble):
     
     table2 = fits.BinTableHDU.from_columns(cd2, header=hdr2)
     return table2
+
+def main(run_calcos, wavelength_binning, grating, resolution, normal, outfile):
+    
+    if run_calcos:
+        corrtag_list = collect_corrtag_inputs(grating)
+        duration = resolution
+        run_splittag(corrtag_list, duration)
+        run_calcos()
+    process_all_files(grating, outfile, wavelength_binning=wavelength_binning)
     
 if __name__ == '__main__':
-    grating = 'G160M'
-    corrtag_list = collect_corrtag_inputs(grating)
-    duration = 50.0
-    run_splittag(corrtag_list, duration)
-    run_calcos()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-c", "--run_calcos", default=True,
+                        help="Run splittag and calcos?")
+    parser.add_argument("-b", "--wavelength_binning", default=1.,
+                        help="Wavelength binning")
+    parser.add_argument("-g", "--grating", default='',
+                        help="Grating")
+    parser.add_argument("-r", "--resolution", default=30.0, 
+                        help="Time resolution in seconds for timeseries product")
+    parser.add_argument("-n", "--normal", default=True,
+                        help="Create normal coadd product from all inputs?")
+    parser.add_argument("-o", "--output", default='',
+                        help="Name of output file for timeseries product")
+    args = parser.parse_args()
 
-    
+    main(args.run_calcos, args.wavelength_binning, args.grating, args.resolution, args.normal,
+         args.output)

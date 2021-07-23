@@ -20,7 +20,7 @@ RESET = "\033[0;0m"
 
 
 STIS_NON_CCD_DETECTORS = ['FUV-MAMA', 'NUV-MAMA']
-
+BAD_SEGMENTS = ['NUVC']
 
 class SegmentList:
 
@@ -117,6 +117,9 @@ class SegmentList:
                     else:
                         exptime = hdulist[1].header['EXPTIME']
                     for row in data:
+                        if self.instrument == 'COS' and row['SEGMENT'] in BAD_SEGMENTS:
+                            continue
+
                         segment = Segment()
                         segment.data = row
                         segment.sdqflags = sdqflags
@@ -179,20 +182,24 @@ class SegmentList:
             goodpixels = np.where((segment.data['dq'] & segment.sdqflags) == 0)
             wavelength = segment.data['wavelength'][goodpixels]
             indices = self.wavelength_to_index(wavelength)
+            npts = len(indices)
             flux_weight = self.get_flux_weight(segment)
             gcounts0 = np.abs(segment.data['gross'] * segment.exptime)
             gcounts = gcounts0[goodpixels]
             weight = flux_weight[goodpixels]
             net_counts = segment.data['net'][goodpixels] * segment.exptime
             if self.instrument == 'COS':
-                variances = segment.data['variance_counts'] + segment.data['variance_bkg'] + segment.data['variance_flat']
-                self.output_varsum[indices] = self.output_varsum[indices] + variances[goodpixels]
+                variances = segment.data['variance_counts'][goodpixels] + segment.data['variance_bkg'][goodpixels] + segment.data['variance_flat'][goodpixels]
+                
             flux = segment.data['flux'][goodpixels]
-            self.sumnetcounts[indices] = self.sumnetcounts[indices] + net_counts
-            self.output_sumweight[indices] = self.output_sumweight[indices] + weight
-            self.output_sumgcounts[indices] = self.output_sumgcounts[indices] + gcounts
-            self.output_sumflux[indices] = self.output_sumflux[indices] + flux * weight
-            self.output_exptime[indices] = self.output_exptime[indices] + segment.exptime
+            for i in range(npts):
+                self.sumnetcounts[indices[i]] = self.sumnetcounts[indices[i]] + net_counts[i]
+                self.output_sumweight[indices[i]] = self.output_sumweight[indices[i]] + weight[i]
+                self.output_sumgcounts[indices[i]] = self.output_sumgcounts[indices[i]] + gcounts[i]
+                self.output_sumflux[indices[i]] = self.output_sumflux[indices[i]] + flux[i] * weight[i]
+                self.output_exptime[indices[i]] = self.output_exptime[indices[i]] + segment.exptime
+                if self.instrument == 'COS':
+                    self.output_varsum[indices[i]] = self.output_varsum[indices[i]] + variances[i]
         good_dq = np.where(self.output_exptime > 0.)
         self.first_good_wavelength = self.output_wavelength[good_dq][0]
         self.last_good_wavelength = self.output_wavelength[good_dq][-1]
