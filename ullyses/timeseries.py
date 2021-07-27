@@ -25,7 +25,11 @@ version = wrapper.default_version
 
 def collect_corrtag_inputs(grating):
     corrtag_list = []
-    all_corrtags = glob.glob('split*_corrtag.fits')
+    if grating in ["G160M", "G130M", "G140L"]:
+        search_str = "split*corrtag_a.fits"
+    else:
+        search_str = "split*_corrtag.fits"
+    all_corrtags = glob.glob(search_str)
     for file in all_corrtags:
         f1 = fits.open(file)
         if f1[0].header['OPT_ELEM'] == grating:
@@ -43,9 +47,13 @@ def run_splittag(corrtag_list, duration):
                           time_list = "")
     return
 
-def run_calcos():
+def run_calcos(grating):
     splits = []
-    all_splits = glob.glob('split*corrtag_a.fits')
+    if grating in ["G160M", "G130M", "G140L"]:
+        search_str = "split*corrtag_a.fits"
+    else:
+        search_str = "split*_corrtag.fits"
+    all_splits = glob.glob(search_str)
     for split in all_splits:
         calcos.calcos(split, outdir='./x1dfiles')
         fltfiles = glob.glob('./x1dfiles/split*flt*.fits')
@@ -112,11 +120,11 @@ def transfer_from_ensemble(ensemble, segmentlist):
     segmentlist.output_exptime = np.zeros(segmentlist.nelements)
     return
 
-def process_all_files(grating, outfile, wavelength_binning=1):
+def process_all_files(grating, outfile, wavelength_binning=1, min_exptime=20):
     ensemble = create_ensemble_segmentlist(grating, wavelength_binning)
     rename_all_x1ds()
     withoutfiles = glob.glob('split*_without.fits')
-    sorted_withoutfiles = sort_x1ds()
+    sorted_withoutfiles = sort_x1ds(min_exptime=min_exptime)
     nrows = len(sorted_withoutfiles)
     ncols = len(ensemble.output_wavelength)
     output_flux = np.zeros((nrows, ncols))
@@ -130,7 +138,7 @@ def process_all_files(grating, outfile, wavelength_binning=1):
     for oldfile, expstart in sorted_withoutfiles:
         newfile = oldfile.replace('_without.fits', '_x1d.fits')
         os.rename(oldfile, newfile)
-        a = coadd.COSSegmentList('G160M')
+        a = coadd.COSSegmentList(grating)
         transfer_from_ensemble(ensemble, a)
         a.coadd()
         start_time = a.first_headers[0]['expend'] - a.first_headers[0]['exptime']/SECONDS_PER_DAY
@@ -283,7 +291,7 @@ def main(run_calcos, wavelength_binning, grating, resolution, normal, outfile):
         corrtag_list = collect_corrtag_inputs(grating)
         duration = resolution
         run_splittag(corrtag_list, duration)
-        run_calcos()
+        run_calcos(grating)
     process_all_files(grating, outfile, wavelength_binning=wavelength_binning)
     
 if __name__ == '__main__':
