@@ -1,7 +1,10 @@
 import os
+import glob
+import numpy as np
+
 import calcos
 from costools import splittag
-import glob
+
 import argparse
 from astropy.io import fits
 from functools import partial
@@ -24,30 +27,57 @@ def parseargs():
     """
 
     parser = argparse.ArgumentParser()
+
+    # i/o
     parser.add_argument('-i', '--indir', required=True, help='Directory with corrtag data.')
     parser.add_argument('-o', '--outdir', required=True, help='Directory for the splittag and calcos output.')
-
-    group = parser.add_mutually_exclusive_group()
-    group.add_argument('-t', '--timelist',
-                       help='String list of times to split exposures over. Ex: "0, 20, 40, 60".')
-    group.add_argument('-s', '--startstopincr',
-                       help='String list of start time, stop time, and increment to split '
-                            'exposures over. Ex: "0, 250, 50".')
-
-    parser.add_argument('-n', '--ncores', default=5, required=False,
-                        help='If specified, code will parallelize calcos with n cores.')
     parser.add_argument('-c', '--clobber', default=False, required=False,
                         action='store_true',
-                        help='If True, overwrite existing products.')
+                        help='If True, delete existing products in outdir.')
+
+    # splittag options
+    parser.add_argument('-t', '--timelist', required=False,
+                        help='String list of times to split exposures over. Ex: "0, 20, 40, 60".')
+    parser.add_argument('-s', '--startstopincr', required=False,
+                        help='String list of start time, stop time, and increment to split '
+                             'exposures over. Ex: "0, 250, 50".')
+    parser.add_argument('-r', '--increment', required=False, type=np.int,
+                        help='Increment of time split. Start time=0 sec and stop time=1000 sec.')
+
+    # parallelization
+    parser.add_argument('-n', '--ncores', required=False, type=np.int,
+                        help='If specified, code will parallelize calcos with n cores.')
 
     args = parser.parse_args()
 
-    startstopincr = args.startstopincr.split(",")
-    starttime = startstopincr[0]
-    stoptime = startstopincr[1]
-    increment = startstopincr[2]
+    splitargs = [args.timelist, args.startstopincr, args.increment]
+    if splitargs.count(None) != 2:
+        raise IOError('Must specify one of: timelist, start/stop/increment, or split increment for splittag.')
 
-    return args.indir, args.outdir, args.timelist, starttime, stoptime, increment, args.clobber, args.ncores
+    if args.startstopincr is not None:
+
+        if "," not in args.startstopincr:
+            raise IOError('Start/Stop/Increment must be comma-separated string, Ex: "0, 250, 50".')
+
+        startstopincr = args.startstopincr.split(",")
+        starttime = startstopincr[0]
+        stoptime = startstopincr[1]
+        increment = startstopincr[2]
+
+    elif args.increment is not None:
+
+        starttime = 0
+        stoptime = 1000
+        increment = args.increment
+
+    else:
+        starttime = None
+        stoptime = None
+        increment = None
+
+    return args.indir.strip(), args.outdir.strip(),\
+           args.timelist, starttime, stoptime, increment,\
+           args.clobber, args.ncores
 
 
 def clobberfiles(outputfolder):
@@ -69,7 +99,7 @@ def setupdirs(rootdir, outputfolder, clobber):
     """
     Checks if output directory exists and if not, creates it
     Clobbers old files in output directory if specified
-    :rootdir: Current working directory
+    :param rootdir: Current working directory
     :param outputfolder: User specified output directory
     :param clobber: Boolean switch to clean directory or not
     :return: None
@@ -137,12 +167,12 @@ def parallelcal(files, outputfolder, ncores):
     :return: None
     """
 
-    pool = mp.Pool(processes=ncores)
-    calfunc = partial(calibratefiles, outputfolder)
-    pool.map(calfunc, files)
+    with mp.Pool(ncores) as pool:
+        calfunc = partial(calibratefiles, outputfolder)
+        pool.map(calfunc, files)
 
 
-def rmlargefiles(outputdir):
+def rmlargefiles(outputfolder):
     """
     Removes the FLT and COUNT files from the output directory
     These files are large in size and are rarely used
@@ -150,10 +180,10 @@ def rmlargefiles(outputdir):
     :return: None
     """
 
-    fltfiles = glob.glob(os.path.join(outputdir, '*flt*'))
+    fltfiles = glob.glob(os.path.join(outputfolder, '*flt*'))
     for file in fltfiles:
         os.remove(file)
-    countsfiles = glob.glob(os.path.join(outputdir, '*counts*'))
+    countsfiles = glob.glob(os.path.join(outputfolder, '*counts*'))
     for file in countsfiles:
         os.remove(file)
 
@@ -161,7 +191,7 @@ def rmlargefiles(outputdir):
 if __name__ == "__main__":
 
     # collect the command line arguments
-    indir, outdir, tlist, start, end, incr, clob, ncores = parseargs()
+    indir, outdir, tlist, start, end, incr, clob, numcores = parseargs()
 
     # get current working directory
     cwdir = os.getcwd()
@@ -172,9 +202,6 @@ if __name__ == "__main__":
 
     # collect all the corrtags to split
     corrtagfiles = glob.glob(os.path.join(cwdir, indir, '*corrtag*'))
-
-    # g160m = [x for x in corrtagfiles if fits.getval(x, 'opt_elem') == 'G160M']
-    # g230l = [x for x in corrtagfiles if fits.getval(x, 'opt_elem') == 'G230L']
 
     # run splittag on all the corrtags
     for corrtag in corrtagfiles:
@@ -190,8 +217,8 @@ if __name__ == "__main__":
     splitcorrtagfiles_nob = [x for x in splitcorrtagfiles if '_b' not in x]
 
     # run calcos on the split corrtags in parallel
-    if ncores is not None:
-        parallelcal(splitcorrtagfiles_nob, os.path.join(cwdir, outdir, 'calcosout'), ncores=ncores)
+    if numcores is not None:
+        parallelcal(splitcorrtagfiles_nob, os.path.join(cwdir, outdir, 'calcosout'), ncores=numcores)
 
     # run calcos on the split corrtags without parallelizing
     else:
@@ -199,4 +226,4 @@ if __name__ == "__main__":
             calibratefiles(os.path.join(cwdir, outdir, 'calcosout'), splitfile)
 
     # remove the FLT and COUNTS files
-    rmlargefiles(os.path.join(cwdir, outdir))
+    rmlargefiles(os.path.join(cwdir, outdir, 'calcosout'))
