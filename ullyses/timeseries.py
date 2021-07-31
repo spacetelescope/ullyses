@@ -1,10 +1,3 @@
-# Get a list of corrtag exposures with required grating
-# Run splittag on each of these corrtags -> many new corrtags
-# Run calcos on all of these corrtags
-# - throw away everything other than the x1d files
-# figure out the wavelength scale from all the x1ds
-# coadd each of the x1d files into a new 1-d array of flux.  Each file will have the same wavelength array
-# put the flux arrays into an array, one spectrum -> 1 row of array
 import argparse
 import astropy
 from astropy.io import fits
@@ -23,50 +16,148 @@ import os
 SECONDS_PER_DAY = 86400.0
 version = wrapper.default_version
 
-def collect_corrtag_inputs(grating):
-    corrtag_list = []
-    if grating in ["G160M", "G130M", "G140L"]:
-        search_str = "split*corrtag_a.fits"
-    else:
-        search_str = "split*_corrtag.fits"
-    all_corrtags = glob.glob(search_str)
-    for file in all_corrtags:
-        f1 = fits.open(file)
-        if f1[0].header['OPT_ELEM'] == grating:
-            corrtag_list.append(file)
-        f1.close()
-    return corrtag_list
+"""
+    Timeseries product creation code.
+    
+    This code should be run from a directory that contains only files from 1
+    grating, and either split or full files (but not both).  A suitable set of
+    directories to run this from are:
+    
+    base_directory/G160M/full/
+    base_directory/G160M/split/
+    base_directory/G230L/full/
+    base_directory/G230L/split/
+    
+    Put the x1d files that you want to contribute to the product into the appropriate
+    directories.  If you want to exclude files, leave them out from the directory.
+    
+    You will need to install this code using python setup.py install
+    
+    To create a timeseries product, go to the selected directory
+    
+    Start python/ipython
+    
+>>> from high_level_science_products import timeseries
+>>> timeseries.process_files('G160M', 'timeseries_product.fits', wavelength_binning=3, min_exptime=20.)
+    
+    That's all that should be necessary to create the timeseries product named
+    'timeseries_product.fits' from the x1d files in the current directory with the
+    specified grating and with exposure times greater than specified in the call
+    
+"""
 
-def run_splittag(corrtag_list, duration):
-    for file in corrtag_list:
-        f1 = fits.open(file)
-        rootname = f1[0].header['rootname']
-        segment = f1[0].header['segment'][-1].lower()
-        root = 'split_' + rootname
-        splittag.splittag(file, root, starttime = 0., increment = duration, endtime = 1000.,
-                          time_list = "")
-    return
-
-def run_calcos(grating):
-    splits = []
-    if grating in ["G160M", "G130M", "G140L"]:
-        search_str = "split*corrtag_a.fits"
-    else:
-        search_str = "split*_corrtag.fits"
-    all_splits = glob.glob(search_str)
-    for split in all_splits:
-        calcos.calcos(split, outdir='./x1dfiles')
-        fltfiles = glob.glob('./x1dfiles/split*flt*.fits')
-        for file in fltfiles:
-            os.remove(file)
-        countsfiles = glob.glob('./x1dfiles/split*counts*.fits')
-        for file in countsfiles:
-            os.remove(file)
-    return
-
-def sort_x1ds(min_exptime=20.0):
-    x1dlist = []
+def sort_split_x1ds(grating, min_exptime=20.0):
+    """Sort the split x1d files.    Select all files that match the
+    pattern 'split_*_without.fits' and that match the grating and whose
+    exposure time is greated than min_exptime, and sort them by expstart
+    
+    Parameters:
+    -----------
+    
+    grating: str
+        Grating that must be present in OPT_ELEM keyword of primary
+        header of each file
+        
+    min_exptime: float, default=20.0
+        Minimum exposure time to be included
+        
+    Returns:
+        list of tuples (filename, expstart), sorted by expstart
+        
+    """
     x1dfiles = glob.glob('split*_without.fits')
+    good_list = []
+    for file in x1dfiles:
+        f1 = fits.open(file)
+        this_grating = f1[0].header['OPT_ELEM']
+        if this_grating == grating:
+            good_list.append(file)
+        f1.close()
+    sorted_x1dlist = sort_x1dfiles(good_list, min_exptime=min_exptime)
+    return sorted_x1dlist
+    
+def sort_full_x1ds(grating, min_exptime=20.0):
+    """Sort the full x1d files.    Select all files that match the
+    pattern '*_without.fits' and don't start with 'split', and that match
+    the grating and whose exposure time is greated than min_exptime, and
+    sort them by expstart
+    
+    Parameters:
+    -----------
+    
+    grating: str
+        Grating that must be present in OPT_ELEM keyword of primary
+        header of each file
+        
+    min_exptime: float, default=20.0
+        Minimum exposure time to be included
+        
+    Returns:
+        list of tuples (filename, expstart), sorted by expstart
+        
+    """
+    x1dfiles = glob.glob('*_without.fits')
+    good_list = []
+    for file in x1dfiles:
+        if file.startswith('split'):
+            continue
+        f1 = fits.open(file)
+        this_grating = f1[0].header['OPT_ELEM']
+        if this_grating == grating:
+            good_list.append(file)
+        f1.close()
+    sorted_x1dlist = sort_x1dfiles(good_list, min_exptime=min_exptime)
+    return sorted_x1dlist
+
+def sort_x1ds(grating, min_exptime=20.0):
+    """Sort the x1d files.    Select all files that match the
+    pattern '*_without.fits' and that match
+    the grating and whose exposure time is greater than min_exptime, and
+    sort them by expstart
+    
+    Parameters:
+    -----------
+    
+    grating: str
+        Grating that must be present in OPT_ELEM keyword of primary
+        header of each file
+        
+    min_exptime: float, default=20.0
+        Minimum exposure time to be included
+        
+    Returns:
+        list of tuples (filename, expstart), sorted by expstart
+        
+    """
+    x1dfiles = glob.glob('*_without.fits')
+    good_list = []
+    for file in x1dfiles:
+        f1 = fits.open(file)
+        this_grating = f1[0].header['OPT_ELEM']
+        if this_grating == grating:
+            good_list.append(file)
+        f1.close()
+    sorted_x1dlist = sort_x1dfiles(good_list, min_exptime=min_exptime)
+    return sorted_x1dlist
+
+
+def sort_x1dfiles(x1dfiles, min_exptime=20.0):
+    """Sort a list of files in order of expstart
+    
+    Parameters:
+    -----------
+    
+    x1dfiles: list
+        List of filenames to be sorted
+        
+    min_exptime: float, default=20.0
+        Minimum exposure time to be included in sorted output
+        
+    Returns:
+        List of (filename, exptime) tuples
+        
+    """
+    x1dlist = []
     for file in x1dfiles:
         f1 = fits.open(file)
         expend = f1[1].header['expend']
@@ -78,7 +169,26 @@ def sort_x1ds(min_exptime=20.0):
     sorted_x1dlist = sorted(x1dlist, key=lambda x: x[1])
     return sorted_x1dlist
 
-def create_ensemble_segmentlist(grating, wavelength_binning=1):
+def create_ensemble_segmentlist(grating, wavelength_binning=1.0):
+    """Create the ensemble COSSegmentList whose wavelength and array
+    sizing parameters are to be used to create the output product.
+    Should be created from full exposures (not splits), so make sure
+    all split exposures are renamed from ending with _x1d.fits so they
+    don't add to the COSSegmentList
+    
+    Parameters:
+    -----------
+    
+    grating: str
+        Grating to be used to create the timeseries product
+        
+    wavelength_binning: float, default=1.0
+        Wavelength binning for output product in pixels.  Can be non-integer
+        
+    Returns:
+        COSSegmentList:
+        
+    """     
     a = coadd.COSSegmentList(grating)
     a.create_output_wavelength_grid()
     if wavelength_binning != 1:
@@ -94,16 +204,99 @@ def create_ensemble_segmentlist(grating, wavelength_binning=1):
         a.signal_to_noise = np.zeros(nelements)
         a.sumnetcounts = np.zeros(nelements)
         a.output_exptime = np.zeros(nelements)
+    # sort the headers in order of expstart
+    
     return a
 
-def rename_all_x1ds():
+def rename_all_split_x1ds():
+    """Rename all split exposures (that start with 'split') from
+    ending with '_x1d.fits' to ending with '_without.fits'.  This stops
+    the files from getting added to COSSegmentLists
+    
+    Parameters:
+    -----------
+    
+    None
+    
+    Returns:
+    --------
+    
+    None
+    
+    """
     x1dfiles = glob.glob('split*_x1d.fits')
     for oldfile in x1dfiles:
         newfile = oldfile.replace('_x1d.fits', '_without.fits')
         os.rename(oldfile, newfile)
     return
 
+def rename_all_x1ds():
+    """Rename all exposures from
+    ending with '_x1d.fits' to ending with '_without.fits'.  This stops
+    the files from getting added to COSSegmentLists
+    
+    Parameters:
+    -----------
+    
+    None
+    
+    Returns:
+    --------
+    
+    None
+    
+    """
+    x1dfiles = glob.glob('*_x1d.fits')
+    for oldfile in x1dfiles:
+        newfile = oldfile.replace('_x1d.fits', '_without.fits')
+        os.rename(oldfile, newfile)
+    return
+
+def rename_all_full_x1ds():
+    """Rename all full exposures (that don't start with 'split') from
+    ending with '_x1d.fits' to ending with '_without.fits'.  This stops
+    the files from getting added to COSSegmentLists
+    
+    Parameters:
+    -----------
+    
+    None
+    
+    Returns:
+    --------
+    
+    None
+    
+    """
+    x1dfiles = glob.glob('*_x1d.fits')
+    for file in x1dfiles:
+        if file.startswith('split'):
+            x1sfiles.remove(file)
+    for oldfile in x1dfiles:
+        newfile = oldfile.replace('_x1d.fits', '_without.fits')
+        os.rename(oldfile, newfile)
+    return
+
 def transfer_from_ensemble(ensemble, segmentlist):
+    """Transfer the wavelength and array size information from the ensemble
+    COSSegmentList to the target COSSegmentList
+    
+    Parameters:
+    -----------
+    
+    ensemble: COSSegmentList
+        COSSegmentList containing the wavelength and array sizing parameters to be used
+        in the target COSSegmentList
+        
+    segmentlist: COSSegmentList
+        Target COSSegmentList to be changed by transferring parameters from ensemble
+        
+    Returns:
+    --------
+    
+    None
+    
+    """
     segmentlist.delta_wavelength = ensemble.delta_wavelength
     segmentlist.min_wavelength = ensemble.min_wavelength
     segmentlist.max_wavelength = ensemble.max_wavelength
@@ -120,12 +313,72 @@ def transfer_from_ensemble(ensemble, segmentlist):
     segmentlist.output_exptime = np.zeros(segmentlist.nelements)
     return
 
-def process_all_files(grating, outfile, wavelength_binning=1, min_exptime=20):
+def process_files(grating, outfile, wavelength_binning=1, min_exptime=20):
+    """Process all x1d files in the current directory with the selected grating.  
+    
+    Parameters:
+    -----------
+    
+    grating: str
+        The grating to be processed.  This should be the same as the OPT_ELEM keyword in
+        the primary header of the files to be processed
+        
+    outfile: str
+        The name of the output file for the timeseries product made from the x1d exposures
+        
+    wavelength_binning: float, default = 1.0
+        The wavelength binning in pixels, can be a non-integer
+        
+    min_exptime: float, default=20.0
+        The minimum exposure time for the splittag exposures.  Some of the splittag files
+        from the end of an exposure don't have the full exposure time and are very noisy.
+        This parameter excludes all files with exposure times that are below the specified
+        threshold
+        
+    """
+    # Create a COSSegmentList from all files that end with _x1d.fits and
+    # have the appropriate grating. The ensemble
+    # is used to determine the start, stop and delta wavelength of the product
+    # and to contain the headers used to create the provenance table    
     ensemble = create_ensemble_segmentlist(grating, wavelength_binning)
+    # Rename all the x1d.fits files to remove the _x1d.fits ending so that
+    # subsequent COSSegmentLists can be created one at a time
     rename_all_x1ds()
-    withoutfiles = glob.glob('split*_without.fits')
-    sorted_withoutfiles = sort_x1ds(min_exptime=min_exptime)
-    nrows = len(sorted_withoutfiles)
+    # create a list of split files sorted by expstart
+    sorted_files = sort_x1ds(grating, min_exptime=min_exptime)
+    # process this list of files one at a time to each write a single row
+    # to the output flux and error arrays.  Write the output file when complete
+    process_sorted_filelist(sorted_files, grating, ensemble, outfile)
+    # Rename the files back from _without.fits to _x1d.fits
+    rename_files_back()
+    
+def process_sorted_filelist(sorted_list, grating, ensemble, outfile):
+    """Create a timeseries product from a sorted list of (input file, expstart) tuples.
+    
+    Parameters:
+    -----------
+    
+    sorted_list: list of tuples
+        List of (filename, expstart) tuples sorted by expstart.
+        
+    grating: str
+        Grating to be processed.  All the input files SHOULD have the same grating,
+        but just in case this allows rejection of exposures that don't match
+    
+    ensemble: COSSegmentList
+        COSSegmentList made from exposures that are used to define the output wavelength
+        grid.  The start wavelength, stop wavelength and wavelength increment are used to
+        initialize and size output arrays
+    
+    outfile: str
+        Name of output FITS file to write the product to
+    
+    Returns:
+    
+    None
+    
+    """
+    nrows = len(sorted_list)
     ncols = len(ensemble.output_wavelength)
     output_flux = np.zeros((nrows, ncols))
     output_error = np.zeros((nrows, ncols))
@@ -135,9 +388,16 @@ def process_all_files(grating, outfile, wavelength_binning=1, min_exptime=20):
     wavelengths = ensemble.output_wavelength
     ensemble.primary_headers = []
     ensemble.first_headers = []
-    for oldfile, expstart in sorted_withoutfiles:
+    for oldfile, expstart in sorted_list:
         newfile = oldfile.replace('_without.fits', '_x1d.fits')
         os.rename(oldfile, newfile)
+        # Make sure this file uses the required grating
+        f1 = fits.open(newfile)
+        this_grating = f1[0].header['OPT_ELEM']
+        if this_grating != grating:
+            print(f"Skipping file {newfile} as it doesn't have the required grating")
+            f1.close()
+            continue
         a = coadd.COSSegmentList(grating)
         transfer_from_ensemble(ensemble, a)
         a.coadd()
@@ -148,16 +408,73 @@ def process_all_files(grating, outfile, wavelength_binning=1, min_exptime=20):
         output_error[row] = a.output_errors
         print(f'finished row {row}')
         row = row + 1
+        # Rename the file back to _without.fits so that it won't appear in subsequent
+        # COSSegmentLists
         os.rename(newfile, oldfile)
         ensemble.primary_headers.append(a.primary_headers[0])
         ensemble.first_headers.append(a.first_headers[0])
-    for oldfile, expstart in sorted_withoutfiles:
-        newfile = oldfile.replace('_without.fits', '_x1d.fits')
-        os.rename(oldfile, newfile)
-    write_product(output_flux, output_error, starttimes, endtimes, wavelengths, ensemble, outfile)
+    write_product(output_flux, output_error, starttimes, endtimes, wavelengths, ensemble,
+                  outfile)
     return
 
+def rename_files_back():
+    """After processing files, they are left with names that end in '_without.fits'.
+    This routine renames them back so they end in '_x1d.fits'
+    
+    Parameters:
+    -----------
+    
+    None
+    
+    Returns:
+    --------
+    
+    None
+    
+    """
+    wfiles = glob.glob("*_without.fits")
+    for oldfile in wfiles:
+        newfile = oldfile.replace('_without.fits', '_x1d.fits')
+        os.rename(oldfile, newfile)
+
 def write_product(flux, error, starttimes, endtimes, wavelengths, ensemble, outfile):
+    """Write the timeseries product to a FITS file.  The output file has a primary extension
+    with no data, and 2 data extensions.  The first data extension contains a table with 5
+    columns: EXPSTART, EXPEND, WAVELENGTH, FLUX, ERROR.  EXPSTART and EXPEND give the start
+    and end times of each row of the FLUX and ERROR arrays, while WAVELENGTH gives the
+    wavelength of each column of these arrays.  The second extension contains the provenance
+    information about the files that were used to create these products.
+    
+    Parameters:
+    -----------
+    
+    flux: float ndarray
+        2-d array of flux values
+        
+    error: float ndarray
+        2-d array of error values
+        
+    starttimes: float ndarray
+        1-d array of start times (MJD)
+    
+    endtimes: float ndarray
+        1-d array of stop times (MJD)
+        
+    wavelengths: float ndarray
+        1-d array of wavelengths
+     
+    ensemble: COSSegmentList
+        COSSegmentList made from exposures that were used to create this product
+        
+    outfile: str
+        Name of FITS product file
+        
+    Returns:
+    --------
+    
+    None
+    
+    """
     nrows, ncolumns = flux.shape
     npixels = nrows*ncolumns
     columns = []
@@ -185,6 +502,23 @@ def write_product(flux, error, starttimes, endtimes, wavelengths, ensemble, outf
     return
 
 def create_primary_header(ensemble, filename):
+    """Create the primary header of the timeseries product.
+    
+    Parameters:
+    
+    ensemble: COSSegmentList
+        COSSegmentList of full exposures used to make the arrays in the timeseries
+        product.  The primary_headers and first_headers attributes are used to
+        populate the header
+        
+    filename: str
+        Name of timeseries product filename
+        
+    Returns:
+    
+    prihdr: astropy.io,fits PrimaryHDU object
+    
+    """
     level = 5
     hdr0 = fits.Header()
     hdr0['EXTEND'] = ('T', 'FITS file may contain extensions')
@@ -236,6 +570,21 @@ def create_primary_header(ensemble, filename):
     return primary
     
 def create_extension_1_header(ensemble):
+    """Create the extension 1 header for the timeseries product
+    
+    Parameters:
+    -----------
+    
+    ensemble: COSSegmentList
+        The COSSegmentList from which the header parameters are derived.  This should be
+        created from the full exposures
+        
+    Returns:
+    --------
+    
+    astropy.io.fits.Header object
+    
+    """
     hdr1 = fits.Header()
     hdr1['EXTNAME'] = ('SCIENCE', 'Spectrum science arrays')
     hdr1['TIMESYS'] = ('UTC', 'Time system in use')
@@ -257,10 +606,42 @@ def create_extension_1_header(ensemble):
     return hdr1
     
 def create_extension_2(ensemble):
+    """Create the timeseries product provenance extension
+    
+    Parameters:
+    -----------
+    
+    ensemble: COSSegmentList
+        The COSSegmentList from which the provenance data are to be derived.  Should
+        be created from the full exposures.
+        
+    Returns:
+    
+    astropy.io.fits.BinTableHDU object
+    
+    """
     hdr2 = fits.Header()
     hdr2['EXTNAME'] = ('PROVENANCE', 'Metadata for contributing observations')
     # set up the table columns
-    cfn = fits.Column(name='FILENAME', array=ensemble.combine_keys("filename", "arr"), format='A40')
+    # If this product is created from the splittag files, the FILENAME column needs to be updated
+    # so that it points to the corrtag files that were used to create the timeseries product
+    first_filename = ensemble.primary_headers[0]['FILENAME']
+    if first_filename.startswith('split'):
+        detector = ensemble.primary_headers[0]['DETECTOR']
+        filename_array = ensemble.combine_keys("filename", "arr")
+        new_filename_list = []
+        for x1dfilename in filename_array:
+            ipppssoot = x1dfilename[6:15]
+            if detector == 'FUV':
+                replacement_string = '_corrtag_a.fits'
+            else:
+                replacement_string = '_corrtag.fits'
+            newfilename = ipppssoot + replacement_string
+            new_filename_list.append(newfilename)
+        filename_array = np.array(new_filename_list)
+        cfn = fits.Column(name='FILENAME', array=filename_array, format='A40')
+    else:
+        cfn = fits.Column(name='FILENAME', array=ensemble.combine_keys("filename", "arr"), format='A40')
     cpid = fits.Column(name='PROPOSID', array=ensemble.combine_keys("proposid", "arr"), format='A32')
     ctel = fits.Column(name='TELESCOPE', array=ensemble.combine_keys("telescop", "arr"), format='A32')
     cins = fits.Column(name='INSTRUMENT', array=ensemble.combine_keys("instrume", "arr"), format='A32')
@@ -270,8 +651,9 @@ def create_extension_2(ensemble):
     cap = fits.Column(name='APERTURE', array=ensemble.combine_keys("aperture", "arr"), format='A32')
     csr = fits.Column(name='SPECRES', array=ensemble.combine_keys("specres", "arr"), format='F8.1')
     ccv = fits.Column(name='CAL_VER', array=ensemble.combine_keys("cal_ver", "arr"), format='A32')
-    mjd_begs = ensemble.combine_keys("expstart", "arr")
     mjd_ends = ensemble.combine_keys("expend", "arr")
+    exptime = ensemble.combine_keys("exptime", "arr")
+    mjd_begs = mjd_ends - exptime / SECONDS_PER_DAY
     mjd_mids = (mjd_ends + mjd_begs) / 2.
     cdb = fits.Column(name='MJD_BEG', array=mjd_begs, format='F15.9', unit='d')
     cdm = fits.Column(name='MJD_MID', array=mjd_mids, format='F15.9', unit='d')
@@ -285,30 +667,3 @@ def create_extension_2(ensemble):
     table2 = fits.BinTableHDU.from_columns(cd2, header=hdr2)
     return table2
 
-def main(run_calcos, wavelength_binning, grating, resolution, normal, outfile):
-    
-    if run_calcos:
-        corrtag_list = collect_corrtag_inputs(grating)
-        duration = resolution
-        run_splittag(corrtag_list, duration)
-        run_calcos(grating)
-    process_all_files(grating, outfile, wavelength_binning=wavelength_binning)
-    
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument("-c", "--run_calcos", default=True,
-                        help="Run splittag and calcos?")
-    parser.add_argument("-b", "--wavelength_binning", default=1.,
-                        help="Wavelength binning")
-    parser.add_argument("-g", "--grating", default='',
-                        help="Grating")
-    parser.add_argument("-r", "--resolution", default=30.0, 
-                        help="Time resolution in seconds for timeseries product")
-    parser.add_argument("-n", "--normal", default=True,
-                        help="Create normal coadd product from all inputs?")
-    parser.add_argument("-o", "--output", default='',
-                        help="Name of output file for timeseries product")
-    args = parser.parse_args()
-
-    main(args.run_calcos, args.wavelength_binning, args.grating, args.resolution, args.normal,
-         args.output)
