@@ -25,6 +25,7 @@ VETTED_DIR = "/astro/ullyses/all_vetted_data_dr3"
 DATADIR = "/astro/ullyses/ULLYSES_DATA"
 CUSTOM_CAL = "/astro/ullyses/custom_cal"
 CONFIG_DIR = "config_files/"
+#CONFIG_DIR = "test_configs/"
 OUTDIR_ROOT = None
 nowdt = datetime.datetime.now()
 if OUTDIR_ROOT is None:
@@ -53,12 +54,12 @@ def copy_products(outdir_root=OUTDIR_ROOT):
         print(f"\nCopied TTS final products from {CUSTOM_CAL}/*/{outdir_root} to {VETTED_DIR}\n")
 
 
-def make_ccd_x1ds(outdir_root=OUTDIR_ROOT):
+def make_custom_x1ds(outdir_root=OUTDIR_ROOT):
     configs = glob.glob(os.path.join(CONFIG_DIR, "*yaml"))
     for config in configs:
         config_name = os.path.basename(config)
         targ = config_name.split("_")[0]
-        indir = os.path.join(CUSTOM_CAL, targ)
+        indir = os.path.join(CUSTOM_CAL, targ.upper())
         outdir = os.path.join(indir, outdir_root)
         wrapper(indir, config, outdir=outdir)
     print(f"\nMade custom products for data in {CUSTOM_CAL}, wrote to {CUSTOM_CAL}/*/{outdir_root}\n")
@@ -92,7 +93,7 @@ def copy_rename_yaml():
     
 
 if __name__ == "__main__":
-    make_ccd_x1ds()
+    make_custom_x1ds()
     coadd_1d_spectra()
     copy_rename_yaml()
     copy_products()
