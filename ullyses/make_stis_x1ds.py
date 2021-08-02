@@ -21,7 +21,9 @@ TARGS = ["CVSO-104", "CVSO-107", "CVSO-109", "CVSO-146", "CVSO-165", "CVSO-17",
 
 VERSION = "dr3"
 HLSPDIR = "/astro/ullyses/ULLYSES_HLSP"
+#HLSPDIR = "ULLYSES_HLSP" 
 VETTED_DIR = "/astro/ullyses/all_vetted_data_dr3"
+#VETTED_DIR = "all_vetted_data_dr3"
 DATADIR = "/astro/ullyses/ULLYSES_DATA"
 CUSTOM_CAL = "/astro/ullyses/custom_cal"
 CONFIG_DIR = "config_files/"
@@ -38,7 +40,13 @@ def copy_rawfiles():
         if not os.path.exists(destdir):
             os.makedirs(destdir)
         for item in files:
-            shutil.copy(item, destdir) 
+            shutil.copy(item, destdir)
+
+    # A special fringeflat is needed for CVSO-109, copy it
+    origin = os.path.join(DATADIR, "CVSO-104", "oe9k1s050_raw.fits")
+    dest = os.path.join(CUSTOM_CAL, "CVSO-109")
+    shutil.copy(origin, dest)
+
     print(f"\nCopied TTS data from {DATADIR} to {CUSTOM_CAL}\n")
 
 
@@ -51,7 +59,7 @@ def copy_products(outdir_root=OUTDIR_ROOT):
             os.makedirs(destdir)
         for item in files:
             shutil.copy(item, destdir)
-        print(f"\nCopied TTS final products from {CUSTOM_CAL}/*/{outdir_root} to {VETTED_DIR}\n")
+    print(f"\nCopied TTS final products from {CUSTOM_CAL}/*/{outdir_root} to {VETTED_DIR}\n")
 
 
 def make_custom_x1ds(outdir_root=OUTDIR_ROOT):
@@ -65,16 +73,17 @@ def make_custom_x1ds(outdir_root=OUTDIR_ROOT):
     print(f"\nMade custom products for data in {CUSTOM_CAL}, wrote to {CUSTOM_CAL}/*/{outdir_root}\n")
 
 
-def coadd_1d_spectra(outdir_root=OUTDIR_ROOT):
-    d = {"CVSO-109": ["oe9k2s020_CVSO-109A_x1d.fits", "oe9k2s020_CVSO-109B_x1d.fits"],
-         "CVSO-109": ["oe9k2s030_CVSO-109A_x1d.fits", "oe9k2s030_CVSO-109B_x1d.fits"],
-         "CVSO-109": ["oe9k2s010_CVSO-109A_x1d.fits", "oe9k2s010_CVSO-109B_x1d.fits"],
-         "CVSO-165": ["oe9j2s010_CVSO-165A_x1d.fits", "oe9j2s010_CVSO-165B_x1d.fits"]}
+def coadd_blended_spectra(outdir_root=OUTDIR_ROOT):
+    d = {"CVSO-109": [["oe9k2s020_CVSO-109A_x1d.fits", "oe9k2s020_CVSO-109B_x1d.fits"],
+                      ["oe9k2s030_CVSO-109A_x1d.fits", "oe9k2s030_CVSO-109B_x1d.fits"],
+                      ["oe9k2s010_CVSO-109A_x1d.fits", "oe9k2s010_CVSO-109B_x1d.fits"]],
+         "CVSO-165": [["oe9j2s010_CVSO-165A_x1d.fits", "oe9j2s010_CVSO-165B_x1d.fits"]]}
     for targ in d:
-        files0 = d[targ]
-        indir = os.path.join(CUSTOM_CAL, targ, outdir_root)
-        files = [os.path.join(indir, x) for x in files0]
-        coadd_1d_spectra(files, targ, outdir=indir)
+        for pair in d[targ]:
+            files0 = pair
+            indir = os.path.join(CUSTOM_CAL, targ, outdir_root)
+            files = [os.path.join(indir, x) for x in files0]
+            coadd_1d_spectra(files, targ, outdir=indir)
     print(f"\nMade coadded blended spectra for {d.keys()}, wrote to {CUSTOM_CAL}/*{outdir_root}\n")
 
 def copy_rename_yaml():
@@ -86,14 +95,15 @@ def copy_rename_yaml():
         targ = spl[0]
         grating = spl[1].split(".")[0]
         newname = f"hlsp_ullyses_hst_stis_{targ}_{grating}_{VERSION}_spec.yaml"
-        dest = os.path.join(HLSPDIR, targ, "dr2")
+        dest = os.path.join(HLSPDIR, targ, VERSION)
+        if not os.path.exists(dest):
+            os.makedirs(dest)
         shutil.copyfile(item, os.path.join(dest, newname))
-        print(f"Copied {item} to {os.path.join(dest, newname)}")
     print(f"\nCopied and renamed YAML files from {CONFIG_DIR} to {HLSPDIR}\n")
     
 
 if __name__ == "__main__":
     make_custom_x1ds()
-    coadd_1d_spectra()
+    coadd_blended_spectra()
     copy_rename_yaml()
     copy_products()
