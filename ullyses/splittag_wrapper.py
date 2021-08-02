@@ -34,6 +34,8 @@ def parseargs():
     parser.add_argument('-c', '--clobber', default=False, required=False,
                         action='store_true',
                         help='If True, delete existing products in outdir.')
+    parser.add_argument('-p', '--prefix', default='split_',
+                        help='Prefix to prepend to split corrtags')
 
     # splittag options
     parser.add_argument('-t', '--timelist', required=False,
@@ -45,7 +47,7 @@ def parseargs():
                         help='Increment of time split. Start time=0 sec and stop time=1000 sec.')
 
     # parallelization
-    parser.add_argument('-n', '--ncores', required=False, type=np.int,
+    parser.add_argument('-n', '--ncores', default=1, required=False, type=np.int,
                         help='If specified, code will parallelize calcos with n cores.')
 
     args = parser.parse_args()
@@ -77,8 +79,7 @@ def parseargs():
 
     return args.indir.strip(), args.outdir.strip(),\
            args.timelist, starttime, stoptime, increment,\
-           args.clobber, args.ncores
-
+           args.clobber, args.ncores, args.prefix
 
 def clobberfiles(outputfolder):
     """
@@ -127,7 +128,7 @@ def mvsplittagoutput(rootdir, outputfolder):
         os.replace(myfile, myfile.replace(rootdir, os.path.join(rootdir, outputfolder)))
 
 
-def runsplittag(inputfile, starttime, increment, endtime, timelist):
+def runsplittag(inputfile, starttime, increment, endtime, timelist, prefix="split_"):
     """
     Runs the splittag command
     Needs inputs of either start, stop, and increment or timelist to run
@@ -136,12 +137,13 @@ def runsplittag(inputfile, starttime, increment, endtime, timelist):
     :param increment: Time increment of split
     :param endtime: Tme to end the split
     :param timelist: String of times to split over. ex: "0, 10, 20, 30, 40"
+    :param prefix: String prefix to prepend to split corrtags
     :return: None
     """
 
     f1 = fits.open(inputfile)
     rootname = f1[0].header['rootname']
-    root = 'split_' + rootname
+    root = prefix + rootname
     splittag.splittag(inputfile, root,
                       starttime=starttime, increment=increment, endtime=endtime,
                       time_list=timelist)
@@ -188,11 +190,8 @@ def rmlargefiles(outputfolder):
         os.remove(file)
 
 
-if __name__ == "__main__":
-
-    # collect the command line arguments
-    indir, outdir, tlist, start, end, incr, clob, numcores = parseargs()
-
+def main(indir, outdir, tlist=None, start=0, end=1000, incr=30, 
+         clob=False, numcores=1, prefix="split_"):
     # get current working directory
     cwdir = os.getcwd()
 
@@ -227,3 +226,12 @@ if __name__ == "__main__":
 
     # remove the FLT and COUNTS files
     rmlargefiles(os.path.join(cwdir, outdir, 'calcosout'))
+
+if __name__ == "__main__":
+
+    # collect the command line arguments
+    indir, outdir, tlist, start, end, incr, clob, numcores, prefix = parseargs()
+
+    # Run main function
+    main(indir, outdir, tlist, start, end, incr, clob, numcores, prefix)
+
