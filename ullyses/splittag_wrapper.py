@@ -47,7 +47,7 @@ def parseargs():
                         help='Increment of time split. Start time=0 sec and stop time=1000 sec.')
 
     # parallelization
-    parser.add_argument('-n', '--ncores', default=1, required=False, type=np.int,
+    parser.add_argument('-n', '--ncores', required=False, type=np.int,
                         help='If specified, code will parallelize calcos with n cores.')
 
     args = parser.parse_args()
@@ -217,6 +217,10 @@ def main(indir, outdir, tlist=None, start=0, end=1000, incr=30,
     # filter them to not include the b segment
     splitcorrtagfiles_nob = [x for x in splitcorrtagfiles if '_b' not in x]
 
+    # Avoid parallelization collisions by creating outdir a priori
+    if not os.path.exists(os.path.join(outdir, 'calcosout')):
+        os.makedirs(os.path.join(outdir, 'calcosout'))
+
     # run calcos on the split corrtags in parallel
     if numcores is not None:
         parallelcal(splitcorrtagfiles_nob, os.path.join(cwdir, outdir, 'calcosout'), ncores=numcores)
@@ -228,6 +232,10 @@ def main(indir, outdir, tlist=None, start=0, end=1000, incr=30,
 
     # remove the FLT and COUNTS files
     rmlargefiles(os.path.join(cwdir, outdir, 'calcosout'))
+
+    print("\n", "~"*60, "\n", 
+          f"Final calibrated products written to {os.path.join(outdir, 'calcosout')}", 
+          "\n","~"*60)
 
 if __name__ == "__main__":
 
