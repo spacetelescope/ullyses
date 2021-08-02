@@ -11,11 +11,29 @@ from functools import partial
 import multiprocessing as mp
 
 """
-This code will:
-(1) use costools.splittag to divide corrtag files for the variable stars 
-    into multiple corrtags based on a specified time interval
-(2) run calcos on the output corrtags to re-extract them into x1ds (w/ the option to parallelize)
-(3) remove unnecessary file outputs such as counts images to maintain a tidy directory
+This script uses the costools.splittag() and calcos.calcos() modules to create custom
+timeseries data products for ULLYSES T-Tauri monitoring stars. Splittag divides the input
+corrtags into several split-corrtags based on user-specified time intervals. These split-
+corrtag files are then re-calibrated using calcos to output new x1d files. At the end, FLT and
+COUNTS images (which are also output from calcos) are removed due to their large file size.
+
+To run from the command line, users must specify:
+
+(1) "-i" or "--indir": the input directory where the un-split corrtags reside
+(2) "-o" or "--outdir": the output directory for the splittag and calcos output files
+(3) the time interval(s) over which to split the corrtag, which must be formatted in 1 of 3 ways:
+    (a) "-t" or "--timelist"" a string list of times in seconds to split exposures 
+        over, such as "0, 20, 40, 60"
+    (b) "-s" or "--startstopincr": a string list of the start and stop time and increment
+        (each in seconds) to split exposures over, such as "0, 250, 50"
+    (c) "-r" or "-increment": the increment of the time split in seconds, where the start 
+        time=0 seconds and stop time=1000 seconds by default
+
+Optional command line arguments are:
+
+(1) "-c" or "--clobber": if used, the script will delete existing products in the outdir folder
+(2) "-p" or "--prefix": the prefix to prepend to the split corrtags
+(3) "-n" or "--ncores": if specified, the script will parallelize calcos using ncores
 
 """
 
