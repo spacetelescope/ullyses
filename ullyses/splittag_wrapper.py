@@ -128,7 +128,8 @@ def mvsplittagoutput(rootdir, outputfolder):
         os.replace(myfile, myfile.replace(rootdir, os.path.join(rootdir, outputfolder)))
 
 
-def runsplittag(inputfile, starttime, increment, endtime, timelist, prefix="split_"):
+def runsplittag(inputfile, starttime, increment, endtime, timelist, outdir, 
+                prefix="split_"):
     """
     Runs the splittag command
     Needs inputs of either start, stop, and increment or timelist to run
@@ -144,7 +145,8 @@ def runsplittag(inputfile, starttime, increment, endtime, timelist, prefix="spli
     f1 = fits.open(inputfile)
     rootname = f1[0].header['rootname']
     root = prefix + rootname
-    splittag.splittag(inputfile, root,
+    path_root = os.path.join(outdir, root)
+    splittag.splittag(inputfile, path_root,
                       starttime=starttime, increment=increment, endtime=endtime,
                       time_list=timelist)
 
@@ -204,10 +206,10 @@ def main(indir, outdir, tlist=None, start=0, end=1000, incr=30,
 
     # run splittag on all the corrtags
     for corrtag in corrtagfiles:
-        runsplittag(corrtag, start, incr, end, tlist)
+        runsplittag(corrtag, start, incr, end, tlist, outdir, prefix)
 
     # splittag outputs to the cwd, so move to the right output folder
-    mvsplittagoutput(cwdir, outdir)
+    #mvsplittagoutput(cwdir, outdir)
 
     # collect all the split corrtag files
     splitcorrtagfiles = glob.glob(os.path.join(cwdir, outdir, '*split*'))
