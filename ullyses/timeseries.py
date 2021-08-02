@@ -7,7 +7,7 @@ import datetime
 from datetime import datetime as dt
 import re
 import numpy as np
-from . import coadd, wrapper
+from hlsp import coadd, wrapper
 from costools import splittag
 import calcos
 import glob
@@ -46,7 +46,7 @@ version = wrapper.default_version
     
 """
 
-def sort_split_x1ds(grating, min_exptime=20.0):
+def sort_split_x1ds(grating, indir=".", min_exptime=20.0):
     """Sort the split x1d files.    Select all files that match the
     pattern 'split_*_without.fits' and that match the grating and whose
     exposure time is greated than min_exptime, and sort them by expstart
@@ -65,7 +65,7 @@ def sort_split_x1ds(grating, min_exptime=20.0):
         list of tuples (filename, expstart), sorted by expstart
         
     """
-    x1dfiles = glob.glob('split*_without.fits')
+    x1dfiles = glob.glob(os.path.join(indir, 'split*_without.fits'))
     good_list = []
     for file in x1dfiles:
         f1 = fits.open(file)
@@ -76,7 +76,7 @@ def sort_split_x1ds(grating, min_exptime=20.0):
     sorted_x1dlist = sort_x1dfiles(good_list, min_exptime=min_exptime)
     return sorted_x1dlist
     
-def sort_full_x1ds(grating, min_exptime=20.0):
+def sort_full_x1ds(grating, indir=".", min_exptime=20.0):
     """Sort the full x1d files.    Select all files that match the
     pattern '*_without.fits' and don't start with 'split', and that match
     the grating and whose exposure time is greated than min_exptime, and
@@ -96,7 +96,7 @@ def sort_full_x1ds(grating, min_exptime=20.0):
         list of tuples (filename, expstart), sorted by expstart
         
     """
-    x1dfiles = glob.glob('*_without.fits')
+    x1dfiles = glob.glob(os.path.join(indir, '*_without.fits'))
     good_list = []
     for file in x1dfiles:
         if file.startswith('split'):
@@ -109,7 +109,7 @@ def sort_full_x1ds(grating, min_exptime=20.0):
     sorted_x1dlist = sort_x1dfiles(good_list, min_exptime=min_exptime)
     return sorted_x1dlist
 
-def sort_x1ds(grating, min_exptime=20.0):
+def sort_x1ds(grating, indir=".", min_exptime=20.0):
     """Sort the x1d files.    Select all files that match the
     pattern '*_without.fits' and that match
     the grating and whose exposure time is greater than min_exptime, and
@@ -129,7 +129,7 @@ def sort_x1ds(grating, min_exptime=20.0):
         list of tuples (filename, expstart), sorted by expstart
         
     """
-    x1dfiles = glob.glob('*_without.fits')
+    x1dfiles = glob.glob(os.path.join(indir, '*_without.fits'))
     good_list = []
     for file in x1dfiles:
         f1 = fits.open(file)
@@ -169,7 +169,7 @@ def sort_x1dfiles(x1dfiles, min_exptime=20.0):
     sorted_x1dlist = sorted(x1dlist, key=lambda x: x[1])
     return sorted_x1dlist
 
-def create_ensemble_segmentlist(grating, wavelength_binning=1.0):
+def create_ensemble_segmentlist(grating, indir=".", wavelength_binning=1.0):
     """Create the ensemble COSSegmentList whose wavelength and array
     sizing parameters are to be used to create the output product.
     Should be created from full exposures (not splits), so make sure
@@ -189,7 +189,7 @@ def create_ensemble_segmentlist(grating, wavelength_binning=1.0):
         COSSegmentList:
         
     """     
-    a = coadd.COSSegmentList(grating)
+    a = coadd.COSSegmentList(grating, path=indir)
     a.create_output_wavelength_grid()
     if wavelength_binning != 1:
         a.delta_wavelength = a.delta_wavelength * wavelength_binning
@@ -208,7 +208,7 @@ def create_ensemble_segmentlist(grating, wavelength_binning=1.0):
     
     return a
 
-def rename_all_split_x1ds():
+def rename_all_split_x1ds(indir="."):
     """Rename all split exposures (that start with 'split') from
     ending with '_x1d.fits' to ending with '_without.fits'.  This stops
     the files from getting added to COSSegmentLists
@@ -224,13 +224,13 @@ def rename_all_split_x1ds():
     None
     
     """
-    x1dfiles = glob.glob('split*_x1d.fits')
+    x1dfiles = glob.glob(os.path.join(indir, 'split*_x1d.fits'))
     for oldfile in x1dfiles:
         newfile = oldfile.replace('_x1d.fits', '_without.fits')
         os.rename(oldfile, newfile)
     return
 
-def rename_all_x1ds():
+def rename_all_x1ds(indir="."):
     """Rename all exposures from
     ending with '_x1d.fits' to ending with '_without.fits'.  This stops
     the files from getting added to COSSegmentLists
@@ -246,13 +246,13 @@ def rename_all_x1ds():
     None
     
     """
-    x1dfiles = glob.glob('*_x1d.fits')
+    x1dfiles = glob.glob(os.path.join(indir, '*_x1d.fits'))
     for oldfile in x1dfiles:
         newfile = oldfile.replace('_x1d.fits', '_without.fits')
         os.rename(oldfile, newfile)
     return
 
-def rename_all_full_x1ds():
+def rename_all_full_x1ds(indir="."):
     """Rename all full exposures (that don't start with 'split') from
     ending with '_x1d.fits' to ending with '_without.fits'.  This stops
     the files from getting added to COSSegmentLists
@@ -268,7 +268,7 @@ def rename_all_full_x1ds():
     None
     
     """
-    x1dfiles = glob.glob('*_x1d.fits')
+    x1dfiles = glob.glob(os.path.join(indir, '*_x1d.fits'))
     for file in x1dfiles:
         if file.startswith('split'):
             x1sfiles.remove(file)
@@ -313,7 +313,8 @@ def transfer_from_ensemble(ensemble, segmentlist):
     segmentlist.output_exptime = np.zeros(segmentlist.nelements)
     return
 
-def process_files(grating, outfile, wavelength_binning=1, min_exptime=20):
+def process_files(grating, outfile, indir=".", wavelength_binning=1, min_exptime=20,
+                  overwrite=False):
     """Process all x1d files in the current directory with the selected grating.  
     
     Parameters:
@@ -340,19 +341,21 @@ def process_files(grating, outfile, wavelength_binning=1, min_exptime=20):
     # have the appropriate grating. The ensemble
     # is used to determine the start, stop and delta wavelength of the product
     # and to contain the headers used to create the provenance table    
-    ensemble = create_ensemble_segmentlist(grating, wavelength_binning)
+    ensemble = create_ensemble_segmentlist(grating, indir, wavelength_binning)
     # Rename all the x1d.fits files to remove the _x1d.fits ending so that
     # subsequent COSSegmentLists can be created one at a time
-    rename_all_x1ds()
+    rename_all_x1ds(indir)
     # create a list of split files sorted by expstart
-    sorted_files = sort_x1ds(grating, min_exptime=min_exptime)
+    sorted_files = sort_x1ds(grating, indir, min_exptime=min_exptime)
     # process this list of files one at a time to each write a single row
     # to the output flux and error arrays.  Write the output file when complete
-    process_sorted_filelist(sorted_files, grating, ensemble, outfile)
+    process_sorted_filelist(sorted_files, grating, ensemble, outfile, indir,
+                            overwrite)
     # Rename the files back from _without.fits to _x1d.fits
-    rename_files_back()
+    rename_files_back(indir)
     
-def process_sorted_filelist(sorted_list, grating, ensemble, outfile):
+def process_sorted_filelist(sorted_list, grating, ensemble, outfile, indir=".", 
+                            overwrite=False):
     """Create a timeseries product from a sorted list of (input file, expstart) tuples.
     
     Parameters:
@@ -398,7 +401,7 @@ def process_sorted_filelist(sorted_list, grating, ensemble, outfile):
             print(f"Skipping file {newfile} as it doesn't have the required grating")
             f1.close()
             continue
-        a = coadd.COSSegmentList(grating)
+        a = coadd.COSSegmentList(grating, path=indir)
         transfer_from_ensemble(ensemble, a)
         a.coadd()
         start_time = a.first_headers[0]['expend'] - a.first_headers[0]['exptime']/SECONDS_PER_DAY
@@ -413,11 +416,11 @@ def process_sorted_filelist(sorted_list, grating, ensemble, outfile):
         os.rename(newfile, oldfile)
         ensemble.primary_headers.append(a.primary_headers[0])
         ensemble.first_headers.append(a.first_headers[0])
-    write_product(output_flux, output_error, starttimes, endtimes, wavelengths, ensemble,
-                  outfile)
+    write_product(output_flux, output_error, starttimes, endtimes, wavelengths, 
+                  ensemble, outfile, overwrite)
     return
 
-def rename_files_back():
+def rename_files_back(indir):
     """After processing files, they are left with names that end in '_without.fits'.
     This routine renames them back so they end in '_x1d.fits'
     
@@ -432,12 +435,12 @@ def rename_files_back():
     None
     
     """
-    wfiles = glob.glob("*_without.fits")
+    wfiles = glob.glob(os.path.join(indir, "*_without.fits"))
     for oldfile in wfiles:
         newfile = oldfile.replace('_without.fits', '_x1d.fits')
         os.rename(oldfile, newfile)
 
-def write_product(flux, error, starttimes, endtimes, wavelengths, ensemble, outfile):
+def write_product(flux, error, starttimes, endtimes, wavelengths, ensemble, outfile, overwrite=False):
     """Write the timeseries product to a FITS file.  The output file has a primary extension
     with no data, and 2 data extensions.  The first data extension contains a table with 5
     columns: EXPSTART, EXPEND, WAVELENGTH, FLUX, ERROR.  EXPSTART and EXPEND give the start
@@ -498,7 +501,9 @@ def write_product(flux, error, starttimes, endtimes, wavelengths, ensemble, outf
     hdulist.append(table1)
     table2 = create_extension_2(ensemble)
     hdulist.append(table2)
-    hdulist.writeto(outfile)
+    hdulist.writeto(outfile, overwrite=overwrite)
+
+    print(f"\nWrote output file: {outfile}")
     return
 
 def create_primary_header(ensemble, filename):
@@ -667,3 +672,22 @@ def create_extension_2(ensemble):
     table2 = fits.BinTableHDU.from_columns(cd2, header=hdr2)
     return table2
 
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-i", "--indir", default=".",
+                        help="Path to input directory with either default x1d files or split x1d files")
+    parser.add_argument("-g", "--grating", 
+                        help="Grating to process. Either G160M or G230L")
+    parser.add_argument("-o", "--outfile",
+                        help="Name of output file")
+    parser.add_argument("-w", "--wl", default=1, type=int,
+                        help="Number of pixels to bin in X")
+    parser.add_argument("-e", "--min_exp", default=20, type=int,
+                        help="Minimum required exposure time of split corrtag")
+    parser.add_argument("-c", "--clobber", default=False, action="store_true",
+                        help="If True, overwrite existing products")
+    args = parser.parse_args()
+
+    process_files(args.grating, args.outfile, args.indir, args.wl, args.min_exp, 
+         args.clobber)
