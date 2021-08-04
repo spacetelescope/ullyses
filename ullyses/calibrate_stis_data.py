@@ -267,15 +267,20 @@ class StisData():
             
             if os.path.exists(outfile):
                 os.remove(outfile)
-            
+           
+            # For estimation of background region only
+            if pars['yloc'] == None:
+                yloc = 512
+            else:
+                yloc = pars['yloc']
             x1d.x1d(infile, 
                 output = outfile, 
                 a2center = pars["yloc"],
                 xoffset = pars["xoffset"], 
                 maxsrch = pars["maxsrch"],
                 extrsize = pars["height"],
-                bk1offst = (pars["b_bkg1"] - pars["yloc"]) if pars["b_bkg1"] is not None else None,
-                bk2offst = (pars["b_bkg2"] - pars["yloc"]) if pars["b_bkg2"] is not None else None,
+                bk1offst = (pars["b_bkg1"] - yloc) if pars["b_bkg1"] is not None else None,
+                bk2offst = (pars["b_bkg2"] - yloc) if pars["b_bkg2"] is not None else None,
                 bk1size = pars["b_hgt1"],
                 bk2size = pars["b_hgt2"],
                 verbose=True,
