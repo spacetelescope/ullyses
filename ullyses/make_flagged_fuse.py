@@ -7,9 +7,11 @@ import matplotlib.pyplot as pl
 
 from fuse_add_dq import add_dq_col
 
-drdir = "/astro/ullyses/all_vetted_data_dr2"
+drdir = "/astro/ullyses/all_vetted_data_dr3"
 
 # DR1 FUSE targets that require custom flagging
+# DQ=1 (Worm)
+# DQ=2 (Poor photometric quality)
 filestoedit = {
 "AV232":         {"minwl": [1141],      "maxwl":[-1],           "dq":[1]},
 "AV15":          {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
@@ -44,11 +46,14 @@ filestoedit = {
 "SK-67D105":     {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
 "AV210":         {"minwl": [1150],      "maxwl":[1170],         "dq":[1]},
 "N11-ELS-018":   {"minwl": [0,1090],    "maxwl":[990,1094.5],   "dq":[2,2]},
-"SK-69D279":     {"minwl": [1080,1180], "maxwl":[1090,-1],      "dq":[2,1]}
+"SK-69D279":     {"minwl": [1080,1180], "maxwl":[1090,-1],      "dq":[2,1]},
+# DR2
+"2DFS-999":     {"minwl": [0],          "maxwl":[1000],         "dq":[2]},
+"AV26":         {"minwl": [1150],       "maxwl":[-1],           "dq":[1]}
 }
 
-# List of all FUSE DR1 targets. Commented lines are targets that had serious
-# data quality issues and will not be used in DR1.
+# List of all FUSE DR targets. Commented lines are targets that had serious
+# data quality issues and will not be used in DR.
 fuse_dr1 = [ 
  'AV207',
  'SK-71D19',
@@ -142,9 +147,39 @@ fuse_dr1 = [
  'AV327',
  'AV18']
 
+fuse_dr2 = [
+ 'AV490',
+ 'SK-67D166',
+# 'AV287',
+ 'SK-66D51',
+ 'HD38029',
+ 'SK-70D60',
+ 'SK-69D175',
+# 'SK-69D220',
+ 'SK-67D167',
+ '2DFS-999',
+ 'AV26',
+ 'SK-69D246',
+ 'AV216',
+ 'SK188',
+# 'NGC346-MPG-342',
+# 'MOA-J010321.3-720538',
+# 'NGC2004-ELS-26',
+ 'AV177',
+ 'SK-66D172',
+ 'SK190',
+ 'SK-67D104',
+ 'SK-68D129',
+# 'BI272', 
+ 'HV5622', 
+# 'NGC346-MPG-435', 
+ 'SK-67D118'] 
+# 'SK-68D16'
+
 targstoedit = list(filestoedit.keys())
 
-for targ in fuse_dr1:
+all_targs = fuse_dr1 + fuse_dr2
+for targ in all_targs:
     vofiles0 = glob.glob(os.path.join("/astro/ullyses/fuse_data", targ, "*_vo.fits"))
     vofiles = [x for x in vofiles0 if "dqscreened" not in x]
     if len(vofiles) > 1:
@@ -154,6 +189,8 @@ for targ in fuse_dr1:
     vofilename = os.path.basename(vofile)
     outfilename = "dqscreened_"+vofilename
     outfile = os.path.join("/astro/ullyses/fuse_data", targ, outfilename)
+    if os.path.exists(outfile):
+        continue
     if targ in targstoedit:
         pars = filestoedit[targ] 
         add_dq_col(vofile, outfile, pars["minwl"], pars["maxwl"], pars["dq"], overwrite=True)
