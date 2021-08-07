@@ -14,11 +14,21 @@ CAL_VER = 1.0
 class Ullyses():
     def __init__(self, files, hlspname, targname, ra, dec, cal_ver, version, 
                  level, hlsp_type="spectral", overwrite=True, photfile=None):
-        self.files = files
+        self.hlsp_type = hlsp_type
+        if hlsp_type == "lcogt":
+            assert photfile is not None, "Photometry file must be supplied for LCOGT data"
+            self.photfile = photfile
+            df = pd.read_csv(self.photfile, names=["filename", "mjdstart", "mjdend", "wl", "flux", "err"],
+                         header=None, delim_whitespace=True)
+            df = df.sort_values("mjdstart")
+            self.photdf = df
+            self.files = df["filename"].values
+        else:
+            self.files = files
         self.primary_headers = []
         self.first_headers = []
         self.second_headers = []
-        for item in files:
+        for item in self.files:
             self.primary_headers.append(fits.getheader(item))
             self.first_headers.append(fits.getheader(item, 1))
             if hlsp_type == "drizzled":
@@ -27,10 +37,6 @@ class Ullyses():
         self.targ_ra = ra
         self.targ_dec = dec
         self.hlspname = hlspname
-        self.hlsp_type = hlsp_type
-        if hlsp_type == "lcogt":
-            assert photfile is not None, "Photometry file must be supplied for LCOGT data"
-            self.photfile = photfile
         self.cal_ver = cal_ver
         self.version = version
         self.level = level
@@ -221,7 +227,8 @@ class Ullyses():
         hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
         hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')  
-    
+        # CENTRWV?
+
         self.hdr0 = hdr0
 
 
@@ -292,29 +299,26 @@ class Ullyses():
     
         self.hdr1 = hdr1
 
-        df = pd.read_csv(self.photfile, names=["filter", "mjd", "mag", "err"],
-                         header=None, delim_whitespace=True)
-        df = df.sort_values("mjd")
-        nrows = len(df["mjd"])
-        ncols = len(set(df["filter"]))
+        nrows = len(self.photdf["mjdstart"])
+        ncols = len(set(self.photdf["wl"]))
         output_flux = np.zeros((nrows, ncols))
         output_err = np.zeros((nrows, ncols))
-        output_time = df["mjd"].values
-        wavelengths = self.filter_to_wl(df["filter"].values)
-        df["wl"] = wavelengths
-        output_wl = np.array(list(set(wavelengths)))
+        output_time0 = self.photdf["mjdstart"].values
+        output_time1 = self.photdf["mjdend"].values
+        output_wl = np.array(list(set(self.photdf["wl"].values)))
         output_wl.sort()
-        fluxes = self.mag_to_flux(df["mag"].values, df["filter"].values)
-        df["flux"] = fluxes
-        for i in range(len(df)):
-            wlind = np.where(output_wl == df.iloc[i]["wl"])[0]
-            output_flux[i, wlind] = df.iloc[i]["flux"]
-            output_err[i, wlind] = df.iloc[i]["err"]
+        fluxes = self.mag_to_flux(self.photdf["mag"].values, self.photdf["filter"].values)
+        self.photdf["flux"] = fluxes
+        for i in range(len(self.photdf)):
+            wlind = np.where(output_wl == self.photdf.iloc[i]["wl"])[0]
+            output_flux[i, wlind] = self.photdf.iloc[i]["flux"]
+            output_err[i, wlind] = self.photdf.iloc[i]["err"]
 
         npixels = nrows * ncols
         array_dimensions = '(' + str(ncols) + ', ' + str(nrows) + ')'
         columns = []
-        columns.append(fits.Column(name='TIME', format=str(nrows)+'D', unit='Day'))
+        columns.append(fits.Column(name='MJDSTART', format=str(nrows)+'D', unit='Day'))
+        columns.append(fits.Column(name='MJDEND', format=str(nrows)+'D', unit='Day'))
         columns.append(fits.Column(name='WAVELENGTH', format=str(ncols)+'E', 
                                    unit='Angstrom'))
         columns.append(fits.Column(name='FLUX', format=str(npixels)+'E', 
@@ -324,7 +328,8 @@ class Ullyses():
         cd = fits.ColDefs(columns)
         table1 = fits.BinTableHDU.from_columns(cd, header=hdr1, nrows=1)
         table1.data[0]["wavelength"] = output_wl
-        table1.data[0]["time"] = output_time
+        table1.data[0]["mjdstart"] = output_time0
+        table1.data[0]["mjdend"] = output_time1
         table1.data[0]["flux"] = output_flux
         table1.data[0]["error"] = output_err
 
