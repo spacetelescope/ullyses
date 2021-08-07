@@ -1,3 +1,4 @@
+import glob
 import os
 import astropy
 import pandas as pd
@@ -6,6 +7,9 @@ import numpy as np
 import datetime
 from datetime import datetime as dt
 from astropy.time import Time
+
+VERSION = "dr3"
+CAL_VER = 1.0
 
 class Ullyses():
     def __init__(self, files, hlspname, targname, ra, dec, cal_ver, version, 
@@ -245,7 +249,7 @@ class Ullyses():
                                                                                                                            
     def make_imaging_hdr1(self):
         hdr1 = fits.Header()
-        hdr1['EXTNAME'] = ('SCIENCE', 'Spectrum science arrays')
+        hdr1['EXTNAME'] = ('SCIENCE', 'Image array')
         hdr1['TIMESYS'] = ('UTC', 'Time system in use')
         hdr1['TIMEUNIT'] = ('s', 'Time unit for durations')
         hdr1['TREFPOS'] = ('GEOCENTER', 'Time reference position')
@@ -327,26 +331,27 @@ class Ullyses():
         self.data1 = cd
         self.hdu1 = table1
 
-    def make_drizzled_data_ext(self):
-        hdr1 = self.first_headers[0]
-        del hdr1["ROOTNAME"]
-        del hdr1["EXPNAME"]
-        del hdr1["HDRNAME"]
-        del hdr1["IDCTAB"]
-        del hdr1["FITNAMEB"]
-        hdr1["DRIZSCAL"] = (self.primary_headers[0]["D001SCAL"], "Drizzle: pixel size (arcsec) of output image")
-
 
     def make_drizzled_data_ext(self):
         hdr1 = self.first_headers[0]
-        del hdr1["ROOTNAME"]
-        del hdr1["EXPNAME"]
-        del hdr1["HDRNAME"]
-        del hdr1["IDCTAB"]
-        del hdr1["FITNAMEB"]
+        for key in ["ROOTNAME", "EXPNAME", "HDRNAME", "IDCTAB", "FITNAMEB"]:
+            try:
+                del hdr1[key]
+            except KeyError:
+                pass
         hdr1["DRIZSCAL"] = (self.primary_headers[0]["D001SCAL"], "Drizzle: pixel size (arcsec) of output image")
         hdr1["DRIZISCL"] = (self.primary_headers[0]["D001ISCL"], "Drizzle: default IDCTAB pixel size(arcsec)")
         hdr1["DRIZPIXF"] = (self.primary_headers[0]["D001PIXF"], "Drizzle: linear size of drop")
+        mjd_beg = self.combine_keys("expstart", "min", "WFC3")
+        mjd_end = self.combine_keys("expend", "max", "WFC3")
+        dt_beg = Time(mjd_beg, format="mjd").datetime
+        dt_end = Time(mjd_end, format="mjd").datetime
+        hdr1['DATE-BEG'] = (dt.strftime(dt_beg, "%Y-%m-%dT%H:%M:%S"), 'Date-time of first observation start')
+
+        hdr1['DATE-END'] = (dt.strftime(dt_end, "%Y-%m-%dT%H:%M:%S"), 'Date-time of last observation end')
+        hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
+        hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
+        hdr1['XPOSURE'] = (self.combine_keys("exptime", "sum", "WFC3"), '[s] Sum of exposure durations')
         
         data1 = fits.getdata(self.files[0], 1)
 
@@ -659,3 +664,22 @@ class Ullyses():
         filt_zpts = np.array([zpts[x] for x in filts])
         flux = (10 ** (-mags / 2.5)) * filt_zpts
         return flux
+
+def make_imaging_hlsps():
+    datadirs = {"ngc3109-01": "/astro/ullyses/PRE-IMAGING/NGC3109_DATA/drizzled/vis01",
+                "ngc3109-02": "/astro/ullyses/PRE-IMAGING/NGC3109_DATA/drizzled/vis02"}
+    
+    for targ,datadir in datadirs.items():
+        files = glob.glob(os.path.join(datadir, "*drc.fits"))
+        for item in files:
+            filt = fits.getval(item, "filter")
+            ra = fits.getval(item, "ra_targ")
+            dec = fits.getval(item, "dec_targ")
+            hlspname = f"hlsp_ullyses_hst_wfc3_{targ}_{filt.lower()}_{VERSION}_drc.fits"
+            outdir = f"/astro/ullyses/ULLYSES_HLSP/{targ}/{VERSION}"
+            if not os.path.exists(outdir):
+                os.makedirs(outdir)
+            outfile = os.path.join(outdir, hlspname)
+            U = Ullyses([item], outfile, "NGC3109", ra, dec, CAL_VER, VERSION, 6, "drizzled")
+            U.make_hdrs_and_prov()
+            U.write_file()
