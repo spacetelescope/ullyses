@@ -20,7 +20,8 @@ def add_column(infile, outfile, colext, colname, colformat, colvals,
     hdr0 = fits.getheader(infile, 0)
     new_hdu0 = fits.PrimaryHDU(header=hdr0)
 
-    nextend = fits.getval(infile, "nextend")
+    with fits.open(infile) as tmp:
+        nextend = len(tmp)
     new_tables = []
     for ext in range(1, nextend):
         data = fits.getdata(infile, ext)
@@ -69,7 +70,7 @@ def add_dq_col(infile, outfile, wlstart, wlend, dqflag, overwrite=False):
         wlend = [wlend]
     if not isinstance(dqflag, (list, np.ndarray)):
         dqflag = [dqflag]
-    wlstart += [0, 1188]
+    wlstart += [0, 1179.9]
     wlend += [912, -1]
     dqflag += [2,2]
 
@@ -91,6 +92,5 @@ def add_dq_col(infile, outfile, wlstart, wlend, dqflag, overwrite=False):
         inds = np.where((wl >= start) & (wl <= end))
         dqarr[inds] = bad_dq
     dqarr = dqarr.reshape(1, arrlen)
-
     add_column(infile, outfile, colext=1, colname="DQ", colformat=str(arrlen)+"I", 
                colvals=dqarr, colunit=None, overwrite=overwrite)
