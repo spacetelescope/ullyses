@@ -246,7 +246,7 @@ class Ullyses():
         mjd_end = self.combine_keys("expend", "max")
         dt_beg = Time(mjd_beg, format="mjd").datetime
         dt_end = Time(mjd_end, format="mjd").datetime
-        hdr1['DATE-BEG'] = (dt.strftime(dt_beg, "%Y-%m-%dT%H:%M:%S"), 'Date-time of first observation start')
+        hdr1['DATE-BEG'] = (dt.strftime(dt_beg, "%Y-%m-%dT%H:%M:%S%.f"), 'Date-time of first observation start')
         hdr1.add_blank('', after='TREFPOS')
         hdr1.add_blank('              / FITS TIME COORDINATE KEYWORDS', before='DATE-BEG')
 
@@ -287,8 +287,8 @@ class Ullyses():
         hdr1['TIMEUNIT'] = ('s', 'Time unit for durations')
         hdr1['TREFPOS'] = ('GEOCENTER', 'Time reference position')
 
-        mjd_beg = self.combine_keys("expstart", "min", "LCOGT")
-        mjd_end = self.combine_keys("expend", "max", "LCOGT")
+        mjd_beg = self.photdf.iloc[0]["mjdstart"]
+        mjd_end = self.photdf.iloc[-1]["mjdend"]
         dt_beg = Time(mjd_beg, format="mjd").datetime
         dt_end = Time(mjd_end, format="mjd").datetime
         hdr1['DATE-BEG'] = (dt.strftime(dt_beg, "%Y-%m-%dT%H:%M:%S"), 'Date-time of first observation start')
@@ -463,7 +463,7 @@ class Ullyses():
         hdr = fits.Header()
         hdr['EXTNAME'] = ('PROVENANCE', 'Metadata for contributing observations')
         # set up the table columns
-        cfn = fits.Column(name='FILENAME', array=self.combine_keys("filename", "arr", "LCOGT"), 
+        cfn = fits.Column(name='FILENAME', array=self.files,
             format='A40')
         cpid = fits.Column(name='PROPOSID', array=self.combine_keys("proposid", "arr", "LCOGT"), 
             format='A32')
@@ -479,8 +479,9 @@ class Ullyses():
             format='A32')
         ccv = fits.Column(name='CAL_VER', array=self.combine_keys("cal_ver", "arr", "LCOGT"), 
             format='A32')
-        mjd_begs = self.combine_keys("expstart", "arr", "LCOGT")
-        mjd_ends = self.combine_keys("expend", "arr", "LCOGT")
+        
+        mjd_begs = self.photdf["mjdstart"].to_numpy()
+        mjd_ends = self.photdf["mjdend"].to_numpy()
         mjd_mids = (mjd_ends + mjd_begs) / 2.
         cdb = fits.Column(name='MJD_BEG', array=mjd_begs, format='F15.9', unit='d')
         cdm = fits.Column(name='MJD_MID', array=mjd_mids, format='F15.9', unit='d')
@@ -579,11 +580,11 @@ class Ullyses():
                          "filename": ("filename", 0),
                          "specres": ("spec_rp", 1),
                          "cal_ver": ("cf_vers", 0)},
-               "LCOGT": {"expstart": ("mjd-obs", 1),
+               "LCOGT": {"expstart": ("date-obs", 1),
                          "expend": ("exptime", 1),
                          "exptime": ("exptime", 1),
                          "telescop": ("telescop", 1),
-                         "instrume": ("telescop", 1),
+                         "instrume": ("instrume", 1),
                          "detector": ("telescop", 1),
                          "opt_elem": ("telescop", 1),
                          "proposid": ("propid", 1),
@@ -610,10 +611,14 @@ class Ullyses():
                 if tel == "FUSE" and key == "filename":
                     val = val.replace(".fit", "_vo.fits")
                 if tel == "LCOGT":
+                    dto = dt.strptime(self.first_headers[i]["date-obs"], "%Y-%m-%dT%H:%M:%S.%f")
+                    t = Time(dto, format="datetime")
+                    mjdstart = t.mjd
+                    if key == "expstart":
+                        val = mjdstart
                     if key == "expend":
-                        expstart = self.first_headers[i]["mjd-obs"]
                         exptime = self.first_headers[i]["exptime"]
-                        val = expstart + (exptime/86400) # seconds in a day
+                        val = mjdstart + (exptime/86400) # seconds in a day
                     elif key == "telescop":
                         val = f"LCOGT-{val}"
 
@@ -719,7 +724,8 @@ def make_lcogt_tss():
         filenames = df.filename.tolist()
         filepaths = [f"/astro/ullyses/lcogt_data/{targ}/{x}" for x in filenames]
         hlspname = f"hlsp_ullyses_lcogt_0.4m_{ull_targname.lower()}_v-iprime_{VERSION}_tss.fits"
-
-        U =Ullyses(filepaths, hlspname, ull_targname, ra, dec, CAL_VER, VERSION, 5, "lcogt", photfile=photfile)
+        outdir = f"/astro/ullyses/ULLYSES_HLSP/{targ}/{VERSION}"
+        outfile = os.path.join(outdir, hlspname)
+        U =Ullyses(filepaths, outfile, ull_targname, ra, dec, CAL_VER, VERSION, 5, "lcogt", photfile=photfile)
         U.make_hdrs_and_prov()
         U.write_file() 
