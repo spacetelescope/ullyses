@@ -1,3 +1,4 @@
+import re
 import glob
 import os
 import astropy
@@ -8,8 +9,11 @@ import datetime
 from datetime import datetime as dt
 from astropy.time import Time
 
+from ullyses_jira.parse_csv import parse_aliases
+
 VERSION = "dr3"
 CAL_VER = 1.0
+CODEDIR = os.path.dirname(__file__)
 
 class Ullyses():
     def __init__(self, files, hlspname, targname, ra, dec, cal_ver, version, 
@@ -18,13 +22,12 @@ class Ullyses():
         if hlsp_type == "lcogt":
             assert photfile is not None, "Photometry file must be supplied for LCOGT data"
             self.photfile = photfile
-            df = pd.read_csv(self.photfile, names=["filename", "mjdstart", "mjdend", "wl", "flux", "err"],
-                         header=None, delim_whitespace=True)
+            df = pd.read_csv(self.photfile, 
+                    names=["filename", "mjdstart", "mjdend", "wl", "flux", "err"],
+                    skiprows=[0], delim_whitespace=True)
             df = df.sort_values("mjdstart")
             self.photdf = df
-            self.files = df["filename"].values
-        else:
-            self.files = files
+        self.files = files
         self.primary_headers = []
         self.first_headers = []
         self.second_headers = []
@@ -307,8 +310,6 @@ class Ullyses():
         output_time1 = self.photdf["mjdend"].values
         output_wl = np.array(list(set(self.photdf["wl"].values)))
         output_wl.sort()
-        fluxes = self.mag_to_flux(self.photdf["mag"].values, self.photdf["filter"].values)
-        self.photdf["flux"] = fluxes
         for i in range(len(self.photdf)):
             wlind = np.where(output_wl == self.photdf.iloc[i]["wl"])[0]
             output_flux[i, wlind] = self.photdf.iloc[i]["flux"]
@@ -688,3 +689,37 @@ def make_imaging_hlsps():
             U = Ullyses([item], outfile, "NGC3109", ra, dec, CAL_VER, VERSION, 6, "drizzled")
             U.make_hdrs_and_prov()
             U.write_file()
+
+
+def make_lcogt_tss():
+    photfiles = glob.glob(os.path.join(CODEDIR, "lcogt_phot/photometry/*txt"))
+    for photfile in photfiles:
+        targ = os.path.basename(photfile).split("_")[0]
+        aliases = parse_aliases()
+        alias_mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ.upper())).any(), axis=1)
+        if set(alias_mask) != {False}:
+            ull_targname = aliases[alias_mask]["ULL_MAST_name"].values[0]
+            master_list = pd.read_json("pd_targetinfo.json", orient="split")
+            master_list = master_list.apply(lambda x: x.astype(str).str.upper())
+            try:
+                coords = master_list.loc[master_list["mast_targname"] == ull_targname][["ra", "dec"]].values
+                ra, dec = coords[0]
+            except:
+                print(f"NO COORDINATES FOUND FOR {ull_targname}")
+                ra, dec = (0, 0)
+        else:
+            ull_targname = targ
+            ra, dec = (0, 0)
+            print(f"NO ALIAS AND COORDINATES FOUND FOR {ull_targname}")
+
+        df = pd.read_csv(photfile, 
+                names=["filename", "mjdstart", "mjdend", "wl", "flux", "err"],
+                skiprows=[0], delim_whitespace=True)
+        df = df.sort_values("mjdstart")
+        filenames = df.filename.tolist()
+        filepaths = [f"/astro/ullyses/lcogt_data/{targ}/{x}" for x in filenames]
+        hlspname = f"hlsp_ullyses_lcogt_0.4m_{ull_targname.lower()}_v-iprime_{VERSION}_tss.fits"
+
+        U =Ullyses(filepaths, hlspname, ull_targname, ra, dec, CAL_VER, VERSION, 5, "lcogt", photfile=photfile)
+        U.make_hdrs_and_prov()
+        U.write_file() 
