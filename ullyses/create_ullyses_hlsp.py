@@ -463,7 +463,8 @@ class Ullyses():
         hdr = fits.Header()
         hdr['EXTNAME'] = ('PROVENANCE', 'Metadata for contributing observations')
         # set up the table columns
-        cfn = fits.Column(name='FILENAME', array=self.files,
+        files = [os.path.basename(x) for x in self.files]
+        cfn = fits.Column(name='FILENAME', array=files,
             format='A40')
         cpid = fits.Column(name='PROPOSID', array=self.combine_keys("proposid", "arr", "LCOGT"), 
             format='A32')
@@ -725,6 +726,8 @@ def make_lcogt_tss():
         filepaths = [f"/astro/ullyses/lcogt_data/{targ}/{x}" for x in filenames]
         hlspname = f"hlsp_ullyses_lcogt_0.4m_{ull_targname.lower()}_v-iprime_{VERSION}_tss.fits"
         outdir = f"/astro/ullyses/ULLYSES_HLSP/{targ}/{VERSION}"
+        if not os.path.exists(outdir):
+            os.makedirs(outdir)
         outfile = os.path.join(outdir, hlspname)
         U =Ullyses(filepaths, outfile, ull_targname, ra, dec, CAL_VER, VERSION, 5, "lcogt", photfile=photfile)
         U.make_hdrs_and_prov()
