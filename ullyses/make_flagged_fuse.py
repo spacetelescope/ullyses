@@ -13,6 +13,7 @@ drdir = "/astro/ullyses/all_vetted_data_dr3"
 # DQ=1 (Worm)
 # DQ=2 (Poor photometric quality)
 filestoedit = {
+# DR2 targets
 "AV232":         {"minwl": [1141],      "maxwl":[-1],           "dq":[1]},
 "AV15":          {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
 "AV16":          {"minwl": [1076],      "maxwl":[1090],         "dq":[2]},
@@ -47,14 +48,14 @@ filestoedit = {
 "AV210":         {"minwl": [1150],      "maxwl":[1170],         "dq":[1]},
 "N11-ELS-018":   {"minwl": [0,1090],    "maxwl":[990,1094.5],   "dq":[2,2]},
 "SK-69D279":     {"minwl": [1080,1180], "maxwl":[1090,-1],      "dq":[2,1]},
-# DR2
+# DR3 targets
 "2DFS-999":     {"minwl": [0],          "maxwl":[1000],         "dq":[2]},
 "AV26":         {"minwl": [1150],       "maxwl":[-1],           "dq":[1]}
 }
 
 # List of all FUSE DR targets. Commented lines are targets that had serious
 # data quality issues and will not be used in DR.
-fuse_dr1 = [ 
+fuse_dr2 = [ 
  'AV207',
  'SK-71D19',
 # 'AV83',
@@ -147,7 +148,7 @@ fuse_dr1 = [
  'AV327',
  'AV18']
 
-fuse_dr2 = [
+fuse_dr3 = [
  'AV490',
  'SK-67D166',
 # 'AV287',
@@ -178,7 +179,7 @@ fuse_dr2 = [
 
 targstoedit = list(filestoedit.keys())
 
-all_targs = fuse_dr1 + fuse_dr2
+all_targs = fuse_dr2 + fuse_dr3
 for targ in all_targs:
     vofiles0 = glob.glob(os.path.join("/astro/ullyses/fuse_data", targ, "*_vo.fits"))
     vofiles = [x for x in vofiles0 if "dqscreened" not in x]
@@ -189,6 +190,8 @@ for targ in all_targs:
     vofilename = os.path.basename(vofile)
     outfilename = "dqscreened_"+vofilename
     outfile = os.path.join("/astro/ullyses/fuse_data", targ, outfilename)
+    # We don't edit FUSE data from DR to DR, so if a product already exists,
+    # skip that target. This might change in the future.
     if os.path.exists(outfile):
         continue
     if targ in targstoedit:
