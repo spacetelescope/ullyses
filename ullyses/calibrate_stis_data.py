@@ -720,6 +720,11 @@ class StisMama(StisData):
 
 def wrapper(indir, yamlfile, dolog=True, logfile=None, outdir=None, 
             overwrite=True):
+    if "." in indir:
+        raise ValueError("Rename input directory to remove period characters")
+    if "." in outdir:
+        raise ValueError("Rename output directory to remove period characters")
+    config = read_config(yamlfile)
     config = read_config(yamlfile)
     infile = os.path.join(indir, config["infile"])
     detector = fits.getval(infile, "detector")
