@@ -500,35 +500,40 @@ class Ullyses():
     def make_drizzled_prov_ext(self):
         hdr = fits.Header()
         data = fits.getdata(self.files[0], 4)
+        inds = []
+        files = []
+        for i,f in enumerate(data["filename"]):
+            if f not in files:
+                files.append(f)
+                inds.append(i)
+
         hdr['EXTNAME'] = ('PROVENANCE', 'Metadata for contributing observations')
         # set up the table columns
-        cfn = fits.Column(name='FILENAME', array=data["filename"], 
+        cfn = fits.Column(name='FILENAME', array=data["filename"][inds], 
             format='A40')
-        cpid = fits.Column(name='PROPOSID', array=data["proposid"],
+        cpid = fits.Column(name='PROPOSID', array=data["proposid"][inds],
             format='A32')
-        ctel = fits.Column(name='TELESCOPE', array=data["telescop"],
+        ctel = fits.Column(name='TELESCOPE', array=data["telescop"][inds],
             format='A32')
-        cins = fits.Column(name='INSTRUMENT', array=data["instrume"],
+        cins = fits.Column(name='INSTRUMENT', array=data["instrume"][inds],
             format='A32')
-        cdet = fits.Column(name='DETECTOR', array=data["detector"],
+        cdet = fits.Column(name='DETECTOR', array=data["detector"][inds],
             format='A32')
-        cchip = fits.Column(name='CCDCHIP', array=data["ccdchip"],
+        cfil = fits.Column(name='FILTER', array=data["filter"][inds],
             format='A32')
-        cfil = fits.Column(name='FILTER', array=data["filter"],
+        cap = fits.Column(name='APERTURE', array=data["aperture"][inds],
             format='A32')
-        cap = fits.Column(name='APERTURE', array=data["aperture"],
+        ccv = fits.Column(name='CAL_VER', array=data["cal_ver"][inds],
             format='A32')
-        ccv = fits.Column(name='CAL_VER', array=data["cal_ver"],
-            format='A32')
-        mjd_begs = data["expstart"]
-        mjd_ends = data["expend"] 
+        mjd_begs = data["expstart"][inds]
+        mjd_ends = data["expend"][inds] 
         mjd_mids = (mjd_ends + mjd_begs) / 2.
         cdb = fits.Column(name='MJD_BEG', array=mjd_begs, format='F15.9', unit='d')
         cdm = fits.Column(name='MJD_MID', array=mjd_mids, format='F15.9', unit='d')
         cde = fits.Column(name='MJD_END', array=mjd_ends, format='F15.9', unit='d')
-        cexp = fits.Column(name='XPOSURE', array=data["exptime"], format='F15.9', unit='s')
+        cexp = fits.Column(name='XPOSURE', array=data["exptime"][inds], format='F15.9', unit='s')
 
-        cd2 = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cchip, cfil, cap, ccv, cdb, cdm, cde, cexp])
+        cd2 = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cfil, cap, ccv, cdb, cdm, cde, cexp])
         table2 = fits.BinTableHDU.from_columns(cd2, header=hdr)
         
         self.prov_hdr = hdr
