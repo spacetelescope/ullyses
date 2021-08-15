@@ -106,8 +106,12 @@ def copy_rename_yaml():
     print(f"\nCopied and renamed YAML files from {CONFIG_DIR} to {HLSPDIR}\n")
     
 
-if __name__ == "__main__":
+def main():
     make_custom_x1ds()
     coadd_blended_spectra()
     copy_rename_yaml()
     copy_products()
+
+
+if __name__ == "__main__":
+    main()
