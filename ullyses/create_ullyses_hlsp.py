@@ -730,7 +730,7 @@ def make_lcogt_tss():
         filenames = df.filename.tolist()
         filepaths = [f"/astro/ullyses/lcogt_data/{targ}/{x}" for x in filenames]
         hlspname = f"hlsp_ullyses_lcogt_0.4m_{ull_targname.lower()}_v-iprime_{VERSION}_tss.fits"
-        outdir = f"/astro/ullyses/ULLYSES_HLSP/{targ}/{VERSION}"
+        outdir = f"/astro/ullyses/ULLYSES_HLSP/{ull_targname}/{VERSION}"
         if not os.path.exists(outdir):
             os.makedirs(outdir)
         outfile = os.path.join(outdir, hlspname)
