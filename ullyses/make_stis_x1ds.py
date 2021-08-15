@@ -3,7 +3,7 @@ import shutil
 import numpy as np
 import os
 import glob
-from astropy.io import fits as pf
+from astropy.io import fits
 import matplotlib
 import matplotlib.pyplot as pl
 from stistools import x1d
@@ -13,11 +13,14 @@ from readwrite_yaml import read_config
 from calibrate_stis_data import wrapper
 from stis_coadd_x1d import coadd_1d_spectra
 
-TARGS = ["CVSO-104", "CVSO-107", "CVSO-109", "CVSO-146", "CVSO-165", "CVSO-17",
+TARGS = [# DR2
+       "CVSO-104", "CVSO-107", "CVSO-109", "CVSO-146", "CVSO-165", "CVSO-17",
        "CVSO-176", "CVSO-36", "CVSO-58", "CVSO-90", "V-TX-ORI", "V505-ORI",
-       "V510-ORI", "SZ10", "SZ45", "SZ71", "SZ75", "SZ77", "V-IN-CHA",
+       "V510-ORI", 
+       #DR3
+       "SZ10", "SZ45", "SZ69", "SZ71", "SZ72", "SZ75", "SZ77", "V-IN-CHA",
        "V-XX-CHA", "CHX18N", "2MASSJ11432669-7804454", "ECHA-J0844.2-7833",
-       "SZ72"]
+       "HN5", "SSTc2dJ160000.6-422158"]
 
 VERSION = "dr3"
 HLSPDIR = "/astro/ullyses/ULLYSES_HLSP"
@@ -54,10 +57,11 @@ def copy_products(outdir_root=OUTDIR_ROOT):
     for targ in TARGS:
         outdir = os.path.join(CUSTOM_CAL, targ, outdir_root)
         files = glob.glob(os.path.join(outdir, "*x1d.fits"))
-        destdir = os.path.join(VETTED_DIR, targ.lower(), VERSION)
-        if not os.path.exists(destdir):
-            os.makedirs(destdir)
         for item in files:
+            actualtarg = fits.getval(item, "targname").lower()
+            destdir = os.path.join(VETTED_DIR, actualtarg, VERSION)
+            if not os.path.exists(destdir):
+                os.makedirs(destdir)
             shutil.copy(item, destdir)
     print(f"\nCopied TTS final products from {CUSTOM_CAL}/*/{outdir_root} to {VETTED_DIR}\n")
 
