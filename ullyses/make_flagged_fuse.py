@@ -7,12 +7,12 @@ import matplotlib.pyplot as pl
 
 from fuse_add_dq import add_dq_col
 
-drdir = "/astro/ullyses/all_vetted_data_dr3"
+DRDIR = "/astro/ullyses/all_vetted_data_dr3"
 
 # DR1 FUSE targets that require custom flagging
 # DQ=1 (Worm)
 # DQ=2 (Poor photometric quality)
-filestoedit = {
+FILESTOEDIT = {
 # DR2 targets
 "AV232":         {"minwl": [1141],      "maxwl":[-1],           "dq":[1]},
 "AV15":          {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
@@ -55,7 +55,7 @@ filestoedit = {
 
 # List of all FUSE DR targets. Commented lines are targets that had serious
 # data quality issues and will not be used in DR.
-fuse_dr2 = [ 
+FUSE_DR2 = [ 
  'AV207',
  'SK-71D19',
 # 'AV83',
@@ -148,7 +148,7 @@ fuse_dr2 = [
  'AV327',
  'AV18']
 
-fuse_dr3 = [
+FUSE_DR3 = [
  'AV490',
  'SK-67D166',
 # 'AV287',
@@ -177,28 +177,45 @@ fuse_dr3 = [
  'SK-67D118'] 
 # 'SK-68D16'
 
-targstoedit = list(filestoedit.keys())
 
-all_targs = fuse_dr2 + fuse_dr3
-for targ in all_targs:
-    vofiles0 = glob.glob(os.path.join("/astro/ullyses/fuse_data", targ, "*_vo.fits"))
-    vofiles = [x for x in vofiles0 if "dqscreened" not in x]
-    if len(vofiles) > 1:
-        print(f"more than one VO file for {targ}, exiting")
-        break
-    vofile = vofiles[0]
-    vofilename = os.path.basename(vofile)
-    outfilename = "dqscreened_"+vofilename
-    outfile = os.path.join("/astro/ullyses/fuse_data", targ, outfilename)
-    # We don't edit FUSE data from DR to DR, so if a product already exists,
-    # skip that target. This might change in the future.
-    if os.path.exists(outfile):
-        continue
-    if targ in targstoedit:
-        pars = filestoedit[targ] 
-        add_dq_col(vofile, outfile, pars["minwl"], pars["maxwl"], pars["dq"], overwrite=True)
-    else:
-        add_dq_col(vofile, outfile, [], [], [], overwrite=True)
+def flag_data():
+    targstoedit = list(FILESTOEDIT.keys())
+    all_targs = FUSE_DR2 + FUSE_DR3
+    for targ in all_targs:
+        vofiles0 = glob.glob(os.path.join("/astro/ullyses/fuse_data", targ, "*_vo.fits"))
+        vofiles = [x for x in vofiles0 if "dqscreened" not in x]
+        if len(vofiles) > 1:
+            print(f"more than one VO file for {targ}, exiting")
+            break
+        vofile = vofiles[0]
+        vofilename = os.path.basename(vofile)
+        outfilename = "dqscreened_"+vofilename
+        outfile = os.path.join("/astro/ullyses/fuse_data", targ, outfilename)
+        # We don't edit FUSE data from DR to DR, so if a product already exists,
+        # skip that target. This might change in the future.
+        if os.path.exists(outfile):
+            continue
+        if targ in targstoedit:
+            pars = FILESTOEDIT[targ] 
+            add_dq_col(vofile, outfile, pars["minwl"], pars["maxwl"], pars["dq"], overwrite=True)
+        else:
+            add_dq_col(vofile, outfile, [], [], [], overwrite=True)
+    print("Flagged VO files")
 
-    shutil.copy(outfile, os.path.join(drdir, targ.lower()))
 
+def copy_data():
+    all_targs = FUSE_DR2 + FUSE_DR3
+    for targ in all_targs:
+        screened = glob.glob(os.path.join("/astro/ullyses/fuse_data", targ, "dqscreened*_vo.fits"))
+        for item in screened:
+            shutil.copy(item, os.path.join(DRDIR, targ.lower()))
+    print(f"Copied flagged files to {DRDIR}")
+
+
+def main():
+    flag_data()
+    copy_data()
+
+
+if __name__ == "__main__":
+    main()
