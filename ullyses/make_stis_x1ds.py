@@ -14,13 +14,13 @@ from calibrate_stis_data import wrapper
 from stis_coadd_x1d import coadd_1d_spectra
 
 TARGS = [# DR2
-       "CVSO-104", "CVSO-107", "CVSO-109", "CVSO-146", "CVSO-165", "CVSO-17",
-       "CVSO-176", "CVSO-36", "CVSO-58", "CVSO-90", "V-TX-ORI", "V505-ORI",
-       "V510-ORI", 
-       #DR3
-       "SZ10", "SZ45", "SZ69", "SZ71", "SZ72", "SZ75", "SZ77", "V-IN-CHA",
-       "V-XX-CHA", "CHX18N", "2MASSJ11432669-7804454", "ECHA-J0844.2-7833",
-       "HN5", "SSTc2dJ160000.6-422158"]
+       "cvso-104", "cvso-107", "cvso-109", "cvso-146", "cvso-165", "cvso-17",
+       "cvso-176", "cvso-36", "cvso-58", "cvso-90", "v-tx-ori", "v505-ori",
+       "v510-ori", 
+       #dr3
+       "sz10", "sz45", "sz69", "sz71", "sz72", "sz75", "sz77", "v-in-cha",
+       "v-xx-cha", "chx18n", "2massj11432669-7804454", "echa-j0844.2-7833",
+       "hn5", "sstc2dj160000.6-422158"]
 
 VERSION = "dr3"
 HLSPDIR = "/astro/ullyses/ULLYSES_HLSP"
@@ -38,8 +38,12 @@ if OUTDIR_ROOT is None:
 
 def copy_rawfiles():
     for targ in TARGS:
-        files = glob.glob(os.path.join(DATADIR, targ, "o*fits"))
-        destdir = os.path.join(CUSTOM_CAL, targ)
+        files = glob.glob(os.path.join(DATADIR, targ.upper(), "o*fits"))
+        # Targs with periods in their name must be specially renamed or defringe will crash
+        if "." in targ:
+            spl = targ.split(".")
+            targ = "".join(spl)
+        destdir = os.path.join(CUSTOM_CAL, targ.lower())
         if not os.path.exists(destdir):
             os.makedirs(destdir)
         for item in files:
@@ -47,7 +51,7 @@ def copy_rawfiles():
 
     # A special fringeflat is needed for CVSO-109, copy it
     origin = os.path.join(DATADIR, "CVSO-104", "oe9k1s050_raw.fits")
-    dest = os.path.join(CUSTOM_CAL, "CVSO-109")
+    dest = os.path.join(CUSTOM_CAL, "cvso-109")
     shutil.copy(origin, dest)
 
     print(f"\nCopied TTS data from {DATADIR} to {CUSTOM_CAL}\n")
@@ -55,7 +59,12 @@ def copy_rawfiles():
 
 def copy_products(outdir_root=OUTDIR_ROOT):
     for targ in TARGS:
-        outdir = os.path.join(CUSTOM_CAL, targ, outdir_root)
+        if "." in targ:
+            spl = targ.split(".")
+            dirtarg = "".join(spl)
+        else:
+            dirtarg = targ
+        outdir = os.path.join(CUSTOM_CAL, dirtarg.lower(), outdir_root)
         files = glob.glob(os.path.join(outdir, "*x1d.fits"))
         for item in files:
             actualtarg = fits.getval(item, "targname").lower()
@@ -70,22 +79,29 @@ def make_custom_x1ds(outdir_root=OUTDIR_ROOT):
     configs = glob.glob(os.path.join(CONFIG_DIR, "*yaml"))
     for config in configs:
         config_name = os.path.basename(config)
-        targ = config_name.split("_")[0]
-        indir = os.path.join(CUSTOM_CAL, targ.upper())
+        if config_name == "target_grating.yaml":
+            continue
+        targ = config_name.split("_")[0].lower()
+        if "." in targ:
+            spl = targ.split(".")
+            dirtarg = "".join(spl)
+        else:
+            dirtarg = targ
+        indir = os.path.join(CUSTOM_CAL, dirtarg)
         outdir = os.path.join(indir, outdir_root)
         wrapper(indir, config, outdir=outdir)
     print(f"\nMade custom products for data in {CUSTOM_CAL}, wrote to {CUSTOM_CAL}/*/{outdir_root}\n")
 
 
 def coadd_blended_spectra(outdir_root=OUTDIR_ROOT):
-    d = {"CVSO-109": [["oe9k2s020_CVSO-109A_x1d.fits", "oe9k2s020_CVSO-109B_x1d.fits"],
-                      ["oe9k2s030_CVSO-109A_x1d.fits", "oe9k2s030_CVSO-109B_x1d.fits"],
-                      ["oe9k2s010_CVSO-109A_x1d.fits", "oe9k2s010_CVSO-109B_x1d.fits"]],
-         "CVSO-165": [["oe9j2s010_CVSO-165A_x1d.fits", "oe9j2s010_CVSO-165B_x1d.fits"]]}
+    d = {"cvso-109": [["oe9k2s020_cvso-109a_x1d.fits", "oe9k2s020_cvso-109b_x1d.fits"],
+                      ["oe9k2s030_cvso-109a_x1d.fits", "oe9k2s030_cvso-109b_x1d.fits"],
+                      ["oe9k2s010_cvso-109a_x1d.fits", "oe9k2s010_cvso-109b_x1d.fits"]],
+         "cvso-165": [["oe9j2s010_cvso-165a_x1d.fits", "oe9j2s010_cvso-165b_x1d.fits"]]}
     for targ in d:
         for pair in d[targ]:
             files0 = pair
-            indir = os.path.join(CUSTOM_CAL, targ, outdir_root)
+            indir = os.path.join(CUSTOM_CAL, targ.lower(), outdir_root)
             files = [os.path.join(indir, x) for x in files0]
             coadd_1d_spectra(files, targ, outdir=indir)
     print(f"\nMade coadded blended spectra for {d.keys()}, wrote to {CUSTOM_CAL}/*{outdir_root}\n")
@@ -96,7 +112,7 @@ def copy_rename_yaml():
     for item in yamlfiles:
         f = os.path.basename(item)
         spl = f.split("_")
-        targ = spl[0]
+        targ = spl[0].lower()
         grating = spl[1].split(".")[0]
         newname = f"hlsp_ullyses_hst_stis_{targ}_{grating}_{VERSION}_spec.yaml"
         dest = os.path.join(HLSPDIR, targ, VERSION)
@@ -107,6 +123,7 @@ def copy_rename_yaml():
     
 
 def main():
+#    copy_rawfiles()
     make_custom_x1ds()
     coadd_blended_spectra()
     copy_rename_yaml()
