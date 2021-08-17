@@ -7,8 +7,8 @@ import numpy as np
 
 from astropy.io import fits
 
-from .coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDSegmentList
-from .coadd import abut
+from coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDSegmentList
+from coadd import abut
 
 default_version = 'dr2'
 PROD_DIR = "/astro/ullyses/ULLYSES_HLSP"

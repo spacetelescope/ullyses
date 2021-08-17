@@ -7,7 +7,7 @@ import datetime
 from datetime import datetime as dt
 import re
 import numpy as np
-from hlsp import coadd, wrapper
+import coadd, wrapper
 from costools import splittag
 import calcos
 import glob
