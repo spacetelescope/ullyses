@@ -150,11 +150,11 @@ FUSE_DR2 = [
 
 FUSE_DR3 = [
  'AV490',
- 'SK-67D166',
+# 'SK-67D166', # This data was good, there was no accompanying HST data for DR3
 # 'AV287',
  'SK-66D51',
  'HD38029',
- 'SK-70D60',
+# 'SK-70D60', # This data was good, there was no accompanying HST data for DR3
  'SK-69D175',
 # 'SK-69D220',
  'SK-67D167',
