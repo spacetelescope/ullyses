@@ -128,6 +128,7 @@ class SegmentList:
                             cenwave = hdulist[0].header['CENWAVE']
                             fppos = hdulist[0].header['FPPOS']
                         self.members.append(segment)
+        self.targ_ra, self.targ_dec = self.ull_coords()
 
     def create_output_wavelength_grid(self):
         min_wavelength = 10000.0
