@@ -14,7 +14,7 @@ from astropy.time import Time
 # coadd data
 #
 
-CAL_VER = 1.0
+CAL_VER = 1.1
 RED = "\033[1;31m"
 RESET = "\033[0;0m"
 
