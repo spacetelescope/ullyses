@@ -10,7 +10,7 @@ from astropy.io import fits
 from coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDSegmentList
 from coadd import abut
 
-default_version = 'dr2'
+default_version = 'dr3'
 PROD_DIR = "/astro/ullyses/ULLYSES_HLSP"
 
 '''
