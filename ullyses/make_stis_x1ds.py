@@ -68,7 +68,7 @@ def copy_products(outdir_root=OUTDIR_ROOT):
         files = glob.glob(os.path.join(outdir, "*x1d.fits"))
         for item in files:
             actualtarg = fits.getval(item, "targname").lower()
-            destdir = os.path.join(VETTED_DIR, actualtarg, VERSION)
+            destdir = os.path.join(VETTED_DIR, actualtarg)
             if not os.path.exists(destdir):
                 os.makedirs(destdir)
             shutil.copy(item, destdir)
