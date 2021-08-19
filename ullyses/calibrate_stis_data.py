@@ -253,7 +253,7 @@ class StisData():
             print("\n", f" EXTRACTING {target} ".center(NCOLS, SYM), "\n")
             pars = target_pars["x1d"]
         
-            outfile = os.path.join(self.outdir, f"{self.rootname}_{target}_x1d.fits")
+            outfile = os.path.join(self.outdir, f"{self.rootname}_{target.lower()}_x1d.fits")
             self.target_dict[target]["out_x1d"] = outfile
             kwargs = {}
             if "out_drj" not in target_pars:
