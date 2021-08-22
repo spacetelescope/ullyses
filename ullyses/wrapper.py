@@ -171,18 +171,32 @@ def main(indir, outdir, version=default_version, clobber=False):
         # Only go through this exercise if there is data for more than one instrument
         if len(set(ins)) != 1:
             df = pd.DataFrame({"gratings": gratings, "ins": ins, "minwls": minwls, "maxwls": maxwls})
-            # Start with the bluest product, and remove rows from the dataframe
-            # until no rows remain.
-            lowind = df["minwls"].idxmin()
-            shortestwl = df.loc[lowind, "minwls"]
             used = pd.DataFrame()
-            used = used.append(df.loc[lowind])
-            maxwl = df.loc[lowind, "maxwls"]
-            df = df.drop(lowind)
+            # Start with the bluest product, and remove rows from the dataframe
+            # until no rows remain. The only exception is if the bluest product is 
+            # STIS/echelle *and* G130M+G160M combo exists. Then use G130M+G160M as bluest
+            # and ignore STIS/echelle 
+            lowind = df["minwls"].idxmin()
+            if df.loc[lowind, "gratings"] in ["E140M", "E140H"]:
+                if "G130M" in gratings and "G160M" in gratings:
+                    g130mind = df.loc[df["gratings"] == "G130M"].index.values
+                    used = used.append(df.loc[g130mind])
+                    shortestwl = df.loc[g130mind[0], "minwls"]
+                    df = df.drop(index=g130mind)
+                    g160mind = df.loc[df["gratings"] == "G160M"].index.values
+                    used = used.append(df.loc[g160mind])
+                    maxwl = df.loc[g160mind[0], "maxwls"]
+                    df = df.drop(index=g160mind)
+                    df = df.drop(index=lowind)
+            else:
+                used = used.append(df.loc[lowind])
+                maxwl = df.loc[lowind, "maxwls"]
+                df = df.drop(lowind)
             while len(df) > 0:
                 lowind = df.loc[(df["minwls"] < maxwl) & (df["maxwls"] > maxwl)].index.values
                 # If G130M and G160M both exist for a given target, *always* 
                 # abut them together regardless of other available gratings.
+                # This captures the case where there is FUSE bluer than COS/FUV.
                 if "G130M" in used.gratings.values and "G160M" in gratings and "G160M" not in used.gratings.values:
                     lowind = df.loc[df["gratings"] == "G160M"].index.values
                     maxwl = df.loc[lowind[0], "maxwls"]
@@ -214,7 +228,6 @@ def main(indir, outdir, version=default_version, clobber=False):
                 badinds = df.loc[(df["minwls"] > shortestwl) & (df["maxwls"] < maxwl)].index.values
                 if len(badinds) > 0:
                     df = df.drop(index=badinds)
-            
             # If more than one instrument was selected for abutting,
             # create level 4 product.
             if len(set(used["ins"].values)) > 1:
