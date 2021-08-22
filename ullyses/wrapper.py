@@ -189,6 +189,7 @@ def main(indir, outdir, version=default_version, clobber=False):
                     df = df.drop(index=g160mind)
                     df = df.drop(index=lowind)
             else:
+                shortestwl = df.loc[lowind, "minwls"]
                 used = used.append(df.loc[lowind])
                 maxwl = df.loc[lowind, "maxwls"]
                 df = df.drop(lowind)
