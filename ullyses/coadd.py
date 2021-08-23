@@ -582,6 +582,21 @@ class FUSESegmentList(SegmentList):
 
 class CCDSegmentList(SegmentList):
 
+    def __init__(self, grating, path, weighting_method='throughput'):
+        SegmentList.__init__(self, grating, path)
+
+        self.weighting_method = weighting_method
+
+    def get_flux_weight(self, segment):
+       exptime = segment.exptime
+       gross = segment.data['gross']
+       net = segment.data['net']
+       flux = segment.data['flux']
+
+       weighted_gross = weight_function[self.weighting_method](gross, exptime, net/flux)
+
+       return np.abs(weighted_gross)
+
     def create_output_wavelength_grid(self):
         if len(self.members) == 1:
             #
@@ -621,6 +636,7 @@ class CCDSegmentList(SegmentList):
 
         self.nelements = len(self.output_wavelength)
         self.output_sumflux = np.zeros(self.nelements)
+        self.output_sumerrors = np.zeros(self.nelements)
         self.output_sumweight = np.zeros(self.nelements)
         self.output_flux = np.zeros(self.nelements)
         self.output_errors = np.zeros(self.nelements)
@@ -647,25 +663,29 @@ class CCDSegmentList(SegmentList):
             self.first_good_wavelength = self.output_wavelength[good_dq][0]
             self.last_good_wavelength = self.output_wavelength[good_dq][-1]
         else:
+            nelements = len(self.output_wavelength)
+            self.output_sumsqerrors = np.zeros(nelements)
             for segment in self.members:
                 goodpixels = np.where((segment.data['dq'] & segment.sdqflags) == 0)
                 wavelength = segment.data['wavelength'][goodpixels]
                 indices = self.wavelength_to_index(wavelength)
-                inverse_variance = self.get_inverse_variance(segment)
-                weight = inverse_variance[goodpixels]
+                npts = len(indices)
+                weight = self.get_flux_weight(segment)[goodpixels]
                 flux = segment.data['flux'][goodpixels]
-                self.output_sumweight[indices] = self.output_sumweight[indices] + weight
-                self.output_sumflux[indices] = self.output_sumflux[indices] + flux * weight
-                self.output_exptime[indices] = self.output_exptime[indices] + segment.exptime
+                err = segment.data['error'][goodpixels]
+                for i in range(npts):
+                    self.output_sumweight[indices[i]] = self.output_sumweight[indices[i]] + weight[i]
+                    self.output_sumflux[indices[i]] = self.output_sumflux[indices[i]] + flux[i] * weight[i]
+                    self.output_sumsqerrors[indices[i]] = self.output_sumsqerrors[indices[i]] + (err[i] * weight[i])**2 
+                    self.output_exptime[indices[i]] = self.output_exptime[indices[i]] + segment.exptime
             good_dq = np.where(self.output_exptime > 0.)
             self.first_good_wavelength = self.output_wavelength[good_dq][0]
             self.last_good_wavelength = self.output_wavelength[good_dq][-1]
             nonzeros = np.where(self.output_sumweight != 0)
             self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / self.output_sumweight[nonzeros]
-            # For the moment calculate errors from the gross counts
-            self.output_errors[nonzeros] = np.sqrt(self.output_sumweight[nonzeros])
-            self.signal_to_noise[nonzeros] = self.output_sumweight[nonzeros] / self.output_errors[nonzeros]
-            self.output_errors[nonzeros] = np.abs(self.output_flux[nonzeros] / self.signal_to_noise[nonzeros])
+            self.output_errors[nonzeros] = np.sqrt(self.output_sumsqerrors[nonzeros]) / self.output_sumweight[nonzeros]
+            self.signal_to_noise[nonzeros] = self.output_flux[nonzeros] / self.output_errors[nonzeros]
+#            self.output_errors[nonzeros] = np.abs(self.output_flux[nonzeros] / self.signal_to_noise[nonzeros])
         return
 
     def get_inverse_variance(self, segment):
