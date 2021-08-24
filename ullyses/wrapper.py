@@ -250,6 +250,10 @@ def create_output_file_name(prod, version=default_version, level=3):
     version = version.lower()
     aperture = prod.aperture.lower()
 
+    # Target names can't have a period in them or it breaks MAST
+    if "." in target:
+        target = target.replace(".", "")
+
     if level == 0:
         tel = 'hst'
         suffix = "spec"
