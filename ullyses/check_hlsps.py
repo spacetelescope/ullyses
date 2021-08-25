@@ -58,7 +58,7 @@ def compare_x1ds(newhlsp):
             # Special handling for FUSE data
             if "vo.fits" in x1d:
                 x1d = os.path.join(DRDIR, targ.lower(), f"dqscreened_{x1d_filenames[i].lower()}")
-                sdq = 2
+                sdq = 3
                 wlarr = "wave"
                 if arr == "error":
                     arr = "sigma"
