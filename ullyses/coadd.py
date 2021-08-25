@@ -40,7 +40,7 @@ class SegmentList:
         self.aperture = ''
         self.s_region = ''
         self.obsmode = ''
-        self.targname = []
+        self.targnames = []
         self.targ_ra = ''
         self.targ_dec = ''
         self.target = ''
@@ -63,9 +63,9 @@ class SegmentList:
                     gratinglist.append(f1)
                     self.instrument = prihdr['INSTRUME']
                     self.datasets.append(file)
-                    target = prihdr['TARGNAME']
-                    if target not in self.targname:
-                        self.targname.append(target.strip())
+                    target = prihdr['TARGNAME'].strip()
+                    if target not in self.targnames:
+                        self.targnames.append(target)
                     try:
                         if prihdr['HLSP_LVL'] == 0:
                             self.level0 = True
@@ -88,9 +88,9 @@ class SegmentList:
                     aperture = prihdr["APERTURE"]
                     self.aperture = aperture
                     self.datasets.append(file)
-                    target = prihdr['TARGNAME']
-                    if target not in self.targname:
-                        self.targname.append(target.strip())
+                    target = prihdr['TARGNAME'].strip()
+                    if target not in self.targnames:
+                        self.targnames.append(target)
                 else:
                     print('{} has no data'.format(file))
 
@@ -231,8 +231,13 @@ class SegmentList:
 
     def write(self, filename, overwrite=False, level="", version=""):
         
+        # If the target is a ULLYSES target, use the official
+        # target name and coords
+        self.target = self.ull_targname()
+        self.targ_ra, self.targ_dec = self.ull_coords()
+
         # Table 1 - HLSP data
-    
+            
         # set up the header
         hdr1 = fits.Header()
         hdr1['EXTNAME'] = ('SCIENCE', 'Spectrum science arrays')
@@ -291,7 +296,7 @@ class SegmentList:
         hdr0['APERTURE'] = (self.combine_keys("aperture", "multi"), 'Identifier of entrance aperture')
         hdr0['S_REGION'] = (self.obs_footprint(), 'Region footprint')
         hdr0['OBSMODE'] = (self.combine_keys("obsmode", "multi"), 'Instrument operating mode (ACCUM | TIME-TAG)')
-        hdr0['TARGNAME'] = self.targname[0]
+        hdr0['TARGNAME'] = self.target
         hdr0.add_blank(after='OBSMODE')
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
@@ -389,13 +394,14 @@ class SegmentList:
 
     def ull_targname(self):
         aliases = pd.read_json("pd_all_aliases.json", orient="split")
-        targ_set = list(set([h["targname"] for h in self.primary_headers]))
-        if len(targ_set) == 1:
-            ull_targname = targ_set[0]
+        # These are just preliminary target names, in case we can't find a match
+        if len(self.targnames) == 1:
+            ull_targname = self.targnames[0]
         else:
             ull_targname = self.primary_headers[0]["targname"]
         targ_matched = False
-        for targ in self.targname:
+        for targ in self.targnames:
+            # The alias file is all uppercase
             targ_upper = targ.upper()
             mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ_upper)).any(), axis=1)
             if set(mask) != {False}:
@@ -760,13 +766,13 @@ def abut(product_short, product_long):
         if product_short.target == product_long.target:
             product_abutted.target = product_short.target
             target_matched = True
-            product_abutted.targname = [product_short.target, product_long.target]
+            product_abutted.targnames = [product_short.target, product_long.target]
         else:
-            for target_name in product_short.targname:
-                if target_name in product_long.targname:
+            for target_name in product_short.targnames:
+                if target_name in product_long.targnames:
                     product_abutted.target = product_abutted.ull_targname()
                     target_matched = True
-                    product_abutted.targname = [target_name]
+                    product_abutted.targnames = [target_name]
         if not target_matched:
             product_abutted = None
             print(f'Trying to abut spectra from 2 different targets:')
