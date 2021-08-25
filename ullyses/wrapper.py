@@ -94,8 +94,10 @@ def main(indir, outdir, version=default_version, clobber=False):
                 prod.target = prod.ull_targname()
                 prod.targ_ra, prod.targ_dec = prod.ull_coords()
                 target = prod.target.lower()
+                if "." in target:
+                    dir_target = target.replace(".", "")
                 if outdir_inplace is True:
-                    outdir = os.path.join(PROD_DIR, target, version)
+                    outdir = os.path.join(PROD_DIR, dir_target, version)
                 if not os.path.exists(outdir):
                     os.makedirs(outdir)
                 if instrument != 'FUSE': # FUSE data is written as level 3 product below
@@ -112,8 +114,10 @@ def main(indir, outdir, version=default_version, clobber=False):
                 # this writes the output file
                 # If making HLSPs for a DR, put them in the official folder
                 target = prod.target.lower()
+                if "." in target:
+                    dir_target = target.replace(".", "")
                 if outdir_inplace is True:
-                    outdir = os.path.join(PROD_DIR, target, version)
+                    outdir = os.path.join(PROD_DIR, dir_target, version)
                 if not os.path.exists(outdir):
                     os.makedirs(outdir)
                 outname = create_output_file_name(prod, version, level=0)
