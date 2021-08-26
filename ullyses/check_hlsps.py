@@ -49,7 +49,12 @@ def compare_x1ds(newhlsp):
     # These are the 1D spectra that contributed to the HLSP
     targ = fits.getval(newhlsp, "targname")
     x1d_filenames = prov['filename']
-    x1ds = [os.path.join(DRDIR, targ.lower(), x1d) for x1d in x1d_filenames]
+    x1d_rootnames = [x.split("_")[0] for x in x1d_filenames]
+    x1ds = []
+    for item in x1d_rootnames:
+        x1d = glob.glob(os.path.join(DRDIR, targ.lower(), item+"*.fits"))
+        assert len(x1d) == 1, f"More than one matching file found for {item}"
+        x1ds.append(x1d[0])
 
     # Plot wavelength vs flux and error for the HLSP and all constituent files
     for arr in ["flux", "error"]:
