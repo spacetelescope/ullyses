@@ -222,8 +222,8 @@ class SegmentList:
                                         conversion[good])
         conversion[bad] = interpolated_values
         # Use conversion to calculate error in flux units (erg/cm^2/s/Ang)
-        self.output_errors[nonzeros] = np.abs(self.output_errors[nonzeros] * conversion)
-        self.signal_to_noise[nonzeros] = np.abs(self.output_flux[nonzeros] / self.output_errors[nonzeros])
+        self.output_errors[nonzeros] = self.output_errors[nonzeros] * conversion
+        self.signal_to_noise[nonzeros] = self.output_flux[nonzeros] / self.output_errors[nonzeros]
         return
 
     def write(self, filename, overwrite=False, level="", version=""):
