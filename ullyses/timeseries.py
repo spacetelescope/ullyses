@@ -14,7 +14,7 @@ import glob
 import os
 
 SECONDS_PER_DAY = 86400.0
-version = wrapper.default_version
+version = wrapper.DEFAULT_VERSION
 
 """
     Timeseries product creation code.
