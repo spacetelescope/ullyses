@@ -94,6 +94,11 @@ def make_custom_x1ds(outdir_root=OUTDIR_ROOT):
 
 
 def coadd_blended_spectra(outdir_root=OUTDIR_ROOT):
+    """
+    VERY IMPORTANT: the second listed target for each set of two needs to be the
+    companion. The DQ arrays of the companion are ignored with coadding the two
+    spectra. 
+    """
     d = {"cvso-109": [["oe9k2s020_cvso-109a_x1d.fits", "oe9k2s020_cvso-109b_x1d.fits"],
                       ["oe9k2s030_cvso-109a_x1d.fits", "oe9k2s030_cvso-109b_x1d.fits"],
                       ["oe9k2s010_cvso-109a_x1d.fits", "oe9k2s010_cvso-109b_x1d.fits"]],

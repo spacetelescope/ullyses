@@ -314,7 +314,8 @@ class StisData():
                 hdulist[0].header["ULL_CAL"] = "COMPLETE"
                 hdulist[0].header["CAL_DATE"] = nowdt_str
                 hdulist[0].header["TARGNAME"] = target.upper()
-                hdulist[0].header["FILENAME"] = os.path.basename(target_pars["out_x1d"])
+                hdr_filename = self.rootname + "_x1d.fits"
+                hdulist[0].header["FILENAME"] = hdr_filename
                 if "coords" in target_pars:
                     hdulist[0].header["RA_TARG"] = target_pars["coords"]["ra"]
                     hdulist[0].header["DEC_TARG"] = target_pars["coords"]["dec"]

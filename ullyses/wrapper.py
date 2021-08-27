@@ -10,15 +10,23 @@ from astropy.io import fits
 from coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDSegmentList
 from coadd import abut
 
-default_version = 'dr3'
+DEFAULT_VERSION = 'dr3'
 PROD_DIR = "/astro/ullyses/ULLYSES_HLSP"
+# Some targets have periods in their name and these can break MAST ingest
+# Rename them to remove periods and strip any trailing numbers after periods
+RENAME = {"moa-j010321.3-720538": "moa-j010321-720538",
+          "sstc2dj160830.7-382827": "sstc2dj160830-382827",
+          "echa-j0844.2-7833": "echa-j0844-7833",
+          "sstc2dj160000.6-422158": "sstc2dj160000-422158",
+          "echa-j0843.3-7915": "echa-j0843-7915",
+          "ogle-j004942.75-731717.7": "ogle-j004942-731717"}
 
 '''
 This wrapper goes through each target folder in the ullyses data directory and find
 the data and which gratings are present. This info is then fed into coadd.py.
 '''
 
-def main(indir, outdir, version=default_version, clobber=False):
+def main(indir, outdir, version=DEFAULT_VERSION, clobber=False):
     outdir_inplace = False
     if outdir is None:
         outdir_inplace = True
@@ -94,8 +102,12 @@ def main(indir, outdir, version=default_version, clobber=False):
                 prod.target = prod.ull_targname()
                 prod.targ_ra, prod.targ_dec = prod.ull_coords()
                 target = prod.target.lower()
+                if target in RENAME:
+                    dir_target = RENAME[target]
+                else:
+                    dir_target = target
                 if outdir_inplace is True:
-                    outdir = os.path.join(PROD_DIR, target, version)
+                    outdir = os.path.join(PROD_DIR, dir_target, version)
                 if not os.path.exists(outdir):
                     os.makedirs(outdir)
                 if instrument != 'FUSE': # FUSE data is written as level 3 product below
@@ -112,8 +124,12 @@ def main(indir, outdir, version=default_version, clobber=False):
                 # this writes the output file
                 # If making HLSPs for a DR, put them in the official folder
                 target = prod.target.lower()
+                if target in RENAME:
+                    dir_target = RENAME[target]
+                else:
+                    dir_target = target
                 if outdir_inplace is True:
-                    outdir = os.path.join(PROD_DIR, target, version)
+                    outdir = os.path.join(PROD_DIR, dir_target, version)
                 if not os.path.exists(outdir):
                     os.makedirs(outdir)
                 outname = create_output_file_name(prod, version, level=0)
@@ -243,7 +259,7 @@ def main(indir, outdir, version=default_version, clobber=False):
                 print(f"   Wrote {filename}")
 
 
-def create_output_file_name(prod, version=default_version, level=3):
+def create_output_file_name(prod, version=DEFAULT_VERSION, level=3):
     instrument = prod.instrument.lower()   # will be either cos, stis, or fuse. If abbuted can be cos-stis or cos-stis-fuse
     grating = prod.grating.lower()
     target = prod.target.lower()
@@ -251,8 +267,8 @@ def create_output_file_name(prod, version=default_version, level=3):
     aperture = prod.aperture.lower()
 
     # Target names can't have a period in them or it breaks MAST
-    if "." in target:
-        target = target.replace(".", "")
+    if target.lower() in RENAME:
+        target = RENAME[target]
 
     if level == 0:
         tel = 'hst'
@@ -291,7 +307,7 @@ if __name__ == '__main__':
                         help="Directory(ies) with data to combine")
     parser.add_argument("-o", "--outdir", default=None,
                         help="Directory for output HLSPs")
-    parser.add_argument("-v", "--version", default=default_version, 
+    parser.add_argument("-v", "--version", default=DEFAULT_VERSION, 
                         help="Version number of the HLSP")
     parser.add_argument("-c", "--clobber", default=False,
                         action="store_true",
