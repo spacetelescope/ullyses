@@ -206,27 +206,24 @@ class SegmentList:
         if self.instrument == 'COS':
             # Using the variances (which only COS has) gives spikes in the error when the flux goes negative.
             self.output_varsum[nonzeros] = np.where(self.output_varsum[nonzeros] < 0.5, 0.5, self.output_varsum[nonzeros])
-            self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / self.output_sumweight[nonzeros]
             self.output_errors[nonzeros] = np.sqrt(self.output_varsum[nonzeros])
-            # Calculate signal to noise with both signal and noise in counts
-            self.signal_to_noise[nonzeros] = self.sumnetcounts[nonzeros] / self.output_errors[nonzeros]
-            conversion = self.output_flux[nonzeros] / self.sumnetcounts[nonzeros]
-            # Clean out NaNs from where flux and net are zero
-            good = np.where(~np.isnan(conversion))
-            bad = np.where(np.isnan(conversion))
-            lenwl = len(wavelength)
-            interpolated_values = np.interp(self.output_wavelength[bad],
-                                            self.output_wavelength[good],
-                                            conversion[good])
-            conversion[bad] = interpolated_values
-            # Use signal to noise to calculate error in flux units (erg/cm^2/s/Ang)
-            self.output_errors[nonzeros] = np.abs(self.output_errors[nonzeros] * conversion)
         else:
             # For the moment calculate errors from the gross counts
             self.output_errors[nonzeros] = np.sqrt(self.output_sumgcounts[nonzeros])
-            self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / self.output_sumweight[nonzeros]
-            self.signal_to_noise[nonzeros] = self.sumnetcounts[nonzeros] / self.output_errors[nonzeros]
-            self.output_errors[nonzeros] = np.abs(self.output_flux[nonzeros] / self.signal_to_noise[nonzeros])
+        self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / self.output_sumweight[nonzeros]
+        # Calculate the conversion from counts to flux units for errors
+        conversion = self.output_flux[nonzeros] / self.sumnetcounts[nonzeros]
+        # Clean out NaNs from where flux and net are zero
+        good = np.where(~np.isnan(conversion))
+        bad = np.where(np.isnan(conversion))
+        lenwl = len(wavelength)
+        interpolated_values = np.interp(self.output_wavelength[bad],
+                                        self.output_wavelength[good],
+                                        conversion[good])
+        conversion[bad] = interpolated_values
+        # Use conversion to calculate error in flux units (erg/cm^2/s/Ang)
+        self.output_errors[nonzeros] = self.output_errors[nonzeros] * conversion
+        self.signal_to_noise[nonzeros] = self.output_flux[nonzeros] / self.output_errors[nonzeros]
         return
 
     def write(self, filename, overwrite=False, level="", version=""):
