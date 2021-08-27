@@ -96,6 +96,8 @@ def main(indir, outdir, version=default_version, clobber=False):
                 target = prod.target.lower()
                 if "." in target:
                     dir_target = target.replace(".", "")
+                else:
+                    dir_target = target
                 if outdir_inplace is True:
                     outdir = os.path.join(PROD_DIR, dir_target, version)
                 if not os.path.exists(outdir):
@@ -116,6 +118,8 @@ def main(indir, outdir, version=default_version, clobber=False):
                 target = prod.target.lower()
                 if "." in target:
                     dir_target = target.replace(".", "")
+                else:
+                    dir_target
                 if outdir_inplace is True:
                     outdir = os.path.join(PROD_DIR, dir_target, version)
                 if not os.path.exists(outdir):
