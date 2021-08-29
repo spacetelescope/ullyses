@@ -4,10 +4,15 @@ import os
 import shutil
 import glob
 import pandas as pd
+import datetime
 
 SHIFTS = {"sz10": "cos_shift_files/sz10_shifts.txt"}
 CUSTOM_DIR = "/astro/ullyses/custom_cal"
 VETTED_DIR = "/astro/ullyses/all_vetted_data_dr3"
+OUTDIR_ROOT = None
+nowdt = datetime.datetime.now()
+if OUTDIR_ROOT is None:
+    OUTDIR_ROOT = nowdt.strftime("%Y%m%d_%H%M")
 
 def apply_shifts():
     for targ,shift_file in SHIFTS.items():
@@ -25,10 +30,11 @@ def apply_shifts():
             files = glob.glob(os.path.join(CUSTOM_DIR, targ,  
                           f"{ipppss}*asn.fits"))
             assert len(files) != 0, f"No files found for {targ}"
-            outdir = os.path.join(CUSTOM_DIR, targ, "cos_shifted")
+            outdir = os.path.join(CUSTOM_DIR, targ, OUTDIR_ROOT)
             if not os.path.exists(outdir):
                 os.makedirs(outdir)
-            calcos.calcos(files[0], shift_file=shift_file, outdir=outdir)
+            calcos.calcos(files[0], shift_file=shift_file, outdir=outdir, 
+                          verbosity=0)
             x1ds = glob.glob(os.path.join(outdir, "*x1d.fits"))
             copydir = os.path.join(VETTED_DIR, targ)
             for x1d in x1ds:
