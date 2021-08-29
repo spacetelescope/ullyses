@@ -177,7 +177,7 @@ def calibratefiles(outputfolder, item):
     :return: None
     """
 
-    calcos.calcos(item, outdir=outputfolder)
+    calcos.calcos(item, outdir=outputfolder, verbosity=0)
 
 
 def parallelcal(files, outputfolder, ncores):
