@@ -14,7 +14,7 @@ import glob
 import os
 
 SECONDS_PER_DAY = 86400.0
-version = wrapper.default_version
+version = wrapper.DEFAULT_VERSION
 
 """
     Timeseries product creation code.
@@ -525,6 +525,12 @@ def create_primary_header(ensemble, filename):
     
     """
     level = 5
+    
+    # If the target is a ULLYSES target, use the official
+    # target name and coords
+    ensemble.target = ensemble.ull_targname()
+    ensemble.targ_ra, ensemble.targ_dec = ensemble.ull_coords()
+    
     hdr0 = fits.Header()
     hdr0['EXTEND'] = ('T', 'FITS file may contain extensions')
     hdr0['NEXTEND'] = 3
@@ -543,7 +549,7 @@ def create_primary_header(ensemble, filename):
     hdr0['APERTURE'] = (ensemble.combine_keys("aperture", "multi"), 'Identifier of entrance aperture')
     hdr0['S_REGION'] = (ensemble.obs_footprint(), 'Region footprint')
     hdr0['OBSMODE'] = (ensemble.combine_keys("obsmode", "multi"), 'Instrument operating mode (ACCUM | TIME-TAG)')
-    hdr0['TARGNAME'] = ensemble.targname[0]
+    hdr0['TARGNAME'] = ensemble.target
     hdr0.add_blank(after='OBSMODE')
     hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
