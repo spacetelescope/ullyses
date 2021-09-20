@@ -53,6 +53,30 @@ FILESTOEDIT = {
 "AV26":         {"minwl": [1150],       "maxwl":[-1],           "dq":[1]}
 }
 
+# For completeness, this is a list of all ULLYSES targets that
+# have FUSE data, but data was not used due to data quality issues.
+BAD_FUSE = [
+ 'AV83',
+ 'PGMW3120',
+ 'LH114-7',
+ 'AV235',
+ 'AV476',
+ 'NGC346-MPG-368',
+ 'AV388',
+ 'AV267',
+ 'AV22',
+ 'NGC346-MPG-355',
+ 'BAT99-105',
+ 'AV287',
+ 'SK-69D220',
+ 'NGC346-MPG-342',
+ 'MOA-J010321.3-720538',
+ 'NGC2004-ELS-26',
+ 'BI272', 
+ 'NGC346-MPG-435',                                           
+ 'SK-68D16']
+
+
 # List of all FUSE DR targets. Commented lines are targets that had serious
 # data quality issues and will not be used in DR.
 FUSE_DR2 = [ 
