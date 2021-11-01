@@ -14,7 +14,8 @@ ALLDATA_DIR = "/astro/ullyses/ULLYSES_DATA"
 VETTED_DIR = "/astro/ullyses/all_vetted_data_dr4"
 CUSTOM_DIR = "/astro/ullyses/custom_cal"
 
-TARGS = ["v-tw-hya", "v-bp-tau", "v-ru-lup", "v-gm-aur"]
+TARGS = ["v-bp-tau"]
+#TARGS = ["v-tw-hya", "v-bp-tau", "v-ru-lup", "v-gm-aur"]
 
 BINS = {"v-tw-hya": {"g160m": {"time": 30, "wave": 3, "min_exptime": 20}, # exptime = 300
                      "g230l": {"time": 10, "wave": 1, "min_exptime": 9}}, # exptime = 30
@@ -30,7 +31,7 @@ BAD_IPPPSS = ["le9d1k", # TW Hydra
               "lek71f"] # GM Aur 
 
 
-G230L_DISPTAB = 'twhydra_recalibration/ullyses_cos_nuv_disp.fits'
+G230L_DISPTAB = 'ctts_recalibration/ullyses_cos_nuv_disp.fits'
 
 WL_SHIFT = {'le9d1c': "ctts_recalibration/twhya_shifts.txt", 
             'le9d1g': "ctts_recalibration/twhya_shifts.txt"} 
@@ -74,15 +75,15 @@ def copy_origdata(targs=TARGS):
             shutil.copy(item, destdir)
         print(f"Copied original files to {destdir}")
 
-def calibrate_data():
+def calibrate_data(targs=TARGS):
     """
     Calibrate data which require special calibration. This will be for
     1) all G230L data which need to be calibrated with Will's custom DISPTAB
     2) some TW Hydra exposures which were offset in wavelength. 
     """
 
-    calrequired = []
-    for targ in TARGS:
+    calrequired0 = []
+    for targ in targs:
         datadir = os.path.join(CUSTOM_DIR, targ)
         raws = glob.glob(os.path.join(datadir, "l*rawtag*fits"))
         for raw in raws:
@@ -91,9 +92,10 @@ def calibrate_data():
                     hdr0 = hdulist[0].header
                     hdr0.set("DISPTAB", G230L_DISPTAB)
                 root = os.path.basename(raw)[:9]
-                calrequired.append(root)
+                calrequired0.append(root)
         wl_shift_files = list(WL_SHIFT.keys())
-        calrequired += [x[:6] for x in WL_SHIFT]
+        calrequired0 += wl_shift_files
+        calrequired = [x[:6] for x in calrequired0]
 
         asns = glob.glob(os.path.join(datadir, "*asn.fits"))
         outdir = os.path.join(CUSTOM_DIR, targ, "calcos_wl")
@@ -113,12 +115,12 @@ def calibrate_data():
         print(f"\n Calibrated data that required a shift or custom DISPTAB\n, output dir={outdir}")
 
 
-def copy_caldata():
+def copy_caldata(targs=TARGS):
     """
     Copy the products for each target.
     """
 
-    for targ in TARGS:
+    for targ in targs:
         datadir = os.path.join(CUSTOM_DIR, targ)
         # First copy the calibrated output
         outdir = os.path.join(CUSTOM_DIR, targ, "calcos_wl")
@@ -152,7 +154,7 @@ def copy_caldata():
         orig_corrfiles = [os.path.basename(x) for x in orig_corrs]
         corrfiles = [os.path.basename(x) for x in corrs]
         for i in range(len(orig_corrs)):
-            ipppss = os.path.basename(orig_corrs)[:6]
+            ipppss = os.path.basename(orig_corrs[i])[:6]
             if orig_corrfiles[i] not in corrfiles and ipppss not in BAD_IPPPSS:
                 if fits.getval(orig_corrs[i], "opt_elem") == "G160M":
                     d = copydirfuv
@@ -165,7 +167,7 @@ def copy_caldata():
         orig_x1dfiles = [os.path.basename(x) for x in orig_x1ds]
         x1dfiles = [os.path.basename(x) for x in x1ds]
         for i in range(len(orig_x1ds)):
-            ipppss = os.path.basename(orid_x1ds)[:6]
+            ipppss = os.path.basename(orig_x1ds[i])[:6]
             if orig_x1dfiles[i] not in x1dfiles and ipppss not in BAD_IPPPSS: 
                 if fits.getval(orig_corrs[i], "opt_elem") == "G160M":
                     d = copydirfuv
@@ -176,8 +178,8 @@ def copy_caldata():
         print(f"\nCopied all corrtags and x1ds to {copydir}/g160m/ and g230l/\n")
 
 
-def create_splittags():
-    for targ in TARGS:
+def create_splittags(targs=TARGS):
+    for targ in targs:
         datadir = os.path.join(CUSTOM_DIR, targ)
 
         for grat in ["g160m", "g230l"]:
@@ -202,8 +204,8 @@ def create_splittags():
                 shutil.move(item, outdir)
 
 
-def correct_vignetting():
-    for targ in TARGS:
+def correct_vignetting(targs=TARGS):
+    for targ in targs:
         indirs = [os.path.join(CUSTOM_DIR, targ, VERSION, "g230l", "exp"),
                   os.path.join(CUSTOM_DIR, targ, VERSION, "g230l", "split")]
         for indir in indirs:
@@ -221,8 +223,8 @@ def correct_vignetting():
         print(f'Applied scaling factor to G230L/2950 NUVB data in {os.path.join(CUSTOM_DIR, targ, VERSION, "g230l")}') 
 
 
-def create_timeseries():
-    for targ in TARGS:
+def create_timeseries(targs=TARGS):
+    for targ in targs:
         for grat in ["g160m", "g230l"]:
             outdir = f"/astro/ullyses/ULLYSES_HLSP/{targ}/{VERSION.lower()}"
             if not os.path.exists(outdir):
@@ -232,14 +234,14 @@ def create_timeseries():
             timeseries.process_files(grat.upper(), outfile, indir, overwrite=True) 
             
             indir = os.path.join(CUSTOM_DIR, targ, VERSION, grat, "split")
-            outfile = os.path.join(outdir, f"hlsp_ullyses_hst_cos_v-tw-hya_{grat}_{VERSION.lower()}_split-tss.fits")
+            outfile = os.path.join(outdir, f"hlsp_ullyses_hst_cos_{targ}_{grat}_{VERSION.lower()}_split-tss.fits")
             timeseries.process_files(grat.upper(), outfile, indir, 
                     BINS[targ][grat]["wave"], BINS[targ][grat]["min_exptime"], overwrite=True) 
 
 
 def main():
-    copy_origdata()
-    calibrate_data()
+    #copy_origdata()
+    #calibrate_data()
     copy_caldata()
     create_splittags()
     correct_vignetting()
