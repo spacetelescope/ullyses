@@ -12,16 +12,15 @@ CODEDIR = os.path.dirname(__file__)
 VERSION = "dr4"
 ALLDATA_DIR = "/astro/ullyses/ULLYSES_DATA"
 VETTED_DIR = "/astro/ullyses/all_vetted_data_dr4"
-CUSTOM_DIR = "/astro/ullyses/custom_cal"
+CUSTOM_DIR = f"/astro/ullyses/custom_cal/{VERSION}"
 
-TARGS = ["v-bp-tau"]
-#TARGS = ["v-tw-hya", "v-bp-tau", "v-ru-lup", "v-gm-aur"]
+TARGS = ["v-tw-hya", "v-bp-tau", "v-ru-lup", "v-gm-aur"]
 
 BINS = {"v-tw-hya": {"g160m": {"time": 30, "wave": 3, "min_exptime": 20}, # exptime = 300
                      "g230l": {"time": 10, "wave": 1, "min_exptime": 9}}, # exptime = 30
         "v-ru-lup": {"g160m": {"time": 30, "wave": 3, "min_exptime": 20}, # exptime = 220
                      "g230l": {"time": 10, "wave": 1, "min_exptime": 9}}, # exptime = 30
-        "v-bp-tau": {"g160m": {"time": 60, "wave": 6, "min_exptime": 40}, # exptime = 128
+        "v-bp-tau": {"g160m": {"time": 40, "wave": 3, "min_exptime": 30}, # exptime = 128
                      "g230l": {"time": 10, "wave": 1, "min_exptime": 9}}, # exptime = 196
         "v-gm-aur": {"g160m": {"time": 90, "wave": 3, "min_exptime": 50}, # exptime = 186
                      "g230l": {"time": 10, "wave": 1, "min_exptime": 9}}} # exptime = 184
@@ -31,7 +30,7 @@ BAD_IPPPSS = ["le9d1k", # TW Hydra
               "lek71f"] # GM Aur 
 
 
-G230L_DISPTAB = 'ctts_recalibration/ullyses_cos_nuv_disp.fits'
+G230L_DISPTAB = os.path.join(CODEDIR, 'ctts_recalibration/ullyses_cos_nuv_disp.fits')
 
 WL_SHIFT = {'le9d1c': "ctts_recalibration/twhya_shifts.txt", 
             'le9d1g': "ctts_recalibration/twhya_shifts.txt"} 
@@ -54,7 +53,7 @@ def copy_origdata(targs=TARGS):
     """
     Copy the original raw data, to ensure nothing is mistakenly edited.
     Data is copied from /astro/ullyses/ULLYSES_DATA/{targ} to
-    /astro/ullyses/custom_cal/{targ}.
+    /astro/ullyses/custom_cal/{version}/{targ}.
 
     Args:
         targs (list): List of targets for which to copy data.
@@ -240,8 +239,8 @@ def create_timeseries(targs=TARGS):
 
 
 def main():
-    #copy_origdata()
-    #calibrate_data()
+    copy_origdata()
+    calibrate_data()
     copy_caldata()
     create_splittags()
     correct_vignetting()
