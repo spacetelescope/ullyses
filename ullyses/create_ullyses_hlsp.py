@@ -10,10 +10,11 @@ from datetime import datetime as dt
 from astropy.time import Time
 
 from ullyses_jira.parse_csv import parse_aliases
+from ullyses_config import VERSION, CAL_VER, HLSP_DIR, VETTED_DIR, RENAME
 
-VERSION = "dr3"
-CAL_VER = 1.0
 CODEDIR = os.path.dirname(__file__)
+RED = "\033[1;31m"
+RESET = "\033[0;0m"
 
 class Ullyses():
     def __init__(self, files, hlspname, targname, ra, dec, cal_ver, version, 
@@ -44,6 +45,7 @@ class Ullyses():
         self.version = version
         self.level = level
         self.overwrite = overwrite
+
 
     def make_hdrs_and_prov(self):
         if self.hlsp_type == "spectral":
@@ -716,12 +718,12 @@ def make_lcogt_tss():
                 coords = master_list.loc[master_list["mast_targname"] == ull_targname][["ra", "dec"]].values
                 ra, dec = coords[0]
             except:
-                print(f"NO COORDINATES FOUND FOR {ull_targname}")
+                print(f"{RED}NO COORDINATES FOUND FOR {ull_targname}{RESET}")
                 ra, dec = (0, 0)
         else:
             ull_targname = targ
             ra, dec = (0, 0)
-            print(f"NO ALIAS AND COORDINATES FOUND FOR {ull_targname}")
+            print(f"{RED}NO ALIAS AND COORDINATES FOUND FOR {ull_targname}{RESET}")
 
         df = pd.read_csv(photfile, 
                 names=["filename", "mjdstart", "mjdend", "wl", "flux", "err"],
@@ -729,11 +731,21 @@ def make_lcogt_tss():
         df = df.sort_values("mjdstart")
         filenames = df.filename.tolist()
         filepaths = [f"/astro/ullyses/lcogt_data/{targ}/{x}" for x in filenames]
-        hlspname = f"hlsp_ullyses_lcogt_04m_{ull_targname.lower()}_v-iprime_{VERSION}_tss.fits"
-        outdir = f"/astro/ullyses/ULLYSES_HLSP/{ull_targname.lower()}/{VERSION}"
+        file_targname = rename_target(ull_targname)
+        hlspname = f"hlsp_ullyses_lcogt_04m_{file_targname.lower()}_v-iprime_{VERSION}_tss.fits"
+        outdir = f"/astro/ullyses/ULLYSES_HLSP/{file_targname.lower()}/{VERSION}"
         if not os.path.exists(outdir):
             os.makedirs(outdir)
         outfile = os.path.join(outdir, hlspname)
-        U =Ullyses(filepaths, outfile, ull_targname, ra, dec, CAL_VER, VERSION, 5, "lcogt", photfile=photfile)
+        U = Ullyses(filepaths, outfile, ull_targname, ra, dec, CAL_VER, VERSION, 5, "lcogt", photfile=photfile)
         U.make_hdrs_and_prov()
-        U.write_file() 
+        U.write_file()
+
+
+def rename_target(targname):
+    targ_lower = targname.lower()
+    if targ_lower in RENAME:
+        file_targname = RENAME[targ_lower]
+    else:
+        file_targname = targname
+    return file_targname
