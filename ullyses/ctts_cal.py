@@ -18,11 +18,11 @@ TARGS = ["v-tw-hya", "v-bp-tau", "v-ru-lup", "v-gm-aur"]
 
 BINS = {"v-tw-hya": {"g160m": {"time": 30, "wave": 3, "min_exptime": 20}, # exptime = 300
                      "g230l": {"time": 10, "wave": 1, "min_exptime": 9}}, # exptime = 30
-        "v-ru-lup": {"g160m": {"time": 30, "wave": 3, "min_exptime": 20}, # exptime = 220
+        "v-ru-lup": {"g160m": {"time": 50, "wave": 3, "min_exptime": 40}, # exptime = 220
                      "g230l": {"time": 10, "wave": 1, "min_exptime": 9}}, # exptime = 30
-        "v-bp-tau": {"g160m": {"time": 40, "wave": 3, "min_exptime": 30}, # exptime = 128
+        "v-bp-tau": {"g160m": {"time": 60, "wave": 3, "min_exptime": 40}, # exptime = 128
                      "g230l": {"time": 10, "wave": 1, "min_exptime": 9}}, # exptime = 196
-        "v-gm-aur": {"g160m": {"time": 90, "wave": 3, "min_exptime": 50}, # exptime = 186
+        "v-gm-aur": {"g160m": {"time": 90, "wave": 6, "min_exptime": 50}, # exptime = 186
                      "g230l": {"time": 10, "wave": 1, "min_exptime": 9}}} # exptime = 184
 
 BAD_IPPPSS = ["le9d1k", # TW Hydra
