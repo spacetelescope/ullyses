@@ -14,47 +14,51 @@ DRDIR = "/astro/ullyses/all_vetted_data_dr3"
 # DQ=2 (Poor photometric quality)
 FILESTOEDIT = {
 # DR2 targets
-"AV232":         {"minwl": [1141],      "maxwl":[-1],           "dq":[1]},
-"AV15":          {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
-"AV16":          {"minwl": [1076],      "maxwl":[1090],         "dq":[2]},
-"SK-69D104":     {"minwl": [1079,992],  "maxwl":[1090,998],     "dq":[2,2]},
-"AV18":          {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1] },
-"LMCX-4":        {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
-"N11-ELS-013":   {"minwl": [0,1082],    "maxwl":[999,1094],     "dq":[2,2]},
-"AV321":         {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
-"SK-70D79":      {"minwl": [1136],      "maxwl":[1164],         "dq":[1]},
-"AV69":          {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
-"SK-67D211":     {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
-"SK-68D135":     {"minwl": [1150],      "maxwl":[-1],           "dq":[1]},
-"AV47":          {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
-"SK-69D191":     {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
-"NGC346-ELS-07": {"minwl": [0,1082.5],  "maxwl":[987.5,1094.2], "dq":[2,2]},
-"AV332":         {"minwl": [0,1082.5],  "maxwl":[987.6,1094.2], "dq":[2,2]},
-"SK-67D101":     {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
-"SK-70D115":     {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
-"SK-71D46":      {"minwl": [0,1079.5],  "maxwl":[998,1094.5],   "dq":[2,2]},
-"AV362":         {"minwl": [1080],      "maxwl":[1090],         "dq":[2]},
-"SK-71D41":      {"minwl": [0,1079.6],  "maxwl":[992,1094.6],   "dq":[2,2]},
-"SK-67D20":      {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
-"SK-67D22":      {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
-"AV75":          {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
-"SK-67D111":     {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
-"SK-67D108":     {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
-"NGC346-ELS-26": {"minwl": [0,1080],    "maxwl":[1000,1094],    "dq":[2,2]},
-"SK-67D106":     {"minwl": [0,1079.5],  "maxwl":[998.5,1090.5], "dq":[2,2]},
-"SK-67D168":     {"minwl": [1089.5],    "maxwl":[1094.5],       "dq":[2]},
-"SK-67D107":     {"minwl": [0,1179.9],  "maxwl":[992,-1],       "dq":[2,1]},
-"SK-67D105":     {"minwl": [1179.9],    "maxwl":[-1],           "dq":[1]},
-"AV210":         {"minwl": [1150],      "maxwl":[1170],         "dq":[1]},
-"N11-ELS-018":   {"minwl": [0,1090],    "maxwl":[990,1094.5],   "dq":[2,2]},
-"SK-69D279":     {"minwl": [1080,1180], "maxwl":[1090,-1],      "dq":[2,1]},
+"AV232":         {"minwl": [1141],      "maxwl": [-1],           "dq": [1]},
+"AV15":          {"minwl": [1179.9],    "maxwl": [-1],           "dq": [1]},
+"AV16":          {"minwl": [1076],      "maxwl": [1090],         "dq": [2]},
+"SK-69D104":     {"minwl": [1079,992],  "maxwl": [1090,998],     "dq": [2,2]},
+"AV18":          {"minwl": [1179.9],    "maxwl": [-1],           "dq": [1] },
+"LMCX-4":        {"minwl": [1179.9],    "maxwl": [-1],           "dq": [1]},
+"N11-ELS-013":   {"minwl": [0,1082],    "maxwl": [999,1094],     "dq": [2,2]},
+"AV321":         {"minwl": [1179.9],    "maxwl": [-1],           "dq": [1]},
+"SK-70D79":      {"minwl": [1136],      "maxwl": [1164],         "dq": [1]},
+"AV69":          {"minwl": [1179.9],    "maxwl": [-1],           "dq": [1]},
+"SK-67D211":     {"minwl": [1179.9],    "maxwl": [-1],           "dq": [1]},
+"SK-68D135":     {"minwl": [1150],      "maxwl": [-1],           "dq": [1]},
+"AV47":          {"minwl": [1179.9],    "maxwl": [-1],           "dq": [1]},
+"SK-69D191":     {"minwl": [1179.9],    "maxwl": [-1],           "dq": [1]},
+"NGC346-ELS-07": {"minwl": [0,1082.5],  "maxwl": [987.5,1094.2], "dq": [2,2]},
+"AV332":         {"minwl": [0,1082.5],  "maxwl": [987.6,1094.2], "dq": [2,2]},
+"SK-67D101":     {"minwl": [1179.9],    "maxwl": [-1],           "dq": [1]},
+"SK-70D115":     {"minwl": [1179.9],    "maxwl": [-1],           "dq": [1]},
+"SK-71D46":      {"minwl": [0,1079.5],  "maxwl": [998,1094.5],   "dq": [2,2]},
+"AV362":         {"minwl": [1080],      "maxwl": [1090],         "dq": [2]},
+"SK-71D41":      {"minwl": [0,1079.6],  "maxwl": [992,1094.6],   "dq": [2,2]},
+"SK-67D20":      {"minwl": [1179.9],    "maxwl": [-1],           "dq": [1]},
+"SK-67D22":      {"minwl": [1179.9],    "maxwl": [-1],           "dq": [1]},
+"AV75":          {"minwl": [1179.9],    "maxwl": [-1],           "dq": [1]},
+"SK-67D111":     {"minwl": [1179.9],    "maxwl": [-1],           "dq": [1]},
+"SK-67D108":     {"minwl": [1179.9],    "maxwl": [-1],           "dq": [1]},
+"NGC346-ELS-26": {"minwl": [0,1080],    "maxwl": [1000,1094],    "dq": [2,2]},
+"SK-67D106":     {"minwl": [0,1079.5],  "maxwl": [998.5,1090.5], "dq": [2,2]},
+"SK-67D168":     {"minwl": [1089.5],    "maxwl": [1094.5],       "dq": [2]},
+"SK-67D107":     {"minwl": [0,1179.9],  "maxwl": [992,-1],       "dq": [2,1]},
+"SK-67D105":     {"minwl": [1179.9],    "maxwl": [-1],           "dq": [1]},
+"AV210":         {"minwl": [1150],      "maxwl": [1170],         "dq": [1]},
+"N11-ELS-018":   {"minwl": [0,1090],    "maxwl": [990,1094.5],   "dq": [2,2]},
+"SK-69D279":     {"minwl": [1080,1180], "maxwl": [1090,-1],      "dq": [2,1]},
 # DR3 targets
-"2DFS-999":     {"minwl": [0],          "maxwl":[1000],         "dq":[2]},
-"AV26":         {"minwl": [1150],       "maxwl":[-1],           "dq":[1]}
+"2DFS-999":     {"minwl": [0],          "maxwl": [1000],         "dq": [2]},
+"AV26":         {"minwl": [1150],       "maxwl": [-1],           "dq": [1]},
+# DR4 targets
+"AV96":         {"minwl": [1147],       "maxwl": [1188],         "dq": [1]},
+"SK-70D32":     {"minwl": [0, 1082.5],  "maxwl": [992, 1087.2],  "dq": [2, 2]} 
 }
 
 # For completeness, this is a list of all ULLYSES targets that
-# have FUSE data, but data was not used due to data quality issues.
+# have FUSE data, but data were not used due to data quality issues.
+# It may be possible to address these issues in the future.
 BAD_FUSE = [
  'AV83',
  'PGMW3120',
@@ -200,6 +204,24 @@ FUSE_DR3 = [
 # 'NGC346-MPG-435', 
  'SK-67D118'] 
 # 'SK-68D16'
+
+FUSE_DR4 = [
+"AV220", 
+"AV472",
+"AV261", 
+"AV264,"
+"AV96", 
+"HD269927C", 
+"SK-65D55", 
+"SK-66D171,"
+"SK-69D43", 
+"SK-70D32", 
+"SK-71D21", 
+"SK-71D8,"
+"AV170", 
+"AV85", 
+"SK-67D266", 
+"SK-68D41"]
 
 
 def flag_data():
