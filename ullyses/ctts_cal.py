@@ -32,8 +32,8 @@ BAD_IPPPSS = ["le9d1k", # TW Hydra
 
 G230L_DISPTAB = os.path.join(CODEDIR, 'ctts_recalibration/ullyses_cos_nuv_disp.fits')
 
-WL_SHIFT = {'le9d1c': "ctts_recalibration/twhya_shifts.txt", 
-            'le9d1g': "ctts_recalibration/twhya_shifts.txt"} 
+WL_SHIFT = {'le9d1c': os.path.join(CODEDIR, "ctts_recalibration/twhya_shifts.txt"), 
+            'le9d1g': os.path.join(CODEDIR, "ctts_recalibration/twhya_shifts.txt")} 
 # TW Hydra exposures
 #['le9d1cdeq',
 # 'le9d1cdeq',
