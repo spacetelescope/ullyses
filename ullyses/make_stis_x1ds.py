@@ -14,18 +14,20 @@ from calibrate_stis_data import wrapper
 from stis_coadd_x1d import coadd_1d_spectra
 
 TARGS = [# DR2
-       "cvso-104", "cvso-107", "cvso-109", "cvso-146", "cvso-165", "cvso-17",
-       "cvso-176", "cvso-36", "cvso-58", "cvso-90", "v-tx-ori", "v505-ori",
-       "v510-ori", 
-       #dr3
-       "sz10", "sz45", "sz69", "sz71", "sz72", "sz75", "sz77", "v-in-cha",
-       "v-xx-cha", "chx18n", "2massj11432669-7804454", "echa-j0844.2-7833",
-       "hn5", "sstc2dj160000.6-422158"]
+        "cvso-104", "cvso-107", "cvso-109", "cvso-146", "cvso-165", "cvso-17",
+        "cvso-176", "cvso-36", "cvso-58", "cvso-90", "v-tx-ori", "v505-ori",
+        "v510-ori", 
+        #dr3
+        "sz10", "sz45", "sz69", "sz71", "sz72", "sz75", "sz77", "v-in-cha",
+        "v-xx-cha", "chx18n", "2massj11432669-7804454", "echa-j0844.2-7833",
+        "hn5", "sstc2dj160000.6-422158",
+        #DR4
+        "sz66", "sz76", "sz111", "sz130"]
 
-VERSION = "dr3"
+VERSION = "dr4"
 HLSPDIR = "/astro/ullyses/ULLYSES_HLSP"
 #HLSPDIR = "ULLYSES_HLSP" 
-VETTED_DIR = "/astro/ullyses/all_vetted_data_dr3"
+VETTED_DIR = "/astro/ullyses/all_vetted_data_dr4"
 #VETTED_DIR = "all_vetted_data_dr3"
 DATADIR = "/astro/ullyses/ULLYSES_DATA"
 CUSTOM_CAL = "/astro/ullyses/custom_cal"
@@ -128,7 +130,7 @@ def copy_rename_yaml():
     
 
 def main():
-#    copy_rawfiles()
+    copy_rawfiles()
     make_custom_x1ds()
     coadd_blended_spectra()
     copy_rename_yaml()
