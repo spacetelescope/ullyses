@@ -286,7 +286,7 @@ def create_output_file_name(prod, version=DEFAULT_VERSION, level=3):
             tel= 'hst'
             suffix = "cspec"
     elif level == 4:
-        suffix = "quicklook"
+        suffix = "preview-spec"
         if "G430L" in prod.grating or "G750L" in prod.grating:
             grating = "uv-opt"
         else:
