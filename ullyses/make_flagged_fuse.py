@@ -7,7 +7,7 @@ import matplotlib.pyplot as pl
 
 from fuse_add_dq import add_dq_col
 
-DRDIR = "/astro/ullyses/all_vetted_data_dr3"
+DRDIR = "/astro/ullyses/all_vetted_data_dr4"
 
 # DR1 FUSE targets that require custom flagging
 # DQ=1 (Worm)
@@ -226,7 +226,7 @@ FUSE_DR4 = [
 
 def flag_data():
     targstoedit = list(FILESTOEDIT.keys())
-    all_targs = FUSE_DR2 + FUSE_DR3
+    all_targs = FUSE_DR2 + FUSE_DR3 + FUSE_DR4
     for targ in all_targs:
         vofiles0 = glob.glob(os.path.join("/astro/ullyses/fuse_data", targ, "*_vo.fits"))
         vofiles = [x for x in vofiles0 if "dqscreened" not in x]
@@ -250,7 +250,7 @@ def flag_data():
 
 
 def copy_data():
-    all_targs = FUSE_DR2 + FUSE_DR3
+    all_targs = FUSE_DR2 + FUSE_DR3 + FUSE_DR4
     for targ in all_targs:
         screened = glob.glob(os.path.join("/astro/ullyses/fuse_data", targ, "dqscreened*_vo.fits"))
         for item in screened:

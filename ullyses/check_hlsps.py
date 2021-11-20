@@ -16,7 +16,7 @@ import os
 import glob
 import argparse
 
-DRDIR = "/astro/ullyses/all_vetted_data_dr3"
+DRDIR = "/astro/ullyses/all_vetted_data_dr4"
 
 def compare_hlsps(oldfile, newfile):
     # First do a fitsdiff

@@ -8,7 +8,7 @@ import datetime
 
 SHIFTS = {"sz10": "cos_shift_files/sz10_shifts.txt"}
 CUSTOM_DIR = "/astro/ullyses/custom_cal"
-VETTED_DIR = "/astro/ullyses/all_vetted_data_dr3"
+VETTED_DIR = "/astro/ullyses/all_vetted_data_dr4"
 OUTDIR_ROOT = None
 nowdt = datetime.datetime.now()
 if OUTDIR_ROOT is None:

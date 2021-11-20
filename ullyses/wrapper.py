@@ -10,7 +10,7 @@ from astropy.io import fits
 from coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDSegmentList
 from coadd import abut
 
-DEFAULT_VERSION = 'dr3'
+DEFAULT_VERSION = 'dr4'
 PROD_DIR = "/astro/ullyses/ULLYSES_HLSP"
 # Some targets have periods in their name and these can break MAST ingest
 # Rename them to remove periods and strip any trailing numbers after periods
