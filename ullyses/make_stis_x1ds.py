@@ -54,6 +54,8 @@ def copy_rawfiles():
     # A special fringeflat is needed for CVSO-109, copy it
     origin = os.path.join(DATADIR, "CVSO-104", "oe9k1s050_raw.fits")
     dest = os.path.join(CUSTOM_CAL, "cvso-109")
+    if not os.path.exists(dest):
+        os.makedirs(dest)
     shutil.copy(origin, dest)
 
     print(f"\nCopied TTS data from {DATADIR} to {CUSTOM_CAL}\n")
