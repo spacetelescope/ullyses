@@ -254,7 +254,10 @@ def copy_data():
     for targ in all_targs:
         screened = glob.glob(os.path.join("/astro/ullyses/fuse_data", targ, "dqscreened*_vo.fits"))
         for item in screened:
-            shutil.copy(item, os.path.join(DRDIR, targ.lower()))
+            destdir = os.path.join(DRDIR, targ.lower())
+            if not os.path.exists(destdir):
+                os.makedirs(destdir)
+            shutil.copy(item, destdir)
     print(f"Copied flagged files to {DRDIR}")
 
 
