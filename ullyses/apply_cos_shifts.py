@@ -37,6 +37,8 @@ def apply_shifts():
                           verbosity=0)
             x1ds = glob.glob(os.path.join(outdir, "*x1d.fits"))
             copydir = os.path.join(VETTED_DIR, targ)
+            if not os.path.exists(copydir):
+                os.makedirs(copydir)
             for x1d in x1ds:
                 existing = os.path.join(copydir, os.path.basename(x1d))
                 if os.path.exists(existing):
