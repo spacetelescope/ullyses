@@ -12,6 +12,7 @@ import subprocess
 from readwrite_yaml import read_config
 from calibrate_stis_data import wrapper
 from stis_coadd_x1d import coadd_1d_spectra
+from ullyses_config import RENAME
 
 TARGS = [# DR2
         "cvso-104", "cvso-107", "cvso-109", "cvso-146", "cvso-165", "cvso-17",
@@ -43,8 +44,8 @@ def copy_rawfiles():
         files = glob.glob(os.path.join(DATADIR, targ.upper(), "o*fits"))
         # Targs with periods in their name must be specially renamed or defringe will crash
         if "." in targ:
-            spl = targ.split(".")
-            targ = "".join(spl)
+            assert targ in RENAME, f"Renaming scheme not known for {targ}"
+            targ = RENAME[targ]
         destdir = os.path.join(CUSTOM_CAL, targ.lower())
         if not os.path.exists(destdir):
             os.makedirs(destdir)
@@ -64,10 +65,9 @@ def copy_rawfiles():
 def copy_products(outdir_root=OUTDIR_ROOT):
     for targ in TARGS:
         if "." in targ:
-            spl = targ.split(".")
-            dirtarg = "".join(spl)
-        else:
-            dirtarg = targ
+            assert targ in RENAME, f"Renaming scheme not known for {targ}"
+            targ = RENAME[targ]
+        dirtarg = targ
         outdir = os.path.join(CUSTOM_CAL, dirtarg.lower(), outdir_root)
         files = glob.glob(os.path.join(outdir, "*x1d.fits"))
         for item in files:
@@ -86,11 +86,12 @@ def make_custom_x1ds(outdir_root=OUTDIR_ROOT):
         if config_name == "target_grating.yaml":
             continue
         targ = config_name.split("_")[0].lower()
+        if targ not in TARGS:
+            continue
         if "." in targ:
-            spl = targ.split(".")
-            dirtarg = "".join(spl)
-        else:
-            dirtarg = targ
+            assert targ in RENAME, f"Renaming scheme not known for {targ}"
+            targ = RENAME[targ]
+        dirtarg = targ
         indir = os.path.join(CUSTOM_CAL, dirtarg)
         outdir = os.path.join(indir, outdir_root)
         wrapper(indir, config, outdir=outdir)
@@ -108,6 +109,8 @@ def coadd_blended_spectra(outdir_root=OUTDIR_ROOT):
                       ["oe9k2s010_cvso-109a_x1d.fits", "oe9k2s010_cvso-109b_x1d.fits"]],
          "cvso-165": [["oe9j2s010_cvso-165a_x1d.fits", "oe9j2s010_cvso-165b_x1d.fits"]]}
     for targ in d:
+        if targ not in TARGS:
+            continue
         for pair in d[targ]:
             files0 = pair
             indir = os.path.join(CUSTOM_CAL, targ.lower(), outdir_root)
@@ -122,6 +125,12 @@ def copy_rename_yaml():
         f = os.path.basename(item)
         spl = f.split("_")
         targ = spl[0].lower()
+        if targ not in TARGS:
+            continue
+        # Targs with periods in their name must be specially renamed
+        if "." in targ:
+            assert targ in RENAME, f"Renaming scheme not known for {targ}"
+            targ = RENAME[targ]
         grating = spl[1].split(".")[0]
         newname = f"hlsp_ullyses_hst_stis_{targ}_{grating}_{VERSION}_spec.yaml"
         dest = os.path.join(HLSPDIR, targ, VERSION)
