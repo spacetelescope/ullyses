@@ -178,7 +178,7 @@ FUSE_DR2 = [
 
 FUSE_DR3 = [
  'AV490',
-# 'SK-67D166', # This data was good, there was no accompanying HST data for DR3
+ 'SK-67D166', 
 # 'AV287',
  'SK-66D51',
  'HD38029',
@@ -209,19 +209,20 @@ FUSE_DR4 = [
 "AV220", 
 "AV472",
 "AV261", 
-"AV264",
-"AV96", 
-"HD269927C", 
-"SK-65D55", 
-"SK-66D171",
-"SK-69D43", 
-"SK-70D32", 
+#"AV264", # This data was good, but there was no accompanying HST data in DR4
+#"AV96", # This data was good, but there was no accompanying HST data in DR4 
+#"HD269927C", # This data was good, but there was no accompanying HST data in DR4 
+#"SK-65D55", # This data was good, but there was no accompanying HST data in DR4 
+#"SK-66D171", # This data was good, but there was no accompanying HST data in DR4
+#"SK-69D43", # This data was good, but there was no accompanying HST data in DR4 
+#"SK-70D32", # This data was good, but there was no accompanying HST data in DR4 
 "SK-71D21", 
-"SK-71D8",
+#"SK-71D8", # This data was good, but there was no accompanying HST data in DR4
 "AV170", 
-"AV85", 
+#"AV85", # This data was good, but there was no accompanying HST data in DR4 
 "SK-67D266", 
-"SK-68D41"]
+#"SK-68D41" # This data was good, but there was no accompanying HST data in DR4
+]
 
 
 def flag_data():
