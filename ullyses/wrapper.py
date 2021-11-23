@@ -9,17 +9,10 @@ from astropy.io import fits
 
 from coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDSegmentList
 from coadd import abut
+from ullyses_config import RENAME
 
 DEFAULT_VERSION = 'dr4'
 PROD_DIR = "/astro/ullyses/ULLYSES_HLSP"
-# Some targets have periods in their name and these can break MAST ingest
-# Rename them to remove periods and strip any trailing numbers after periods
-RENAME = {"moa-j010321.3-720538": "moa-j010321-720538",
-          "sstc2dj160830.7-382827": "sstc2dj160830-382827",
-          "echa-j0844.2-7833": "echa-j0844-7833",
-          "sstc2dj160000.6-422158": "sstc2dj160000-422158",
-          "echa-j0843.3-7915": "echa-j0843-7915",
-          "ogle-j004942.75-731717.7": "ogle-j004942-731717"}
 
 '''
 This wrapper goes through each target folder in the ullyses data directory and find
@@ -102,7 +95,8 @@ def main(indir, outdir, version=DEFAULT_VERSION, clobber=False):
                 prod.target = prod.ull_targname()
                 prod.targ_ra, prod.targ_dec = prod.ull_coords()
                 target = prod.target.lower()
-                if target in RENAME:
+                if "." in target:
+                    assert target in RENAME, f"Renaming scheme not known for {targ}"
                     dir_target = RENAME[target]
                 else:
                     dir_target = target
@@ -124,7 +118,8 @@ def main(indir, outdir, version=DEFAULT_VERSION, clobber=False):
                 # this writes the output file
                 # If making HLSPs for a DR, put them in the official folder
                 target = prod.target.lower()
-                if target in RENAME:
+                if "." in target:
+                    assert target in RENAME, f"Renaming scheme not known for {targ}"
                     dir_target = RENAME[target]
                 else:
                     dir_target = target
@@ -272,7 +267,8 @@ def create_output_file_name(prod, version=DEFAULT_VERSION, level=3):
     aperture = prod.aperture.lower()
 
     # Target names can't have a period in them or it breaks MAST
-    if target.lower() in RENAME:
+    if "." in target:
+        assert target in RENAME, f"Renaming scheme not known for {targ}"
         target = RENAME[target]
 
     if level == 0:
