@@ -708,6 +708,8 @@ def make_lcogt_tss():
     photfiles = glob.glob(os.path.join(CODEDIR, "lcogt_phot/photometry/*txt"))
     for photfile in photfiles:
         targ = os.path.basename(photfile).split("_")[0]
+        if targ.lower() == "sstc2dj161344.1-373646":
+            continue # REMOVE THIS AFTER DR4!!!!
         aliases = parse_aliases()
         alias_mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ.upper())).any(), axis=1)
         if set(alias_mask) != {False}:
