@@ -231,7 +231,7 @@ FUSE_TARGS = {
 def flag_data():
     targstoedit = list(FILESTOEDIT.keys())
     all_targs = []
-    for k,v in FUSE_TARGS:
+    for k,v in FUSE_TARGS.items():
         all_targs += v
     for targ in all_targs:
         vofiles0 = glob.glob(os.path.join("/astro/ullyses/fuse_data", targ, "*_vo.fits"))
@@ -257,7 +257,7 @@ def flag_data():
 
 def copy_data():
     all_targs = []
-    for k,v in FUSE_TARGS:
+    for k,v in FUSE_TARGS.items():
         all_targs += v
     for targ in all_targs:
         screened = glob.glob(os.path.join("/astro/ullyses/fuse_data", targ, "dqscreened*_vo.fits"))
