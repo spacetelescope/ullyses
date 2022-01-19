@@ -9,17 +9,14 @@ from astropy.io import fits
 
 from coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDSegmentList
 from coadd import abut
-from ullyses_config import RENAME
-
-DEFAULT_VERSION = 'dr4'
-PROD_DIR = "/astro/ullyses/ULLYSES_HLSP"
+from ullyses_config import RENAME, VERSION, HLSP_DIR
 
 '''
 This wrapper goes through each target folder in the ullyses data directory and find
 the data and which gratings are present. This info is then fed into coadd.py.
 '''
 
-def main(indir, outdir, version=DEFAULT_VERSION, clobber=False):
+def main(indir, outdir, version=VERSION, clobber=False):
     outdir_inplace = False
     if outdir is None:
         outdir_inplace = True
@@ -101,7 +98,7 @@ def main(indir, outdir, version=DEFAULT_VERSION, clobber=False):
                 else:
                     dir_target = target
                 if outdir_inplace is True:
-                    outdir = os.path.join(PROD_DIR, dir_target, version)
+                    outdir = os.path.join(HLSP_DIR, dir_target, version)
                 if not os.path.exists(outdir):
                     os.makedirs(outdir)
                 if instrument != 'FUSE': # FUSE data is written as level 3 product below
@@ -124,7 +121,7 @@ def main(indir, outdir, version=DEFAULT_VERSION, clobber=False):
                 else:
                     dir_target = target
                 if outdir_inplace is True:
-                    outdir = os.path.join(PROD_DIR, dir_target, version)
+                    outdir = os.path.join(HLSP_DIR, dir_target, version)
                 if not os.path.exists(outdir):
                     os.makedirs(outdir)
                 outname = create_output_file_name(prod, version, level=0)
@@ -259,7 +256,7 @@ def main(indir, outdir, version=DEFAULT_VERSION, clobber=False):
                 print(f"   Wrote {filename}")
 
 
-def create_output_file_name(prod, version=DEFAULT_VERSION, level=3):
+def create_output_file_name(prod, version=VERSION, level=3):
     instrument = prod.instrument.lower()   # will be either cos, stis, or fuse. If abbuted can be cos-stis or cos-stis-fuse
     grating = prod.grating.lower()
     target = prod.target.lower()
@@ -304,11 +301,12 @@ def create_output_file_name(prod, version=DEFAULT_VERSION, level=3):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--indir", default="/astro/ullyses/all_vetted_data/",
+    parser.add_argument("-i", "--indir", 
+                        default="/astro/ullyses/all_vetted_data_{VERSION}",
                         help="Directory(ies) with data to combine")
     parser.add_argument("-o", "--outdir", default=None,
                         help="Directory for output HLSPs")
-    parser.add_argument("-v", "--version", default=DEFAULT_VERSION, 
+    parser.add_argument("-v", "--version", default=VERSION, 
                         help="Version number of the HLSP")
     parser.add_argument("-c", "--clobber", default=False,
                         action="store_true",

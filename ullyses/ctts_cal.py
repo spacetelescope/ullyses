@@ -7,12 +7,10 @@ import calcos
 
 import splittag_wrapper
 import timeseries
+from ullyses_config import VERSION, HLSP_DIR, DATA_DIR, VETTED_DIR, CUSTOM_DIR
 
 CODEDIR = os.path.dirname(__file__)
-VERSION = "dr4"
-ALLDATA_DIR = "/astro/ullyses/ULLYSES_DATA"
-VETTED_DIR = "/astro/ullyses/all_vetted_data_dr4"
-CUSTOM_DIR = f"/astro/ullyses/custom_cal/{VERSION}"
+CUSTOM_DIR = os.path.join(CUSTOM_DIR, VERSION)
 
 TARGS = ["v-tw-hya", "v-bp-tau", "v-ru-lup", "v-gm-aur"]
 
@@ -61,7 +59,7 @@ def copy_origdata(targs=TARGS):
 
     for targ in targs:
         targ_u = targ.upper()
-        datadir = os.path.join(ALLDATA_DIR, targ_u)
+        datadir = os.path.join(DATA_DIR, targ_u)
         files = glob.glob(os.path.join(datadir, "l*corrtag*fits"))
         files += glob.glob(os.path.join(datadir, "l*rawtag*.fits"))
         files += glob.glob(os.path.join(datadir, "l*spt*.fits"))
@@ -225,7 +223,7 @@ def correct_vignetting(targs=TARGS):
 def create_timeseries(targs=TARGS):
     for targ in targs:
         for grat in ["g160m", "g230l"]:
-            outdir = f"/astro/ullyses/ULLYSES_HLSP/{targ}/{VERSION.lower()}"
+            outdir = os.path.join(HLSP_DIR, f"{targ}/{VERSION.lower()}")
             if not os.path.exists(outdir):
                 os.makedirs(outdir)
             indir = os.path.join(CUSTOM_DIR, targ, VERSION, grat, "exp")

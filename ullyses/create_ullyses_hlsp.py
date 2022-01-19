@@ -695,7 +695,7 @@ def make_imaging_hlsps():
             ra = fits.getval(item, "ra_targ")
             dec = fits.getval(item, "dec_targ")
             hlspname = f"hlsp_ullyses_hst_wfc3_{targ}_{filt.lower()}_{VERSION}_drc.fits"
-            outdir = f"/astro/ullyses/ULLYSES_HLSP/{targ}/{VERSION}"
+            outdir = os.path.join(HLSP_DIR, f"{targ}/{VERSION.lower()}")
             if not os.path.exists(outdir):
                 os.makedirs(outdir)
             outfile = os.path.join(outdir, hlspname)
@@ -735,7 +735,7 @@ def make_lcogt_tss():
         filepaths = [f"/astro/ullyses/lcogt_data/{targ}/{x}" for x in filenames]
         file_targname = rename_target(ull_targname)
         hlspname = f"hlsp_ullyses_lcogt_04m_{file_targname.lower()}_v-iprime_{VERSION}_tss.fits"
-        outdir = f"/astro/ullyses/ULLYSES_HLSP/{file_targname.lower()}/{VERSION}"
+        outdir = os.path.join(HLSP_DIR, f"{file_targname.lower()}/{VERSION}")
         if not os.path.exists(outdir):
             os.makedirs(outdir)
         outfile = os.path.join(outdir, hlspname)

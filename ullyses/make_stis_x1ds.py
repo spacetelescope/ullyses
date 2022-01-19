@@ -12,7 +12,7 @@ import subprocess
 from readwrite_yaml import read_config
 from calibrate_stis_data import wrapper
 from stis_coadd_x1d import coadd_1d_spectra
-from ullyses_config import RENAME
+from ullyses_config import VERSION, HLSP_DIR, VETTED_DIR, DATA_DIR, CUSTOM_DIR, RENAME
 
 TARGS = [# DR2
         "cvso-104", "cvso-107", "cvso-109", "cvso-146", "cvso-165", "cvso-17",
@@ -25,15 +25,7 @@ TARGS = [# DR2
         #DR4
         "sz66", "sz76", "sz111", "sz130"]
 
-VERSION = "dr4"
-HLSPDIR = "/astro/ullyses/ULLYSES_HLSP"
-#HLSPDIR = "ULLYSES_HLSP" 
-VETTED_DIR = "/astro/ullyses/all_vetted_data_dr4"
-#VETTED_DIR = "all_vetted_data_dr4"
-DATADIR = "/astro/ullyses/ULLYSES_DATA"
-CUSTOM_CAL = "/astro/ullyses/custom_cal"
 CONFIG_DIR = "config_files/"
-#CONFIG_DIR = "test_configs/"
 OUTDIR_ROOT = None
 nowdt = datetime.datetime.now()
 if OUTDIR_ROOT is None:
@@ -41,25 +33,25 @@ if OUTDIR_ROOT is None:
 
 def copy_rawfiles():
     for targ in TARGS:
-        files = glob.glob(os.path.join(DATADIR, targ.upper(), "o*fits"))
+        files = glob.glob(os.path.join(DATA_DIR, targ.upper(), "o*fits"))
         # Targs with periods in their name must be specially renamed or defringe will crash
         if "." in targ:
             assert targ in RENAME, f"Renaming scheme not known for {targ}"
             targ = RENAME[targ]
-        destdir = os.path.join(CUSTOM_CAL, targ.lower())
+        destdir = os.path.join(CUSTOM_DIR, targ.lower())
         if not os.path.exists(destdir):
             os.makedirs(destdir)
         for item in files:
             shutil.copy(item, destdir)
 
     # A special fringeflat is needed for CVSO-109, copy it
-    origin = os.path.join(DATADIR, "CVSO-104", "oe9k1s050_raw.fits")
-    dest = os.path.join(CUSTOM_CAL, "cvso-109")
+    origin = os.path.join(DATA_DIR, "CVSO-104", "oe9k1s050_raw.fits")
+    dest = os.path.join(CUSTOM_DIR, "cvso-109")
     if not os.path.exists(dest):
         os.makedirs(dest)
     shutil.copy(origin, dest)
 
-    print(f"\nCopied TTS data from {DATADIR} to {CUSTOM_CAL}\n")
+    print(f"\nCopied TTS data from {DATA_DIR} to {CUSTOM_DIR}\n")
 
 
 def copy_products(outdir_root=OUTDIR_ROOT):
@@ -68,7 +60,7 @@ def copy_products(outdir_root=OUTDIR_ROOT):
             assert targ in RENAME, f"Renaming scheme not known for {targ}"
             targ = RENAME[targ]
         dirtarg = targ
-        outdir = os.path.join(CUSTOM_CAL, dirtarg.lower(), outdir_root)
+        outdir = os.path.join(CUSTOM_DIR, dirtarg.lower(), outdir_root)
         files = glob.glob(os.path.join(outdir, "*x1d.fits"))
         for item in files:
             actualtarg = fits.getval(item, "targname").lower()
@@ -76,7 +68,7 @@ def copy_products(outdir_root=OUTDIR_ROOT):
             if not os.path.exists(destdir):
                 os.makedirs(destdir)
             shutil.copy(item, destdir)
-    print(f"\nCopied TTS final products from {CUSTOM_CAL}/*/{outdir_root} to {VETTED_DIR}\n")
+    print(f"\nCopied TTS final products from {CUSTOM_DIR}/*/{outdir_root} to {VETTED_DIR}\n")
 
 
 def make_custom_x1ds(outdir_root=OUTDIR_ROOT):
@@ -92,10 +84,10 @@ def make_custom_x1ds(outdir_root=OUTDIR_ROOT):
             assert targ in RENAME, f"Renaming scheme not known for {targ}"
             targ = RENAME[targ]
         dirtarg = targ
-        indir = os.path.join(CUSTOM_CAL, dirtarg)
+        indir = os.path.join(CUSTOM_DIR, dirtarg)
         outdir = os.path.join(indir, outdir_root)
         wrapper(indir, config, outdir=outdir)
-    print(f"\nMade custom products for data in {CUSTOM_CAL}, wrote to {CUSTOM_CAL}/*/{outdir_root}\n")
+    print(f"\nMade custom products for data in {CUSTOM_DIR}, wrote to {CUSTOM_DIR}/*/{outdir_root}\n")
 
 
 def coadd_blended_spectra(outdir_root=OUTDIR_ROOT):
@@ -113,10 +105,10 @@ def coadd_blended_spectra(outdir_root=OUTDIR_ROOT):
             continue
         for pair in d[targ]:
             files0 = pair
-            indir = os.path.join(CUSTOM_CAL, targ.lower(), outdir_root)
+            indir = os.path.join(CUSTOM_DIR, targ.lower(), outdir_root)
             files = [os.path.join(indir, x) for x in files0]
             coadd_1d_spectra(files, targ, outdir=indir)
-    print(f"\nMade coadded blended spectra for {d.keys()}, wrote to {CUSTOM_CAL}/*{outdir_root}\n")
+    print(f"\nMade coadded blended spectra for {d.keys()}, wrote to {CUSTOM_DIR}/*{outdir_root}\n")
 
 def copy_rename_yaml():
     yamlfiles0 = glob.glob(os.path.join(CONFIG_DIR, "*yaml"))
@@ -133,11 +125,11 @@ def copy_rename_yaml():
             targ = RENAME[targ]
         grating = spl[1].split(".")[0]
         newname = f"hlsp_ullyses_hst_stis_{targ}_{grating}_{VERSION}_spec.yaml"
-        dest = os.path.join(HLSPDIR, targ, VERSION)
+        dest = os.path.join(HLSP_DIR, targ, VERSION)
         if not os.path.exists(dest):
             os.makedirs(dest)
         shutil.copyfile(item, os.path.join(dest, newname))
-    print(f"\nCopied and renamed YAML files from {CONFIG_DIR} to {HLSPDIR}\n")
+    print(f"\nCopied and renamed YAML files from {CONFIG_DIR} to {HLSP_DIR}\n")
     
 
 def main():

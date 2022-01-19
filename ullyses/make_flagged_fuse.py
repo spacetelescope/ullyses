@@ -6,8 +6,7 @@ import numpy as np
 import matplotlib.pyplot as pl
 
 from fuse_add_dq import add_dq_col
-
-DRDIR = "/astro/ullyses/all_vetted_data_dr4"
+from ullyses_config import VETTED_DIR
 
 # FILESTOEDIT lists FUSE targets that require custom flagging
 # DQ=1 (Worm)
@@ -262,11 +261,11 @@ def copy_data():
     for targ in all_targs:
         screened = glob.glob(os.path.join("/astro/ullyses/fuse_data", targ, "dqscreened*_vo.fits"))
         for item in screened:
-            destdir = os.path.join(DRDIR, targ.lower())
+            destdir = os.path.join(VETTED_DIR, targ.lower())
             if not os.path.exists(destdir):
                 os.makedirs(destdir)
             shutil.copy(item, destdir)
-    print(f"Copied flagged files to {DRDIR}")
+    print(f"Copied flagged files to {VETTED_DIR}")
 
 
 def main():
