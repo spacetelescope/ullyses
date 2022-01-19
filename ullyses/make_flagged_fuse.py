@@ -9,11 +9,11 @@ from fuse_add_dq import add_dq_col
 
 DRDIR = "/astro/ullyses/all_vetted_data_dr4"
 
-# DR1 FUSE targets that require custom flagging
+# FILESTOEDIT lists FUSE targets that require custom flagging
 # DQ=1 (Worm)
 # DQ=2 (Poor photometric quality)
 FILESTOEDIT = {
-# DR2 targets
+# DR2 targets below
 "AV232":         {"minwl": [1141],      "maxwl": [-1],           "dq": [1]},
 "AV15":          {"minwl": [1179.9],    "maxwl": [-1],           "dq": [1]},
 "AV16":          {"minwl": [1076],      "maxwl": [1090],         "dq": [2]},
@@ -48,10 +48,10 @@ FILESTOEDIT = {
 "AV210":         {"minwl": [1150],      "maxwl": [1170],         "dq": [1]},
 "N11-ELS-018":   {"minwl": [0,1090],    "maxwl": [990,1094.5],   "dq": [2,2]},
 "SK-69D279":     {"minwl": [1080,1180], "maxwl": [1090,-1],      "dq": [2,1]},
-# DR3 targets
+# DR3 targets below
 "2DFS-999":     {"minwl": [0],          "maxwl": [1000],         "dq": [2]},
 "AV26":         {"minwl": [1150],       "maxwl": [-1],           "dq": [1]},
-# DR4 targets
+# DR4 targets below
 "AV96":         {"minwl": [1147],       "maxwl": [1188],         "dq": [1]},
 "SK-70D32":     {"minwl": [0, 1082.5],  "maxwl": [992, 1087.2],  "dq": [2, 2]} 
 }
@@ -81,9 +81,10 @@ BAD_FUSE = [
  'SK-68D16']
 
 
-# List of all FUSE DR targets. Commented lines are targets that had serious
-# data quality issues and will not be used in DR.
-FUSE_DR2 = [ 
+# List of all FUSE targets by DR. Commented lines are targets that had serious
+# data quality issues and were not included in the DR.
+FUSE_TARGS = {
+"DR2": [ 
  'AV207',
  'SK-71D19',
 # 'AV83',
@@ -174,9 +175,9 @@ FUSE_DR2 = [
  'AV332',
  'AV75',
  'AV327',
- 'AV18']
+ 'AV18'],
 
-FUSE_DR3 = [
+"DR3": [
  'AV490',
  'SK-67D166', 
 # 'AV287',
@@ -202,10 +203,10 @@ FUSE_DR3 = [
 # 'BI272', 
  'HV5622', 
 # 'NGC346-MPG-435', 
- 'SK-67D118'] 
-# 'SK-68D16'
+# 'SK-68D16',
+ 'SK-67D118'], 
 
-FUSE_DR4 = [
+"DR4": [
  "AV220", 
  "AV472",
  "AV261", 
@@ -222,13 +223,16 @@ FUSE_DR4 = [
  "AV85", # This data was good, but there was no accompanying HST data in DR4 
  "SK-67D266", 
  "SK-68D41" # This data was good, but there was no accompanying HST data in DR4
-]
+],
 
-FUSE_DR5 = []
+"DR5": []
+}
 
 def flag_data():
     targstoedit = list(FILESTOEDIT.keys())
-    all_targs = FUSE_DR2 + FUSE_DR3 + FUSE_DR4
+    all_targs = []
+    for k,v in FUSE_TARGS:
+        all_targs += v
     for targ in all_targs:
         vofiles0 = glob.glob(os.path.join("/astro/ullyses/fuse_data", targ, "*_vo.fits"))
         vofiles = [x for x in vofiles0 if "dqscreened" not in x]
@@ -252,7 +256,9 @@ def flag_data():
 
 
 def copy_data():
-    all_targs = FUSE_DR2 + FUSE_DR3 + FUSE_DR4
+    all_targs = []
+    for k,v in FUSE_TARGS:
+        all_targs += v
     for targ in all_targs:
         screened = glob.glob(os.path.join("/astro/ullyses/fuse_data", targ, "dqscreened*_vo.fits"))
         for item in screened:
