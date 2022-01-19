@@ -16,8 +16,6 @@ import os
 import glob
 import argparse
 
-DRDIR = "/astro/ullyses/all_vetted_data_dr4"
-
 def compare_hlsps(oldfile, newfile):
     # First do a fitsdiff
     fd = fits.FITSDiff(oldfile, newfile)
@@ -43,6 +41,10 @@ def compare_hlsps(oldfile, newfile):
         plt.clf()
 
 def compare_x1ds(newhlsp):
+    # Determine the DR from the HLSP name
+    sp = newhlsp.split("_")
+    dr = sp[-2]
+    vetdir = f"/astro/ullyses/all_vetted_data_{dr}"
     # Read in HLSP data and provenance tables
     hlsp = fits.getdata(newhlsp)
     prov = fits.getdata(newhlsp, 2)
@@ -52,7 +54,7 @@ def compare_x1ds(newhlsp):
     x1d_rootnames = [x.split("_")[0] for x in x1d_filenames]
     x1ds = []
     for item in x1d_rootnames:
-        x1d = glob.glob(os.path.join(DRDIR, targ.lower(), "*"+item+"*.fits"))
+        x1d = glob.glob(os.path.join(vetdir, targ.lower(), "*"+item+"*.fits"))
         assert len(x1d) == 1, f"Expected one matching file for {item}, got {len(x1d)}"
         x1ds.append(x1d[0])
 
@@ -62,7 +64,7 @@ def compare_x1ds(newhlsp):
         for i,x1d in enumerate(x1ds):
             # Special handling for FUSE data
             if "vo.fits" in x1d:
-                x1d = os.path.join(DRDIR, targ.lower(), f"dqscreened_{x1d_filenames[i].lower()}")
+                x1d = os.path.join(vetdir, targ.lower(), f"dqscreened_{x1d_filenames[i].lower()}")
                 sdq = 3
                 wlarr = "wave"
                 if arr == "error":
