@@ -182,7 +182,7 @@ FUSE_DR3 = [
 # 'AV287',
  'SK-66D51',
  'HD38029',
-# 'SK-70D60', # This data was good, there was no accompanying HST data for DR3
+ 'SK-70D60', # This data was good, there was no accompanying HST data for DR3
  'SK-69D175',
 # 'SK-69D220',
  'SK-67D167',
@@ -206,24 +206,25 @@ FUSE_DR3 = [
 # 'SK-68D16'
 
 FUSE_DR4 = [
-"AV220", 
-"AV472",
-"AV261", 
-#"AV264", # This data was good, but there was no accompanying HST data in DR4
-#"AV96", # This data was good, but there was no accompanying HST data in DR4 
-#"HD269927C", # This data was good, but there was no accompanying HST data in DR4 
-#"SK-65D55", # This data was good, but there was no accompanying HST data in DR4 
-#"SK-66D171", # This data was good, but there was no accompanying HST data in DR4
-#"SK-69D43", # This data was good, but there was no accompanying HST data in DR4 
-#"SK-70D32", # This data was good, but there was no accompanying HST data in DR4 
-"SK-71D21", 
-#"SK-71D8", # This data was good, but there was no accompanying HST data in DR4
-"AV170", 
-#"AV85", # This data was good, but there was no accompanying HST data in DR4 
-"SK-67D266", 
-#"SK-68D41" # This data was good, but there was no accompanying HST data in DR4
+ "AV220", 
+ "AV472",
+ "AV261", 
+ "AV264", # This data was good, but there was no accompanying HST data in DR4
+ "AV96", # This data was good, but there was no accompanying HST data in DR4 
+ "HD269927C", # This data was good, but there was no accompanying HST data in DR4 
+ "SK-65D55", # This data was good, but there was no accompanying HST data in DR4 
+# "SK-66D171", # This data was good, but there was no accompanying HST data in DR4
+ "SK-69D43", # This data was good, but there was no accompanying HST data in DR4 
+# "SK-70D32", # This data was good, but there was no accompanying HST data in DR4 
+ "SK-71D21", 
+ "SK-71D8", # This data was good, but there was no accompanying HST data in DR4
+ "AV170", 
+ "AV85", # This data was good, but there was no accompanying HST data in DR4 
+ "SK-67D266", 
+ "SK-68D41" # This data was good, but there was no accompanying HST data in DR4
 ]
 
+FUSE_DR5 = []
 
 def flag_data():
     targstoedit = list(FILESTOEDIT.keys())
