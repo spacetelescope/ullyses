@@ -8,13 +8,14 @@ python check_hlsps.py --newhlsp <filename>
 This creates comparison plots only.
 """
 
-
 import numpy as np
 from astropy.io import fits
 import matplotlib.pyplot as plt
 import os
 import glob
 import argparse
+
+from ullyses_config import VETTED_DIR
 
 def compare_hlsps(oldfile, newfile):
     # First do a fitsdiff
@@ -44,7 +45,8 @@ def compare_x1ds(newhlsp):
     # Determine the DR from the HLSP name
     sp = newhlsp.split("_")
     dr = sp[-2]
-    vetdir = f"/astro/ullyses/all_vetted_data_{dr}"
+    strip_vetdir = VETTED_DIR[:-3] #gives just /astro/ullyses/all_vetted_data_
+    vetdir = f"{strip_vetdir}{dr}"
     # Read in HLSP data and provenance tables
     hlsp = fits.getdata(newhlsp)
     prov = fits.getdata(newhlsp, 2)

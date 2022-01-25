@@ -6,10 +6,9 @@ import glob
 import pandas as pd
 import datetime
 
-from ullyses_config import VERSION, CAL_VER, HLSP_DIR, VETTED_DIR, RENAME
+from ullyses_config import VERSION, CAL_VER, HLSP_DIR, VETTED_DIR, RENAME, CUSTOM_DIR
 
 SHIFTS = {"sz10": "cos_shift_files/sz10_shifts.txt"}
-CUSTOM_DIR = "/astro/ullyses/custom_cal"
 OUTDIR_ROOT = None
 nowdt = datetime.datetime.now()
 if OUTDIR_ROOT is None:
