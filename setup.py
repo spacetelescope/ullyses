@@ -23,6 +23,7 @@ setup(
     install_requires = ["setuptools",
                         "numpy",
                         "astropy",
+                        "pandas",
 						"ullyses_utils"
                         ],
     # If you need something from github, any of the below formats work:
