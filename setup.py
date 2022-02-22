@@ -1,5 +1,5 @@
-# For info on how to write a setup.py file, check out the link below 
-# or ask a friendly neighborhood python programmer! 
+# For info on how to write a setup.py file, check out the link below
+# or ask a friendly neighborhood python programmer!
 # https://docs.python.org/3.7/distutils/setupscript.html
 
 from setuptools import setup, find_packages
@@ -18,7 +18,7 @@ setup(
                    'Topic :: Scientific/Engineering :: Astronomy',
                    'Topic :: Scientific/Engineering :: Physics',
                    'Topic :: Software Development :: Libraries :: Python Modules'],
-    packages = ["ullyses"],
+    packages = find_packages(),
     package_dir = {"ullyses": "ullyses"},
     install_requires = ["setuptools",
                         "numpy",
