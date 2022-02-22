@@ -8,18 +8,47 @@ import datetime
 
 from ullyses_config import VERSION, CAL_VER, HLSP_DIR, VETTED_DIR, RENAME, CUSTOM_DIR
 
+"""
+This code is used to apply custom wavelength shifts 
+for ULLYSES targets that have wavelength calibration issues.
+
+Users will need to create a text file with the columns
+"rootname", "fppos", "flash", "segment", and "shift1"
+for each target that needs correction.
+
+rootname: the unique rootname for each rawtag to be corrected
+FPPOS: typical input value is "any"
+flash: typical input value is "any"
+segment: FUVA, FUVB, NUVA, NUVB, or NUVC
+shift1: the shift in x pixels to apply for that rawtag
+
+Users will need to specify the location of the data 
+
+"""
+
+
 SHIFTS = {"sz10": "cos_shift_files/sz10_shifts.txt"}
 OUTDIR_ROOT = None
 nowdt = datetime.datetime.now()
 if OUTDIR_ROOT is None:
     OUTDIR_ROOT = nowdt.strftime("%Y%m%d_%H%M")
 
+
 def apply_shifts():
-    for targ,shift_file in SHIFTS.items():
+
+    """
+    Apply shifts from input txt file. The txt file is
+    given as an input to calcos, which recalibrates the
+    rawtags files.
+    :return:
+    """
+
+    for targ, shift_file in SHIFTS.items():
         seen = []
-        df = pd.read_csv(shift_file, delim_whitespace=True, 
-            names=["rootname", "fppos", "flash", "segment", "shift1"], 
-            header=None)
+        df = pd.read_csv(shift_file, delim_whitespace=True,
+                         names=["rootname", "fppos", "flash", "segment", "shift1"],
+                         header=None)
+
         roots = df["rootname"]
         for root in roots:
             ipppss = root[:6]
@@ -27,18 +56,24 @@ def apply_shifts():
                 seen.append(ipppss)
             else:
                 continue
-            files = glob.glob(os.path.join(CUSTOM_DIR, targ,  
-                          f"{ipppss}*asn.fits"))
+
+            # get the
+            files = glob.glob(os.path.join(CUSTOM_DIR, targ, f"{ipppss}*asn.fits"))
             assert len(files) != 0, f"No files found for {targ}"
+
             outdir = os.path.join(CUSTOM_DIR, targ, OUTDIR_ROOT)
             if not os.path.exists(outdir):
                 os.makedirs(outdir)
+
+
             calcos.calcos(files[0], shift_file=shift_file, outdir=outdir, 
                           verbosity=0)
+
             x1ds = glob.glob(os.path.join(outdir, "*x1d.fits"))
             copydir = os.path.join(VETTED_DIR, targ)
             if not os.path.exists(copydir):
                 os.makedirs(copydir)
+
             for x1d in x1ds:
                 existing = os.path.join(copydir, os.path.basename(x1d))
                 if os.path.exists(existing):
@@ -48,6 +83,7 @@ def apply_shifts():
                 shutil.copy(x1d, copydir)
             print(f"Copied custom x1ds to {copydir}")
     print(f"Copied custom x1ds to {VETTED_DIR}")
+
 
 if __name__ == "__main__":
     apply_shifts()
