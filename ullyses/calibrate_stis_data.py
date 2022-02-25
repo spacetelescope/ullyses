@@ -11,11 +11,11 @@ import sys
 import stistools
 from stistools import x1d
 from stistools.ocrreject import ocrreject
-#import stis_cti
+import stis_cti
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
-from readwrite_yaml import read_config, write_config
+from ullyses_utils.readwrite_yaml import read_config, write_config
 import plot_stis_data
 os.environ["oref"] = "/grp/hst/cdbs/oref/"
 
@@ -24,18 +24,22 @@ SYM = "~"
 NCOLS = 72
 SEP = f"\n!{'~'*70}!\n"
 
-class Tee():
+
+class Tee:
     def __init__(self, *files):
         self.files = files
+
     def write(self, obj):
         for f in self.files:
             f.write(obj)
             f.flush() # If you want the output to be visible immediately
+
     def flush(self) :
         for f in self.files:
             f.flush()
 
-class StisData():
+
+class StisData:
     """
     A class to describe STIS data that need to be custom-calibrated.
 
@@ -60,7 +64,7 @@ class StisData():
                  overwrite=True): 
         """
         Args:
-            infiles: List or wildcard describing all input files.
+            infile: List or wildcard describing all input files.
             outdir: Output directory for products.
         """
         nowdt = datetime.datetime.now()
@@ -128,7 +132,6 @@ class StisData():
             if change_sci_val:
                 print("Changing large negative values to large positive values...")
                 sci_hdu[1].data[neg] = sci_val
-        
 
     def custom_dq16(self, dq=16, threshold=0.06):
         """
@@ -200,7 +203,6 @@ class StisData():
                         darkname = os.path.basename(darkfile0)
                         darkfile = os.path.join(OREF_DIR, darkname)
 
-
                 # Remove any existing DQ={dq} flags from FLT, since they are
                 # inherently wrong.
                 new_dark_file = os.path.join(customdark_dir, darkname)
@@ -241,7 +243,6 @@ class StisData():
                         new_dark.append(fits.ImageHDU(dark_dq, dark_hdu[3].header, name=dark_hdu[3].name))
                         new_dark.writeto(new_dark_file)
                     print(f"Wrote new darkfile: {new_dark_file}")
-            
 
     def extract_spectra(self):
         """
@@ -269,24 +270,23 @@ class StisData():
                 os.remove(outfile)
            
             # For estimation of background region only
-            if pars['yloc'] == None:
+            if pars['yloc'] is None:
                 yloc = 512
             else:
                 yloc = pars['yloc']
-            x1d.x1d(infile, 
-                output = outfile, 
-                a2center = pars["yloc"],
-                xoffset = pars["xoffset"], 
-                maxsrch = pars["maxsrch"],
-                extrsize = pars["height"],
-                bk1offst = (pars["b_bkg1"] - yloc) if pars["b_bkg1"] is not None else None,
-                bk2offst = (pars["b_bkg2"] - yloc) if pars["b_bkg2"] is not None else None,
-                bk1size = pars["b_hgt1"],
-                bk2size = pars["b_hgt2"],
-                verbose=True,
-                **kwargs)
+            x1d.x1d(infile,
+                    output = outfile,
+                    a2center = pars["yloc"],
+                    xoffset = pars["xoffset"],
+                    maxsrch = pars["maxsrch"],
+                    extrsize = pars["height"],
+                    bk1offst = (pars["b_bkg1"] - yloc) if pars["b_bkg1"] is not None else None,
+                    bk2offst = (pars["b_bkg2"] - yloc) if pars["b_bkg2"] is not None else None,
+                    bk1size = pars["b_hgt1"],
+                    bk2size = pars["b_hgt2"],
+                    verbose=True,
+                    **kwargs)
             print(f"Wrote x1d file: {outfile}")
-
 
     def find_product(self, ext):
         prod = os.path.join(self.basedir, self.rootname+"_"+ext+".fits")
@@ -304,7 +304,6 @@ class StisData():
                     hdr0.set("DARKFILE", darkfile)
         return prod
 
-
     def update_header(self):
         nowdt = datetime.datetime.now()
         nowdt_str = nowdt.strftime("%Y%m%d_%H%M")
@@ -320,7 +319,6 @@ class StisData():
                     hdulist[0].header["RA_TARG"] = target_pars["coords"]["ra"]
                     hdulist[0].header["DEC_TARG"] = target_pars["coords"]["dec"]
 
-
     def printintro(self):
         print("\n", f" RUNNING ON {os.path.basename(self.infile)} ".center(NCOLS, SYM), "\n")
         print(f"Filename: {self.infile}")
@@ -329,7 +327,6 @@ class StisData():
         print("Target(s):")
         for target in self.target_dict:
             print(f"\t{target}")
-
 
     def make_plots(self):
         if self.x1d_mast is not None:
@@ -350,6 +347,7 @@ class StisData():
             customx1d = target_pars['out_x1d']
             pdffile = plot_stis_data.plot_all_2d(twod_im, self.acq, customx1d, target, self.outdir)
             self.target_dict[target]["twod_plot"] = pdffile
+
 
 class StisCcd(StisData):
     def __init__(self, infile, yamlfile, dolog=True, logfile=None, outdir=None, 
@@ -381,8 +379,7 @@ class StisCcd(StisData):
         os.environ["ctirefs"] = "/astro/ullyses/stis_ccd_data/cti_refs/"
         
         self.crsplit = fits.getval(infile, "crsplit")
-   
-    
+
     def perform_cti(self):
         """
         Run the STIS CTI code on STIS CCD data.
@@ -415,7 +412,6 @@ class StisCcd(StisData):
         self.crj = os.path.join(self.outdir, self.rootname+"_crc.fits")
 #        self.copy_products()
 
-
     def copy_products(self):
         """
         Copy the intermediate products from STIS CTI products to self.outdir, 
@@ -443,7 +439,6 @@ class StisCcd(StisData):
         print(f"Copied FLC and CRC files to {self.outdir}")
         self.flt = os.path.join(self.outdir, self.rootname+"_flc.fits")
         self.crj = os.path.join(self.outdir, self.rootname+"_crc.fits")
-
 
     def check_crrej(self):
         
@@ -496,7 +491,6 @@ class StisCcd(StisData):
             print("Extraction region rejection rate is above threshold")
             self.needs_crrej = True
 
-    
     def custom_crrej(self):
         """
         Check on CR rejection rate comes from Joleen Carlberg's code: 
@@ -531,7 +525,6 @@ class StisCcd(StisData):
         print(f"Wrote crj file: {outfile}")
         self.crj = outfile
 
-    
     def defringe(self):
         
         for target,target_pars in self.target_dict.items():
@@ -596,7 +589,6 @@ class StisCcd(StisData):
                 pass
             print(f"Wrote defringed crj file: {outfile_dest}")
 
-
     def run_all(self):
         self.printintro()
         if self.do_perform_cti is True:
@@ -613,7 +605,6 @@ class StisCcd(StisData):
         self.update_header()
         self.make_plots()
         self.printfinal()
-    
 
     def printfinal(self):
         print("\n", f" RECALIBRATION SUMMARY ".center(NCOLS, SYM), "\n")
@@ -676,7 +667,6 @@ class StisMama(StisData):
         if self.infile_type == "flt":
             self.flt = infile
 
-
     def run_all(self):
         self.printintro()
         if self.do_flag_negatives is True:
@@ -687,7 +677,6 @@ class StisMama(StisData):
         self.update_header()
         self.make_plots()
         self.printfinal()
-    
 
     def printfinal(self):
         print("\n", f" RECALIBRATION SUMMARY ".center(NCOLS, SYM), "\n")
@@ -758,4 +747,3 @@ if __name__ == "__main__":
     dolog = not args.nolog
     wrapper(args.indir, args.yaml, dolog, args.logfile, args.outdir, 
             args.clobber)
-
