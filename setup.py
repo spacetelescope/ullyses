@@ -27,7 +27,8 @@ setup(
                         "stistools>=1.4.1",
                         "pandas",
                         "calcos>=3.4.0",
-                        "matplotlib"
+                        "matplotlib",
+                        "pyyaml"
                         ],
     # If you need something from github, any of the below formats work:
 #    dependency_links = ["git+ssh://git@github.com/npirzkal/GRISMCONF.git#egg=GRISMCONF-0.1"],
