@@ -273,7 +273,7 @@ def copy_data(outdir, copydir):
     print(f"Copied flagged files to {destdir}")
 
 
-def main(indir, outdir, copydir):
+def main(indir, outdir, copydir=None):
     flag_data(indir, outdir)
     if copydir is not None:
         copy_data(outdir, copydir)
@@ -282,11 +282,11 @@ def main(indir, outdir, copydir):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--indir", default=".",
-                        help="Path to input directory with ASN and rawtag files")
+                        help="Path to input directory with input NVO files to flag")
     parser.add_argument("-o", "--outdir",
-                        help="Path to output directory")
+                        help="Output path to place flagged NVO files")
     parser.add_argument("-c", "--copydir", default=None,
-                        help="Path to directory to copy x1ds to, if so desired.")
+                        help="Path to directory to copy modified NVO files to, if desired.")
 
     args = parser.parse_args()
 
