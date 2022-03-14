@@ -9,135 +9,103 @@ import matplotlib.pyplot as pl
 from stistools import x1d
 import subprocess
 
-from readwrite_yaml import read_config
-from calibrate_stis_data import wrapper
+from calibrate_stis_data import calibrate_stis_data
 from stis_coadd_x1d import coadd_1d_spectra
-from ullyses_config import VERSION, HLSP_DIR, VETTED_DIR, DATA_DIR, CUSTOM_DIR, RENAME
+import ullyses_utils
+utils_dir = ullyses_utils.__path__[0]
+from ullyses_utils.ullyses_config import VERSION, RENAME
+from ullyses_utils.readwrite_yaml import read_config
 
-TARGS = [# DR2
-        "cvso-104", "cvso-107", "cvso-109", "cvso-146", "cvso-165", "cvso-17",
-        "cvso-176", "cvso-36", "cvso-58", "cvso-90", "v-tx-ori", "v505-ori",
-        "v510-ori", 
-        #dr3
-        "sz10", "sz45", "sz69", "sz71", "sz72", "sz75", "sz77", "v-in-cha",
-        "v-xx-cha", "chx18n", "2massj11432669-7804454", "echa-j0844.2-7833",
-        "hn5", "sstc2dj160000.6-422158",
-        #DR4
-        "sz66", "sz76", "sz111", "sz130"]
-
-CONFIG_DIR = "config_files/"
+CONFIG_DIR = os.path.join(utils_dir, "data", "stis_configs")
 OUTDIR_ROOT = None
 nowdt = datetime.datetime.now()
 if OUTDIR_ROOT is None:
     OUTDIR_ROOT = nowdt.strftime("%Y%m%d_%H%M")
 
-def copy_rawfiles():
-    for targ in TARGS:
-        files = glob.glob(os.path.join(DATA_DIR, targ.upper(), "o*fits"))
-        # Targs with periods in their name must be specially renamed or defringe will crash
-        if "." in targ:
-            assert targ in RENAME, f"Renaming scheme not known for {targ}"
-            targ = RENAME[targ]
-        destdir = os.path.join(CUSTOM_DIR, targ.lower())
-        if not os.path.exists(destdir):
-            os.makedirs(destdir)
-        for item in files:
-            shutil.copy(item, destdir)
+def copy_origfiles(datadir, orig_datadir):
+    """
+    Copy the original STIS files to ensure we leave them intact.
+    """
+    files = glob.glob(os.path.join(orig_datadir, "o*fits"))
+    # Targs with periods in their name must be specially renamed or defringe will crash
+    if "." in targ:
+        assert targ in RENAME, f"Renaming scheme not known for {targ}"
+        targ = RENAME[targ]
+    if not os.path.exists(datadir):
+        os.makedirs(datadir)
+    for item in files:
+        shutil.copy(item, datadir)
 
-    # A special fringeflat is needed for CVSO-109, copy it
-    origin = os.path.join(DATA_DIR, "CVSO-104", "oe9k1s050_raw.fits")
-    dest = os.path.join(CUSTOM_DIR, "cvso-109")
-    if not os.path.exists(dest):
-        os.makedirs(dest)
-    shutil.copy(origin, dest)
-
-    print(f"\nCopied TTS data from {DATA_DIR} to {CUSTOM_DIR}\n")
+    print(f"\nCopied TTS data from {orig_datadir} to {datadir}\n")
 
 
-def copy_products(outdir_root=OUTDIR_ROOT):
-    for targ in TARGS:
-        if "." in targ:
-            assert targ in RENAME, f"Renaming scheme not known for {targ}"
-            targ = RENAME[targ]
-        dirtarg = targ
-        outdir = os.path.join(CUSTOM_DIR, dirtarg.lower(), outdir_root)
-        files = glob.glob(os.path.join(outdir, "*x1d.fits"))
-        for item in files:
-            actualtarg = fits.getval(item, "targname").lower()
-            destdir = os.path.join(VETTED_DIR, actualtarg)
-            if not os.path.exists(destdir):
-                os.makedirs(destdir)
-            shutil.copy(item, destdir)
-    print(f"\nCopied TTS final products from {CUSTOM_DIR}/*/{outdir_root} to {VETTED_DIR}\n")
+def copy_cvso104_fringeflat(cvso109_dir, cvso104_fringeflat):
+    """
+    A special fringeflat is needed for CVSO-109.
+    Copy CVSO-104's fringeflat to use with CVSO-109
+    """
+    if not os.path.exists(cvso109_dir):
+        os.makedirs(cvso109_dir)
+    shutil.copy(cvso104_fringeflat, cvso109_dir)
 
 
-def make_custom_x1ds(outdir_root=OUTDIR_ROOT):
-    configs = glob.glob(os.path.join(CONFIG_DIR, "*yaml"))
-    for config in configs:
-        config_name = os.path.basename(config)
-        if config_name == "target_grating.yaml":
-            continue
-        targ = config_name.split("_")[0].lower()
-        if targ not in TARGS:
-            continue
-        if "." in targ:
-            assert targ in RENAME, f"Renaming scheme not known for {targ}"
-            targ = RENAME[targ]
-        dirtarg = targ
-        indir = os.path.join(CUSTOM_DIR, dirtarg)
-        outdir = os.path.join(indir, outdir_root)
-        wrapper(indir, config, outdir=outdir)
-    print(f"\nMade custom products for data in {CUSTOM_DIR}, wrote to {CUSTOM_DIR}/*/{outdir_root}\n")
+def make_custom_x1ds(datadir, outdir, targ, config_dir=CONFIG_DIR):
+    configs = glob.glob(os.path.join(config_dir, f"{targ}*yaml"))
+    assert len(configs) != 0, f"No config files for target {targ}"
+    if "." in targ:
+        assert targ in RENAME, f"Renaming scheme not known for {targ}"
+    calibrate_stis_data(datadir, config, outdir)
+    print(f"\nMade custom products for target {targ}, wrote to {outdir}\n")
 
 
-def coadd_blended_spectra(outdir_root=OUTDIR_ROOT):
+def coadd_blended_spectra(x1ds, targ, outdir):
     """
     VERY IMPORTANT: the second listed target for each set of two needs to be the
     companion. The DQ arrays of the companion are ignored with coadding the two
     spectra. 
     """
-    d = {"cvso-109": [["oe9k2s020_cvso-109a_x1d.fits", "oe9k2s020_cvso-109b_x1d.fits"],
-                      ["oe9k2s030_cvso-109a_x1d.fits", "oe9k2s030_cvso-109b_x1d.fits"],
-                      ["oe9k2s010_cvso-109a_x1d.fits", "oe9k2s010_cvso-109b_x1d.fits"]],
-         "cvso-165": [["oe9j2s010_cvso-165a_x1d.fits", "oe9j2s010_cvso-165b_x1d.fits"]]}
-    for targ in d:
-        if targ not in TARGS:
-            continue
-        for pair in d[targ]:
-            files0 = pair
-            indir = os.path.join(CUSTOM_DIR, targ.lower(), outdir_root)
-            files = [os.path.join(indir, x) for x in files0]
-            coadd_1d_spectra(files, targ, outdir=indir)
-    print(f"\nMade coadded blended spectra for {d.keys()}, wrote to {CUSTOM_DIR}/*{outdir_root}\n")
+    coadd_1d_spectra(x1ds, targ, outdir)
+    print(f"\nMade coadded blended spectra for {targ}, wrote to {outdir}\n")
 
-def copy_rename_yaml():
-    yamlfiles0 = glob.glob(os.path.join(CONFIG_DIR, "*yaml"))
-    yamlfiles = [x for x in yamlfiles0 if os.path.basename(x) != "target_grating.yaml"]
+def copy_rename_yaml(targ, outdir, config_dir=CONFIG_DIR):
+    yamlfiles = glob.glob(os.path.join(config_dir, f"{targ}*yaml"))
     for item in yamlfiles:
         f = os.path.basename(item)
         spl = f.split("_")
         targ = spl[0].lower()
-        if targ not in TARGS:
-            continue
         # Targs with periods in their name must be specially renamed
         if "." in targ:
             assert targ in RENAME, f"Renaming scheme not known for {targ}"
             targ = RENAME[targ]
         grating = spl[1].split(".")[0]
         newname = f"hlsp_ullyses_hst_stis_{targ}_{grating}_{VERSION}_spec.yaml"
-        dest = os.path.join(HLSP_DIR, targ, VERSION)
-        if not os.path.exists(dest):
-            os.makedirs(dest)
-        shutil.copyfile(item, os.path.join(dest, newname))
-    print(f"\nCopied and renamed YAML files from {CONFIG_DIR} to {HLSP_DIR}\n")
+        if not os.path.exists(outdir):
+            os.makedirs(outdir)
+        shutil.copyfile(item, os.path.join(outdir, newname))
+    print(f"\nCopied and renamed {targ} YAML files from {config_dir} to {outdir}\n")
     
 
-def main():
-    copy_rawfiles()
-    make_custom_x1ds()
-    coadd_blended_spectra()
-    copy_rename_yaml()
-    copy_products()
+def copy_products(outdir, copydir):
+    """
+    Once you have created custom STIS 1D spectra, you may
+    copy them to another destination.
+    """
+    files = glob.glob(os.path.join(outdir, "*x1d.fits"))
+    for item in files:
+        if not os.path.exists(copydir):
+            os.makedirs(copydir)
+        shutil.copy(item, copydir)
+    print(f"\nCopied custom x1ds from {outdir} to {copydir}\n")
+
+
+def main(datadir, targ, orig_datadir, outdir, config_dir=CONFIG_DIR, copydir=None):
+    copy_origfiles(datadir, orig_datadir)
+    #copy_cvso104_fringeflat(cvso109_dir, cvso104_fringeflat)
+    make_custom_x1ds(datadir, outdir, targ, config_dir)
+    #coadd_blended_spectra(x1ds, targ, outdir)
+    copy_rename_yaml(targ, outdir, config_dir)
+    if copydir is not None:
+        copy_products(outdir, copydir)
 
 
 if __name__ == "__main__":
