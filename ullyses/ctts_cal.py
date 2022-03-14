@@ -12,8 +12,6 @@ from ullyses_utils.ullyses_config import VERSION
 
 utils_dir = ullyses_utils.__path__[0]
 
-TARGS = ["v-tw-hya", "v-bp-tau", "v-ru-lup", "v-gm-aur"]
-
 BINS = {"v-tw-hya": {"g160m": {"time": 30, "wave": 3, "min_exptime": 20}, # exptime = 300
                      "g230l": {"time": 10, "wave": 1, "min_exptime": 9}}, # exptime = 30
         "v-ru-lup": {"g160m": {"time": 30, "wave": 6, "min_exptime": 20}, # exptime = 220
@@ -232,7 +230,8 @@ def create_timeseries(datadir, tss_outdir):
 
     return tss_outdir
 
-def main(root_datadir, orig_datadir, tss_outdir, custom_caldir=None, g230l_disptab=G230L_DISPTAB):
+def main(datadir, orig_datadir, tss_outdir, custom_caldir=None, 
+         g230l_disptab=G230L_DISPTAB):
     copy_origdata(datadir, orig_datadir)
     calibrate_data(datadir, custom_caldir, g230l_disptab)
     copy_caldata(datadir)
