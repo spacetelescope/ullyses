@@ -28,14 +28,6 @@ Users will need to specify the location of the data
 
 """
 
-
-SHIFTS = {"sz10": "cos_shift_files/sz10_shifts.txt"}
-OUTDIR_ROOT = None
-nowdt = datetime.datetime.now()
-if OUTDIR_ROOT is None:
-    OUTDIR_ROOT = nowdt.strftime("%Y%m%d_%H%M")
-
-
 def apply_shifts_file(infile, outdir, shift_file):
 
     """
@@ -89,7 +81,7 @@ def apply_shifts_dir(indir, outdir, shift_file):
 def determine_file_shifts(infile, targ=None):
     if targ is None:
         targ = fits.getval(infile, "targname")
-        targ = targ.lower()
+    targ = targ.lower()
     shift_file = os.path.join(utils_dir, f"data/cos_shifts/{targ}_shifts.txt")
     if not os.path.exists(shift_file):
         raise FileNotFoundError(f"Shift file {shift_file} not found")
@@ -99,6 +91,7 @@ def determine_file_shifts(infile, targ=None):
 def determine_dir_shifts(indir, targ=None):
     all_files = glob.glob(os.path.join(indir, targ, "*asn.fits"))
     if targ is not None:
+        targ = targ.lower()
         shift_file = determine_file_shifts(all_files[0], targ=targ)
     else:
         shift_files = []
@@ -140,10 +133,12 @@ def apply_cos_shifts(infiledir, outdir, shift_file=None, targ=None, copydir=None
     for item in infiledir:
         if os.path.isdir(item):
             if shift_file is None:
+                targ = targ.lower()
                 shift_file = determine_dir_shifts(item, targ)
             apply_shifts_dir(indir, outdir, shift_file)
         elif os.path.isfile(item):
             if shift_file is None:
+                targ = targ.lower()
                 shift_file = determine_file_shifts(item, targ)
             apply_shifts_file(infile, outdir, shift_file)
     add_hlsp_lvl0(outdir)
