@@ -1,6 +1,13 @@
 from astropy.io import fits
 import numpy as np
 
+"""
+This code adds a data quality array to FUSE data, which
+does not come with one as standard. Users can specify
+wavelength ranges to be marked as bad the add_dq_col function.
+"""
+
+
 def add_column(infile, outfile, colext, colname, colformat, colvals, 
                colunit=None, overwrite=False):
     """
@@ -14,7 +21,7 @@ def add_column(infile, outfile, colext, colname, colformat, colvals,
         colformat (str): Format of new column
         colvals (array): Array of new column values
         colunit (str): Optional, unit of new column 
-        overwite (Bool): If True, overwrite any existing files
+        overwrite (Bool): If True, overwrite any existing files
     """
 
     hdr0 = fits.getheader(infile, 0)
@@ -48,7 +55,8 @@ def add_column(infile, outfile, colext, colname, colformat, colvals,
     new_hdulist = fits.HDUList(final_hdus)
     new_hdulist.writeto(outfile, overwrite=overwrite)
     print(f"Wrote {outfile}")
-    
+
+
 def add_dq_col(infile, outfile, wlstart, wlend, dqflag, overwrite=False):
     """
     Add a DQ column for FUSE data.
@@ -62,7 +70,7 @@ def add_dq_col(infile, outfile, wlstart, wlend, dqflag, overwrite=False):
             to flag as bad DQ
         dqflag (int, float, or array-like): DQ flag(s) corresponding to each
             wavelength range to flag.
-        overwite (Bool): If True, overwrite any existing files
+        overwrite (Bool): If True, overwrite any existing files
     """
     if not isinstance(wlstart, (list, np.ndarray)):
         wlstart = [wlstart]
@@ -72,7 +80,7 @@ def add_dq_col(infile, outfile, wlstart, wlend, dqflag, overwrite=False):
         dqflag = [dqflag]
     wlstart += [0, 1179.9]
     wlend += [912, -1]
-    dqflag += [2,2]
+    dqflag += [2, 2]
 
     good_dq = 0
     
