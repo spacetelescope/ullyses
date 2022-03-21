@@ -3,21 +3,22 @@ import glob
 import os
 import argparse
 
+from ullyses_utils.parse_csv import parse_aliases
 from fuse_add_dq import add_dq_col
 
 """
 This script is used to flag bad wavelength regions
 in FUSE data. The bad regions for each target are
-listed in FILESTOEDIT.
+listed in TARGS_TO_FLAG.
 
 
 """
 
 
-# FILESTOEDIT lists FUSE targets that require custom flagging
+# TARGS_TO_FLAG lists FUSE targets that require custom flagging
 # DQ=1 (Worm)
 # DQ=2 (Poor photometric quality)
-FILESTOEDIT = {
+TARGS_TO_FLAG = {
     # DR2 targets below
     "AV232": {"minwl": [1141], "maxwl": [-1], "dq": [1]},
     "AV15": {"minwl": [1179.9], "maxwl": [-1], "dq": [1]},
@@ -231,63 +232,48 @@ FUSE_TARGS = {
     "DR5": []
 }
 
+def flag_file(vofile, outdir, overwrite=False):
+    if "dqscreened_" in vofile:
+        print(f"Input file {vofile} is already flagged, skipping")
+        return vofile
 
-def flag_data(indir, outdir):
-    targstoedit = list(FILESTOEDIT.keys())
-    all_targs = []
-    for k, v in FUSE_TARGS.items():
-        all_targs += v
-    for targ in all_targs:
-        vofiles0 = glob.glob(os.path.join(indir, targ, "*_vo.fits"))
-        vofiles = [x for x in vofiles0 if "dqscreened" not in x]
-        if len(vofiles) > 1:
-            print(f"more than one VO file for {targ}, exiting")
-            break
-        vofile = vofiles[0]
-        vofilename = os.path.basename(vofile)
-        outfilename = "dqscreened_" + vofilename
-        outfile = os.path.join(outdir, targ, outfilename)
-        # We don't edit FUSE data from DR to DR, so if a product already exists,
-        # skip that target. This might change in the future.
-        if os.path.exists(outfile):
-            continue
-        if targ in targstoedit:
-            pars = FILESTOEDIT[targ]
-            add_dq_col(vofile, outfile, pars["minwl"], pars["maxwl"], pars["dq"], overwrite=True)
-        else:
-            add_dq_col(vofile, outfile, [], [], [], overwrite=True)
-    print("Flagged VO files")
-
-
-def copy_data(outdir, copydir):
-    all_targs = []
-    for k, v in FUSE_TARGS.items():
-        all_targs += v
-    for targ in all_targs:
-        screened = glob.glob(os.path.join(outdir, targ, "dqscreened*_vo.fits"))
-        for item in screened:
-            destdir = os.path.join(copydir, targ.lower())
-            if not os.path.exists(destdir):
-                os.makedirs(destdir)
-            shutil.copy(item, destdir)
-    print(f"Copied flagged files to {destdir}")
+    fuse_targname = fits.getval(vofile, "targname")
+    aliases = parse_aliases()
+    alias_mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ.upper())).any(), axis=1)
+    if set(alias_mask) != {False}:
+        ull_targname = aliases[alias_mask]["ULL_MAST_name"].values[0]
+    else:
+        raise KeyError(f"FUSE target {fuse_targname} not found in ULLYSES alias list")
+        
+    vofilename = os.path.basename(vofile)
+    outfilename = "dqscreened_" + vofilename
+    outfile = os.path.join(outdir, outfilename)
+    if os.path.exists(outfile) and overwrite is True:
+        os.remove(outfile)
+    elif os.path.exists(outfile) and overwrite is False:
+        print(f"Skipping {vofile}, output already exists and overwrite is False")
+        return outfile
+    
+    targstoedit = list(TARGS_TO_FLAG.keys())
+    if ull_targname in targstoedit:
+        pars = TARGS_TO_FLAG[targ]
+        add_dq_col(vofile, outfile, pars["minwl"], pars["maxwl"], pars["dq"], overwrite=overwrite)
+    else:
+        print(f"No bad regions in {vofile}, but still adding DQ array")
+        add_dq_col(vofile, outfile, [], [], [], overwrite=True)
 
 
-def main(indir, outdir, copydir):
+def main(indir, outdir):
     flag_data(indir, outdir)
-    if copydir is not None:
-        copy_data(outdir, copydir)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--indir", default=".",
-                        help="Path to input directory with ASN and rawtag files")
+                        help="Path to input directory with input NVO files to flag")
     parser.add_argument("-o", "--outdir",
-                        help="Path to output directory")
-    parser.add_argument("-c", "--copydir", default=None,
-                        help="Path to directory to copy x1ds to, if so desired.")
+                        help="Output path to place flagged NVO files")
 
     args = parser.parse_args()
 
-    main(args.indir, args.outdir, args.copydir)
+    main(args.indir, args.outdir)
