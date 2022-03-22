@@ -14,7 +14,7 @@ from stistools.ocrreject import ocrreject
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
-from ullyses_utils.readwrite_yaml import read_config, write_config
+from ullyses_utils.readwrite_yaml import read_config
 import plot_stis_data
 os.environ["oref"] = "/grp/hst/cdbs/oref/"
 
@@ -76,8 +76,9 @@ class StisData:
             
         self.yamlfile = yamlfile
         config = read_config(yamlfile)
+        infile_name = os.path.basename(infile)
         self.force_dq16 = config["force_dq16"]
-        self.target_dict = config["targets"]
+        self.target_dict = config["infiles"][infile_name]["targets"]
         
         self.infile = infile
         self.basedir = os.path.dirname(self.infile)
@@ -716,17 +717,20 @@ def calibrate_stis_data(indir, yamlfile, dolog=True, logfile=None, outdir=None,
     if "." in outdir:
         raise ValueError("Rename output directory to remove period characters")
     config = read_config(yamlfile)
-    config = read_config(yamlfile)
-    infile = os.path.join(indir, config["infile"])
-    detector = fits.getval(infile, "detector")
-    opt_elem = fits.getval(infile, "opt_elem")
-    if detector == "CCD" and opt_elem !="MIRVIS":
-        S = StisCcd(infile=infile, yamlfile=yamlfile, dolog=dolog, 
-                    logfile=logfile, outdir=outdir, overwrite=overwrite)
-    else:
-        S = StisMama(infile=infile, yamlfile=yamlfile, dolog=dolog, 
-                     logfile=logfile, outdir=outdir, overwrite=overwrite)
-    S.run_all()
+    infiles = list(config["infiles"].keys())
+    for item in infiles:
+        infile = os.path.join(indir, item)
+        if not os.path.exists(infile):
+            raise FileNotFoundError(f"Input file defined in YAML, {infile_name}, cannot be found in direcotry {indir}")
+        detector = fits.getval(infile, "detector")
+        opt_elem = fits.getval(infile, "opt_elem")
+        if detector == "CCD" and opt_elem !="MIRVIS":
+            S = StisCcd(infile=infile, yamlfile=yamlfile, dolog=dolog, 
+                        logfile=logfile, outdir=outdir, overwrite=overwrite)
+        else:
+            S = StisMama(infile=infile, yamlfile=yamlfile, dolog=dolog, 
+                         logfile=logfile, outdir=outdir, overwrite=overwrite)
+        S.run_all()
 
 
 if __name__ == "__main__":
