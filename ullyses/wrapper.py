@@ -24,7 +24,6 @@ def main(indir, outdir, version=VERSION, clobber=False):
             print("Environment variable HLSP_DIR must be defined if outdir is not specified")
             raise RuntimeError("Please set HLSP_DIR and restart")
         outdir_inplace = True
-    print("indir = {}".format(indir))
     for root, dirs, files in os.walk(indir, topdown=False):
         # Given a dir structure as follow, setting depth=2 ensure subdir/ will not be read
         # ULLYSES_DATA/
@@ -33,7 +32,6 @@ def main(indir, outdir, version=VERSION, clobber=False):
         #
         depth = 2
         if root[len(indir):].count(os.sep) >= depth:
-            print("{} depth > 2".format(root[len(indir):]))
             continue
 
         print(root)
