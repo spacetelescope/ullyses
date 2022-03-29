@@ -9,7 +9,7 @@ import pytest
 from astropy.io.fits import FITSDiff
 
 from ullyses import wrapper
-from ullyses.ullyses_config import VERSION
+from ullyses_utils.ullyses_config import VERSION
 import ullyses_utils
 
 ULLYSES_DATA_LOCATION = 'https://ullyses.stsci.edu/files/'

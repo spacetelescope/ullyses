@@ -9,7 +9,7 @@ from astropy.io import fits
 
 from ullyses.coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDSegmentList
 from ullyses.coadd import abut
-from ullyses.ullyses_config import RENAME, VERSION, HLSP_DIR
+from ullyses_utils.ullyses_config import RENAME, VERSION
 
 '''
 This wrapper goes through each target folder in the ullyses data directory and find
@@ -19,7 +19,12 @@ the data and which gratings are present. This info is then fed into coadd.py.
 def main(indir, outdir, version=VERSION, clobber=False):
     outdir_inplace = False
     if outdir is None:
+        HLSP_DIR = os.getenv('HLSP_DIR')
+        if HLSP_DIR is None:
+            print("Environment variable HLSP_DIR must be defined if outdir is not specified")
+            raise RuntimeError("Please set HLSP_DIR and restart")
         outdir_inplace = True
+    print("indir = {}".format(indir))
     for root, dirs, files in os.walk(indir, topdown=False):
         # Given a dir structure as follow, setting depth=2 ensure subdir/ will not be read
         # ULLYSES_DATA/
@@ -28,6 +33,7 @@ def main(indir, outdir, version=VERSION, clobber=False):
         #
         depth = 2
         if root[len(indir):].count(os.sep) >= depth:
+            print("{} depth > 2".format(root[len(indir):]))
             continue
 
         print(root)
@@ -302,7 +308,7 @@ def create_output_file_name(prod, version=VERSION, level=3):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--indir",
-                        default="/astro/ullyses/all_vetted_data_{VERSION}",
+                        default=f"/astro/ullyses/all_vetted_data_{VERSION}",
                         help="Directory(ies) with data to combine")
     parser.add_argument("-o", "--outdir", default=None,
                         help="Directory for output HLSPs")
