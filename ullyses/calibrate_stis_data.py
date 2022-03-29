@@ -78,8 +78,10 @@ class StisData:
         config = read_config(yamlfile)
         infile_name = os.path.basename(infile)
         self.force_dq16 = config["force_dq16"]
-        self.target_dict = config["infiles"][infile_name]["targets"]
-        
+        if isinstance(config["infile"], dict):
+            self.target_dict = config["infile"][infile_name]["targets"]
+        else:
+            self.target_dict = config["targets"]
         self.infile = infile
         self.basedir = os.path.dirname(self.infile)
         if outdir is None:
@@ -717,7 +719,10 @@ def calibrate_stis_data(indir, yamlfile, dolog=True, logfile=None, outdir=None,
     if "." in outdir:
         raise ValueError("Rename output directory to remove period characters")
     config = read_config(yamlfile)
-    infiles = list(config["infiles"].keys())
+    if isinstance(config["infile"], dict):
+        infiles = list(config["infile"].keys())
+    else:
+        infiles = [config["infile"]]
     for item in infiles:
         infile = os.path.join(indir, item)
         if not os.path.exists(infile):
