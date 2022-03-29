@@ -709,7 +709,7 @@ class StisMama(StisData):
         print("* Custom extraction performed")
 
 
-def wrapper(indir, yamlfile, dolog=True, logfile=None, outdir=None, 
+def calibrate_stis_data(indir, yamlfile, dolog=True, logfile=None, outdir=None, 
             overwrite=True):
     if "." in indir:
         raise ValueError("Rename input directory to remove period characters")
@@ -746,5 +746,5 @@ if __name__ == "__main__":
                         help="Name of output log file")
     args = parser.parse_args()
     dolog = not args.nolog
-    wrapper(args.indir, args.yaml, dolog, args.logfile, args.outdir, 
+    calibrate_stis_data(args.indir, args.yaml, dolog, args.logfile, args.outdir, 
             args.clobber)

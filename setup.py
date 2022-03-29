@@ -22,7 +22,7 @@ setup(
     package_dir = {"ullyses": "ullyses"},
     install_requires = ["setuptools",
                         "numpy",
-                        "astropy",
+                        "astropy<=4.3.1",
 			"ullyses_utils",
                         "stistools>=1.4.1",
                         "pandas",
