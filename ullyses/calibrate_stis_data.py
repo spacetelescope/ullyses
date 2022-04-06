@@ -24,6 +24,16 @@ NCOLS = 72
 SEP = f"\n!{'~'*70}!\n"
 
 
+"""
+
+
+
+
+
+
+"""
+
+
 class Tee:
     def __init__(self, *files):
         self.files = files
@@ -31,9 +41,9 @@ class Tee:
     def write(self, obj):
         for f in self.files:
             f.write(obj)
-            f.flush() # If you want the output to be visible immediately
+            f.flush()  # If you want the output to be visible immediately
 
-    def flush(self) :
+    def flush(self):
         for f in self.files:
             f.flush()
 
@@ -41,7 +51,6 @@ class Tee:
 class StisData:
     """
     A class to describe STIS data that need to be custom-calibrated.
-
     Attributes:
         outdir (str): Path where output products should be written.
         infiles (list): List of input raw datasets.
@@ -53,13 +62,14 @@ class StisData:
         _sci_dir (str): 'sci' directory used by stis_cti
         _dark_dir (str): 'dark' directory used by stis_cti
         _ref_dir (str): 'ref' directory used by stis_cti
-#!!!        combined (dict): Nested dictionary where keys are the filenames of 
+#!!!        combined (dict): Nested dictionary where keys are the filenames of
             the combined FLTs and FLCs; each nested dict listing the
             visit and detector values.
-        x1d (list): List of final x1d products. 
-        
+        x1d (list): List of final x1d products.
+
     """
-    def __init__(self, infile, yamlfile, dolog=True, logfile=None, outdir=None, 
+
+    def __init__(self, infile, yamlfile, dolog=True, logfile=None, outdir=None,
                  overwrite=True): 
         """
         Args:
@@ -332,7 +342,7 @@ class StisData:
             self.plots_made = True
             print("\n", f" CREATING DIAGNOSTIC PLOTS ".center(NCOLS, SYM), "\n")
             mastx1d = self.x1d_mast
-            for target,target_pars in self.target_dict.items():
+            for target, target_pars in self.target_dict.items():
                 customx1d = target_pars['out_x1d']
                 pdffile = plot_stis_data.plot_all_x1d(customx1d, mastx1d, target, self.outdir)
                 self.target_dict[target]["oned_plot"] = pdffile
@@ -349,6 +359,10 @@ class StisData:
 
 
 class StisCcd(StisData):
+    """
+    A class to calibrate STIS CCD data.
+    """
+
     def __init__(self, infile, yamlfile, dolog=True, logfile=None, outdir=None, 
                  overwrite=True): 
         super().__init__(infile, yamlfile, dolog, logfile, outdir, overwrite)
@@ -456,7 +470,7 @@ class StisCcd(StisData):
         extr_mask = np.zeros((1024, 1024))
         del_pix = x1d_data["EXTRSIZE"]/2.
         for column in range(1024):
-            row_mid =  x1d_data['EXTRLOCY'][column] - 1 #EXTRLOCY is 1-indexed.
+            row_mid = x1d_data['EXTRLOCY'][column] - 1  # EXTRLOCY is 1-indexed.
             gd_row_low = int(np.ceil( row_mid - del_pix))
             gd_row_high = int(np.floor(row_mid + del_pix))
             extr_mask[gd_row_low:gd_row_high+1,column] = 1
@@ -466,7 +480,7 @@ class StisCcd(StisData):
         with fits.open(self.flt) as flt_hdu:
             for i in range(3,len(flt_hdu)+1 ,3):
                 flt_data = flt_hdu[i].data
-                rej = flt_data[ (extr_mask == 1) & (flt_data & 8192 != 0)] #Data quality flag 8192 (2^13) used for CR rejected pixels
+                rej = flt_data[(extr_mask == 1) & (flt_data & 8192 != 0)]  # Data quality flag 8192 (2^13) used for CR rejected pixels
                 n_rej.append(np.count_nonzero(rej))
 
         t_exp = float(fits.getval(self.x1d_mast, "texptime"))
@@ -479,7 +493,7 @@ class StisCcd(StisData):
 
         # Calculate the expected rejection fraction rate given the rate in header
         # This is the rej_rate * ratio of number of pixels in full CCD vs extract region (n_tot /CRSPLIT)
-        frac_rej_expec =  rej_rate * t_exp /(1024.*1024.*self.crsplit)
+        frac_rej_expec = rej_rate * t_exp / (1024.*1024.*self.crsplit)
 
         print('Percentage of pixels rejected as CRs')          
         print(f'   Extraction Region: {frac_rej*100:.2f}%')
@@ -709,7 +723,7 @@ class StisMama(StisData):
         print("* Custom extraction performed")
 
 
-def wrapper(indir, yamlfile, dolog=True, logfile=None, outdir=None, 
+def calibrate_stis_data(indir, yamlfile, dolog=True, logfile=None, outdir=None, 
             overwrite=True):
     if "." in indir:
         raise ValueError("Rename input directory to remove period characters")
@@ -746,5 +760,5 @@ if __name__ == "__main__":
                         help="Name of output log file")
     args = parser.parse_args()
     dolog = not args.nolog
-    wrapper(args.indir, args.yaml, dolog, args.logfile, args.outdir, 
-            args.clobber)
+    calibrate_stis_data(args.indir, args.yaml, dolog, args.logfile, args.outdir,
+                        args.clobber)
