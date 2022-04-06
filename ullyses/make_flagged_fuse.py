@@ -2,9 +2,10 @@ import shutil
 import glob
 import os
 import argparse
+
+from ullyses_utils.parse_csv import parse_aliases
 from ullyses_utils.fuse_target_info import FILESTOEDIT, FUSE_TARGS
 from fuse_add_dq import add_dq_col
-
 
 """
 This script is used to flag bad wavelength regions
@@ -16,6 +17,8 @@ Inputs:
     outdir: (str) Path to output directory
     copydir: (str) Path to directory to copy output to, if specified
 """
+
+
 
 
 def flag_data(indir, outdir):
@@ -54,6 +57,30 @@ def flag_data(indir, outdir):
             add_dq_col(vofile, outfile, [], [], [], overwrite=True)
     print("Flagged VO files")
 
+    fuse_targname = fits.getval(vofile, "targname")
+    aliases = parse_aliases()
+    alias_mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ.upper())).any(), axis=1)
+    if set(alias_mask) != {False}:
+        ull_targname = aliases[alias_mask]["ULL_MAST_name"].values[0]
+    else:
+        raise KeyError(f"FUSE target {fuse_targname} not found in ULLYSES alias list")
+
+    vofilename = os.path.basename(vofile)
+    outfilename = "dqscreened_" + vofilename
+    outfile = os.path.join(outdir, outfilename)
+    if os.path.exists(outfile) and overwrite is True:
+        os.remove(outfile)
+    elif os.path.exists(outfile) and overwrite is False:
+        print(f"Skipping {vofile}, output already exists and overwrite is False")
+        return outfile
+
+    targstoedit = list(TARGS_TO_FLAG.keys())
+    if ull_targname in targstoedit:
+        pars = TARGS_TO_FLAG[targ]
+        add_dq_col(vofile, outfile, pars["minwl"], pars["maxwl"], pars["dq"], overwrite=overwrite)
+    else:
+        print(f"No bad regions in {vofile}, but still adding DQ array")
+        add_dq_col(vofile, outfile, [], [], [], overwrite=True)
 
 def copy_data(outdir, copydir):
     """
@@ -85,19 +112,15 @@ def main(indir, outdir, copydir):
     """
 
     flag_data(indir, outdir)
-    if copydir is not None:
-        copy_data(outdir, copydir)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--indir", default=".",
-                        help="Path to input directory with ASN and rawtag files")
+                        help="Path to input directory with input NVO files to flag")
     parser.add_argument("-o", "--outdir",
-                        help="Path to output directory")
-    parser.add_argument("-c", "--copydir", default=None,
-                        help="Path to directory to copy x1ds to, if so desired.")
+                        help="Output path to place flagged NVO files")
 
     args = parser.parse_args()
 
-    main(args.indir, args.outdir, args.copydir)
+    main(args.indir, args.outdir)

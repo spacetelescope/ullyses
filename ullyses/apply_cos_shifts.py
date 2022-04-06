@@ -15,13 +15,13 @@ for ULLYSES targets that have wavelength calibration issues.
 
 Code inputs:
 
-    infiledir: Input file or directory of files to shift
-    outdir: Directory for output shifted 1D spectra
-    shiftfile: Name of COS shifts file. Default=None. If not specificed, code
-               will look for shift file in ullyses-utils 
-    targ: Name of target to shift. Default=None
-    copydir: Name of directory to copy shifted products to. Default=None
-    overwrite: If True, overwrite existing products
+    infiledir (str): Input file or directory of files to shift
+    outdir (str): Directory for output shifted 1D spectra
+    shiftfile (str): Name of COS shifts file. Default=None. If not specificed, code
+                     will look for shift file in ullyses-utils 
+    targ (str): Name of target to shift. Default=None
+    copydir (str): Name of directory to copy shifted products to. Default=None
+    overwrite (bool): If True, overwrite existing products
 
 Users will need to create a text file with the columns
 "rootname", "fppos", "flash", "segment", and "shift1"
@@ -44,7 +44,7 @@ def apply_shifts_file(infile, outdir, shift_file):
     :param shift_file: text file containing the shifts to apply for each dataset
     :return: None
     """
-    
+
     infile_name = os.path.basename(infile)
     if not infile_name.endswith("_asn.fits"):
         raise TypeError("Input file must be an association file")
@@ -56,11 +56,11 @@ def apply_shifts_file(infile, outdir, shift_file):
     ipppss = os.path.basename(infile)[:6]
     if ipppss not in df["rootname"].values:
         raise RuntimeError(f"Specified input file {infile} not in shifts file")
-        
+
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
-    calcos.calcos(infile, shift_file=shift_file, outdir=outdir, 
+    calcos.calcos(infile, shift_file=shift_file, outdir=outdir,
                   verbosity=0)
 
 
@@ -74,9 +74,9 @@ def apply_shifts_dir(indir, outdir, shift_file):
     :return: None
     """
 
-    seen = []                                                                                                   
-    df = pd.read_csv(shift_file, delim_whitespace=True,                                                         
-                     names=["rootname", "fppos", "flash", "segment", "shift1"],                                 
+    seen = []
+    df = pd.read_csv(shift_file, delim_whitespace=True,
+                     names=["rootname", "fppos", "flash", "segment", "shift1"],
                      header=None)
     uniq_ipppss = list(set(df["rootname"]))
     for ipppss in uniq_ipppss:
@@ -140,7 +140,7 @@ def add_hlsp_lvl0(outdir):
     for x1d in x1ds:
         with fits.open(x1d, mode="update") as hdulist:
             hdulist[0].header["HLSP_LVL"] = 0
-    
+
 
 def copy_output_x1ds(outdir, copydir, overwrite=False):
     """
@@ -165,7 +165,7 @@ def copy_output_x1ds(outdir, copydir, overwrite=False):
     print(f"Copied custom x1ds to {copydir}")
 
 
-def apply_cos_shifts(infiledir, outdir, shift_file=None, targ=None, copydir=None, 
+def apply_cos_shifts(infiledir, outdir, shift_file=None, targ=None, copydir=None,
                      overwrite=False):
     """
     Performs the shift adjustments.
@@ -200,7 +200,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(dest="infiledir",
                         help="Input file or directory of files to shift")
-    parser.add_argument(dest="outdir", 
+    parser.add_argument(dest="outdir",
                         help="Directory for output shifted 1D spectra")
     parser.add_argument("-s", "--shift_file", default=None,
                         help="Name of COS shifts file")
