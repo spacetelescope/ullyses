@@ -25,12 +25,19 @@ SEP = f"\n!{'~'*70}!\n"
 
 
 """
+This code is used to calibrate STIS MAMA and CCD data.
 
+Arguments:
+    indir (str): Path to input STIS dataset
+    yamlfile (str): Name of YAML configuration file
+    dolog (bool): If True, produces log file
+    logfile (str): Name of output log file
+    outdir (str): Directory for output products
+    overwrite (bool): If True, overwrite existing products
 
-
-
-
-
+Examples of the YAML configuration file for STIS targets
+are located in the ullyses-utils github repo:
+https://github.com/spacetelescope/ullyses-utils/tree/main/utils/data/stis_configs.
 """
 
 
@@ -298,6 +305,11 @@ class StisData:
             print(f"Wrote x1d file: {outfile}")
 
     def find_product(self, ext):
+        """
+        Find the dark referece file, if avaiable, and add to the header for calibration.
+        :param ext: extension
+        :return:
+        """
         prod = os.path.join(self.basedir, self.rootname+"_"+ext+".fits")
         if not os.path.exists(prod):
             prod = os.path.join(self.basedir, "mast_products", self.rootname+"_"+ext+".fits")
@@ -314,6 +326,10 @@ class StisData:
         return prod
 
     def update_header(self):
+        """
+        Update the header with high level science product information.
+        """
+
         nowdt = datetime.datetime.now()
         nowdt_str = nowdt.strftime("%Y%m%d_%H%M")
         for target,target_pars in self.target_dict.items():
@@ -329,6 +345,10 @@ class StisData:
                     hdulist[0].header["DEC_TARG"] = target_pars["coords"]["dec"]
 
     def printintro(self):
+        """
+        Print startup calibration information.
+        """
+
         print("\n", f" RUNNING ON {os.path.basename(self.infile)} ".center(NCOLS, SYM), "\n")
         print(f"Filename: {self.infile}")
         print(f"Detector: {self.detector}")
@@ -338,6 +358,10 @@ class StisData:
             print(f"\t{target}")
 
     def make_plots(self):
+        """
+        Plot calibration output.
+        """
+
         if self.x1d_mast is not None:
             self.plots_made = True
             print("\n", f" CREATING DIAGNOSTIC PLOTS ".center(NCOLS, SYM), "\n")
@@ -456,7 +480,10 @@ class StisCcd(StisData):
         self.crj = os.path.join(self.outdir, self.rootname+"_crc.fits")
 
     def check_crrej(self):
-        
+        """
+        Perform cosmic ray rejection.
+        """
+
         print("\n", f" CHECKING CR REJECTION ".center(NCOLS, SYM), "\n")
         
         if self.x1d_mast is None:
@@ -508,6 +535,7 @@ class StisCcd(StisData):
 
     def custom_crrej(self):
         """
+        Perform custom cosmic ray rejection.
         Check on CR rejection rate comes from Joleen Carlberg's code: 
         https://github.com/spacetelescope/stistools/blob/jkc_cr_analysis/stistools/crrej_exam.py
         """
@@ -541,7 +569,10 @@ class StisCcd(StisData):
         self.crj = outfile
 
     def defringe(self):
-        
+        """
+        Perform defringing.
+        """
+
         for target,target_pars in self.target_dict.items():
             print("\n", f" DEFRINGING {target} ".center(NCOLS, SYM), "\n")
             if self.opt_elem not in ["G750L", "G750M"]:
@@ -605,6 +636,10 @@ class StisCcd(StisData):
             print(f"Wrote defringed crj file: {outfile_dest}")
 
     def run_all(self):
+        """
+        Run the calibration.
+        """
+
         self.printintro()
         if self.do_perform_cti is True:
             self.perform_cti()
@@ -622,6 +657,10 @@ class StisCcd(StisData):
         self.printfinal()
 
     def printfinal(self):
+        """
+        Print diagnostics and summary.
+        """
+
         print("\n", f" RECALIBRATION SUMMARY ".center(NCOLS, SYM), "\n")
         if self.dolog is True:
             print(f"Log saved at {self.logfile}")
@@ -669,6 +708,10 @@ class StisCcd(StisData):
 
 
 class StisMama(StisData):
+    """
+    A class to perform the calibration of STIS MAMA data.
+    """
+
     def __init__(self, infile, yamlfile, dolog=True, logfile=None, outdir=None, 
                  overwrite=True): 
         super().__init__(infile, yamlfile, dolog, logfile, outdir, overwrite)
@@ -683,6 +726,10 @@ class StisMama(StisData):
             self.flt = infile
 
     def run_all(self):
+        """
+        Run the calibration.
+        """
+
         self.printintro()
         if self.do_flag_negatives is True:
             self.flag_negatives()
@@ -694,6 +741,10 @@ class StisMama(StisData):
         self.printfinal()
 
     def printfinal(self):
+        """
+        Print diagnostics and summary.
+        """
+
         print("\n", f" RECALIBRATION SUMMARY ".center(NCOLS, SYM), "\n")
         if self.dolog is True:
             print(f"Log saved at {self.logfile}")
@@ -724,7 +775,18 @@ class StisMama(StisData):
 
 
 def calibrate_stis_data(indir, yamlfile, dolog=True, logfile=None, outdir=None, 
-            overwrite=True):
+                        overwrite=True):
+    """
+    Calibrate the data.
+    :param indir: Path to input STIS dataset
+    :param yamlfile: Name of YAML configuration file
+    :param dolog: If True, produces log file
+    :param logfile: Name of output log file
+    :param outdir: Directory for output products
+    :param overwrite: If True, overwrite existing products
+    :return: None
+    """
+
     if "." in indir:
         raise ValueError("Rename input directory to remove period characters")
     if "." in outdir:
