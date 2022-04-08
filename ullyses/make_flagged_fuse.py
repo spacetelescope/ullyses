@@ -2,10 +2,12 @@ import shutil
 import glob
 import os
 import argparse
+from astropy.io import fits
 
 from ullyses_utils.parse_csv import parse_aliases
-from ullyses_utils.fuse_target_info import FILESTOEDIT, FUSE_TARGS
+from ullyses_utils.fuse_target_info import FILESTOEDIT, FUSE_TARGS, TARGS_TO_FLAG
 from fuse_add_dq import add_dq_col
+
 
 """
 This script is used to flag bad wavelength regions
@@ -13,22 +15,20 @@ in FUSE data. The bad regions for each target are
 listed in fuse_target_info.py in ullyses-utils.
 
 Inputs:
-    indir: (str) Path to input directory
-    outdir: (str) Path to output directory
-    copydir: (str) Path to directory to copy output to, if specified
+    indir (str): Path to input directory
+    outdir (str): Path to output directory
+    overwrite (bool): If true, files in outdir will be overwritted. Default=False
 """
 
 
-
-
-def flag_data(indir, outdir):
+def flag_data(indir, outdir, overwrite=False):
     """
     This code steps through the targets and flags
     the DQs appropriately
 
-
-    :param indir:
-    :param outdir:
+    :param indir: Path to input directory
+    :param outdir: Path to output directory
+    :param overwrite: If true, overwrite output. Default=False
     :return:
     """
 
@@ -82,6 +82,7 @@ def flag_data(indir, outdir):
         print(f"No bad regions in {vofile}, but still adding DQ array")
         add_dq_col(vofile, outfile, [], [], [], overwrite=True)
 
+
 def copy_data(outdir, copydir):
     """
     Copies the output files into another directory.
@@ -102,16 +103,16 @@ def copy_data(outdir, copydir):
     print(f"Copied flagged files to {destdir}")
 
 
-def main(indir, outdir, copydir):
+def main(indir, outdir, overwrite):
     """
     Perform flagging.
     :param indir: Path to input directory
     :param outdir: Path to output directory
-    :param copydir: Path to directory to copy output to, if specified
+    :param overwrite: If true, overwrite output. Default=False
     :return: None
     """
 
-    flag_data(indir, outdir)
+    flag_data(indir, outdir, overwrite)
 
 
 if __name__ == "__main__":
@@ -120,7 +121,10 @@ if __name__ == "__main__":
                         help="Path to input directory with input NVO files to flag")
     parser.add_argument("-o", "--outdir",
                         help="Output path to place flagged NVO files")
+    parser.add_argument("-c", "--overwrite", default=False,
+                        action="store_true",
+                        help="If True, overwrite existing products")
 
     args = parser.parse_args()
 
-    main(args.indir, args.outdir)
+    main(args.indir, args.outdir, args.overwrite)
