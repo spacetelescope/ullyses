@@ -61,6 +61,4 @@ We welcome contributions and feedback on this project. If you want to suggest ch
 We strive to provide a welcoming community to all of our users by abiding with
 the [Code of Conduct](CODE_OF_CONDUCT.md).
 
-If you have questions or concerns regarding the software, please open an issue
-at https://github.com/spacetelescope/ullyses/issues or
-contact the [HST Help Desk](https://hsthelp.stsci.edu). If you have questions regarding the ULLYSES program design or data, please contact the [HST Help Desk](https://hsthelp.stsci.edu).
+If you have questions or concerns regarding the software, please open an issue at https://github.com/spacetelescope/ullyses/issues or contact the [HST Help Desk](https://hsthelp.stsci.edu). If you have questions regarding the ULLYSES program design or data, please contact the [HST Help Desk](https://hsthelp.stsci.edu).
