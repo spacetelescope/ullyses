@@ -8,8 +8,29 @@ from astropy.io import fits
 from coadd import STISSegmentList
 from fuse_add_dq import add_column
 
+"""
+This code takes a list of STIS x1ds and coadds
+the spectra over a uniform wavelength grid.
+
+Arguments:
+    files (list): Space-separated list of files to coadd
+    targ (str): Target name
+    outdir (str): Path to output directory
+"""
+
+
 class STIScoadd(STISSegmentList):
+    """
+    A class to perform coadditions of STIS x1ds.
+    """
+
     def create_output_wavelength_grid(self):
+        """
+        Using the input spectra, create a common wavelength grid
+        over which to perform the coaddition.
+        :return: wavelength grid
+        """
+
         min_wavelength = 10000.0
         max_wavelength = 0.0
         for segment in self.members:
@@ -42,13 +63,19 @@ class STIScoadd(STISSegmentList):
         return wavegrid
 
     def coadd(self, ignore_dq_file):
+        """
+        Coadd the spectra.
+        :param ignore_dq_file: Fits file with DQ array to remove from coadd
+        :return: None
+        """
+
         self.output_dq = np.zeros(self.nelements).astype(int)
         self.output_gross = np.zeros(self.nelements)
         self.output_net = np.zeros(self.nelements)
         self.output_sumgross = np.zeros(self.nelements)
         self.output_sumnet = np.zeros(self.nelements)
         self.output_sumerrors = np.zeros(self.nelements)
-        for i,segment in enumerate(self.members):
+        for i, segment in enumerate(self.members):
             if os.path.basename(self.datasets[i]) == ignore_dq_file:
                 goodpixels = np.arange(len(segment.data['dq']))
             else:
@@ -82,7 +109,16 @@ class STIScoadd(STISSegmentList):
         self.signal_to_noise[nonzeros] = self.output_sumweight[nonzeros] / self.output_errors[nonzeros]
         return
 
+
 def coadd_1d_spectra(files, targ, outdir):
+    """
+    Perform the coaddition of the x1ds and
+    format the header of the output fits file.
+    :param files: Space-separated list of files to coadd
+    :param targ: Target name
+    :param outdir: Path to output directory
+    :return: None
+    """
 
     targ = targ.upper()
     grating = fits.getval(files[0], "opt_elem")
@@ -117,17 +153,17 @@ def coadd_1d_spectra(files, targ, outdir):
     new_hdu0 = fits.PrimaryHDU(header=hdr0)
     cols = []
     cols.append(fits.Column(name="WAVELENGTH", format=f"{nelements}D",
-        array=wl_arr, unit="Angstroms"))
+                            array=wl_arr, unit="Angstroms"))
     cols.append(fits.Column(name="FLUX", format=f"{nelements}E",
-        array=flux_arr, unit="erg/s/cm**2/Angstrom"))
+                            array=flux_arr, unit="erg/s/cm**2/Angstrom"))
     cols.append(fits.Column(name="ERROR", format=f"{nelements}E",
-        array=err_arr, unit="erg/s/cm**2/Angstrom"))
+                            array=err_arr, unit="erg/s/cm**2/Angstrom"))
     cols.append(fits.Column(name="NET", format=f"{nelements}E",
-        array=net_arr, unit="Counts/s"))                                                                  
-    cols.append(fits.Column(name="GROSS", format=f"{nelements}E",                                           
-        array=gross_arr, unit="Counts/s"))                                                                
-    cols.append(fits.Column(name="DQ", format=f"{nelements}I",                                              
-        array=dq_arr, unit=None))                                                                         
+                            array=net_arr, unit="Counts/s"))
+    cols.append(fits.Column(name="GROSS", format=f"{nelements}E",
+                            array=gross_arr, unit="Counts/s"))
+    cols.append(fits.Column(name="DQ", format=f"{nelements}I",
+                            array=dq_arr, unit=None))
     coldefs = fits.ColDefs(cols)                                                                            
     hdr = fits.getheader(files[0], 1)                                                                   
     t = fits.BinTableHDU.from_columns(coldefs, header=hdr)                                                  
@@ -135,16 +171,24 @@ def coadd_1d_spectra(files, targ, outdir):
     new_hdulist = fits.HDUList(final_hdus)                                                                  
     new_hdulist.writeto(combined, overwrite=True)                                                         
     print(f"Wrote {combined}")                                                                            
-#    add_column(combined, combined, 1, "WAVELENGTH", f"{nelements}D", wl_arr, colunit="Angstroms", overwrite=True)      
-#    add_column(combined, combined, 1, "FLUX", f"{nelements}E", flux_arr, colunit="erg/s/cm**2/Angstrom", overwrite=True)
-#    add_column(combined, combined, 1, "ERROR", f"{nelements}E", err_arr, colunit="erg/s/cm**2/Angstrom", overwrite=True)
-#    add_column(combined, combined, 1, "NET", f"{nelements}E", net_arr, colunit="Counts/s", overwrite=True)
-#    add_column(combined, combined, 1, "GROSS", f"{nelements}E", gross_arr, colunit="Counts/s", overwrite=True)
-#    add_column(combined, combined, 1, "DQ", f"{nelements}I", dq_arr, overwrite=True)                     
+    # add_column(combined, combined, 1, "WAVELENGTH", f"{nelements}D", wl_arr, colunit="Angstroms", overwrite=True)
+    # add_column(combined, combined, 1, "FLUX", f"{nelements}E", flux_arr, colunit="erg/s/cm**2/Angstrom", overwrite=True)
+    # add_column(combined, combined, 1, "ERROR", f"{nelements}E", err_arr, colunit="erg/s/cm**2/Angstrom", overwrite=True)
+    # add_column(combined, combined, 1, "NET", f"{nelements}E", net_arr, colunit="Counts/s", overwrite=True)
+    # add_column(combined, combined, 1, "GROSS", f"{nelements}E", gross_arr, colunit="Counts/s", overwrite=True)
+    # add_column(combined, combined, 1, "DQ", f"{nelements}I", dq_arr, overwrite=True)
+
 
 def parse_input(files):
+    """
+    Ensure the input files are in the correct format.
+    :param files: Space-separated list of files to coadd
+    :return: None
+    """
+
     if len(files) == 1 or "," in files[0]:
         raise TypeError(f"Names of input files must be separated by spaces. Do not include commas.")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
