@@ -10,7 +10,7 @@ import astropy
 from astropy.io import fits
 from astropy.time import Time
 
-#
+import ullyses_utils
 # coadd data
 #
 
@@ -139,15 +139,15 @@ class SegmentList:
             if maxwave > max_wavelength: max_wavelength = maxwave
         self.min_wavelength = int(min_wavelength)
         self.max_wavelength = int(max_wavelength) + 1
-    
+
         max_delta_wavelength = 0.0
-    
+
         for segment in self.members:
             wavediffs = segment.data['wavelength'][1:] - segment.data['wavelength'][:-1]
             max_delta_wavelength = max(max_delta_wavelength, wavediffs.max())
-    
+
         self.delta_wavelength = max_delta_wavelength
-    
+
         wavegrid = np.arange(self.min_wavelength, self.max_wavelength, self.delta_wavelength)
 
         self.output_wavelength = wavegrid
@@ -189,7 +189,7 @@ class SegmentList:
             net_counts = segment.data['net'][goodpixels] * segment.exptime
             if self.instrument == 'COS':
                 variances = segment.data['variance_counts'][goodpixels] + segment.data['variance_bkg'][goodpixels] + segment.data['variance_flat'][goodpixels]
-                
+
             flux = segment.data['flux'][goodpixels]
             for i in range(npts):
                 self.sumnetcounts[indices[i]] = self.sumnetcounts[indices[i]] + net_counts[i]
@@ -227,14 +227,14 @@ class SegmentList:
         return
 
     def write(self, filename, overwrite=False, level="", version=""):
-        
+
         # If the target is a ULLYSES target, use the official
         # target name and coords
         self.target = self.ull_targname()
         self.targ_ra, self.targ_dec = self.ull_coords()
 
         # Table 1 - HLSP data
-            
+
         # set up the header
         hdr1 = fits.Header()
         hdr1['EXTNAME'] = ('SCIENCE', 'Spectrum science arrays')
@@ -249,16 +249,16 @@ class SegmentList:
         hdr1['DATE-BEG'] = (dt.strftime(dt_beg, "%Y-%m-%dT%H:%M:%S"), 'Date-time of first observation start')
         hdr1.add_blank('', after='TREFPOS')
         hdr1.add_blank('              / FITS TIME COORDINATE KEYWORDS', before='DATE-BEG')
-    
+
         hdr1['DATE-END'] = (dt.strftime(dt_end, "%Y-%m-%dT%H:%M:%S"), 'Date-time of last observation end')
         hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
         hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
         hdr1['XPOSURE'] = (self.combine_keys("exptime", "sum"), '[s] Sum of exposure durations')
-    
+
         # set up the table columns
         nelements = len(self.output_wavelength)
         rpt = str(nelements)
-        
+
         # Table with co-added spectrum
         cw = fits.Column(name='WAVELENGTH', format=rpt+'E', unit="Angstrom")
         cf = fits.Column(name='FLUX', format=rpt+'E', unit="erg /s /cm**2 /Angstrom")
@@ -307,13 +307,13 @@ class SegmentList:
         hdr0['HLSPID'] = ('ULLYSES', 'Name ID of this HLSP collection')
         hdr0['HSLPNAME'] = ('Hubble UV Legacy Library of Young Stars as Essential Standards',
                         'Name ID of this HLSP collection')
-        hdr0['HLSPLEAD'] = ('Julia Roman-Duval', 'Full name of HLSP project lead') 
+        hdr0['HLSPLEAD'] = ('Julia Roman-Duval', 'Full name of HLSP project lead')
         hdr0['HLSP_VER'] = (version,'HLSP data release version identifier')
         hdr0['HLSP_LVL'] = (level, 'ULLYSES HLSP Level')
         hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
         hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')
-    
+
         hdr0['CENTRWV'] = (self.combine_keys("centrwv", "average"), 'Central wavelength of the data')
         hdr0.add_blank(after='REFERENC')
         hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')
@@ -323,7 +323,7 @@ class SegmentList:
         primary = fits.PrimaryHDU(header=hdr0)
 
         # Table 2 - individual product info
-    
+
         # first set up header
         hdr2 = fits.Header()
         hdr2['EXTNAME'] = ('PROVENANCE', 'Metadata for contributing observations')
@@ -347,20 +347,20 @@ class SegmentList:
         cexp = fits.Column(name='XPOSURE', array=self.combine_keys("exptime", "arr"), format='F15.9', unit='s')
         cmin = fits.Column(name='MINWAVE', array=self.combine_keys("minwave", "arr"), format='F9.4', unit='Angstrom')
         cmax = fits.Column(name='MAXWAVE', array=self.combine_keys("maxwave", "arr"), format='F9.4', unit='Angstrom')
-    
+
         cd2 = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv, cdb, cdm, cde, cexp, cmin ,cmax])
-    
+
         table2 = fits.BinTableHDU.from_columns(cd2, header=hdr2)
-    
+
         # the HDUList:
         # 0 - empty data - 0th ext header
         # 1 - HLSP data - 1st ext header
         # 2 - individual product info - 2nd ext header
-    
+
         hdul = fits.HDUList([primary, table1, table2])
-    
+
         hdul.writeto(filename, overwrite=overwrite)
-    
+
         # from ullyses_jira.parse_csv import parse_name_csv
         # name_mapping = {}
         # for ttype in ['lmc', 'smc', 'tts']:
@@ -390,7 +390,8 @@ class SegmentList:
         return s_region
 
     def ull_targname(self):
-        aliases = pd.read_json("pd_all_aliases.json", orient="split")
+        aliases_file = ullyses_utils.__path__[0] + '/data/target_metadata/pd_all_aliases.json'
+        aliases = pd.read_json(aliases_file, orient="split")
         # These are just preliminary target names, in case we can't find a match
         if len(self.targnames) == 1:
             ull_targname = self.targnames[0]
@@ -416,16 +417,16 @@ class SegmentList:
         avg_dec = np.average(decs)
         if self.target == "":
             return avg_ra, avg_dec
-        
-        master_list = pd.read_json("pd_targetinfo.json", orient="split")
+        targetinfo_file = ullyses_utils.__path__[0] + '/data/target_metadata/pd_targetinfo.json'
+        master_list = pd.read_json(targetinfo_file, orient="split")
         master_list = master_list.apply(lambda x: x.astype(str).str.upper())
         coords = master_list.loc[master_list["mast_targname"] == self.target][["ra", "dec"]].values
         if len(coords) != 0:
             return coords[0][0], coords[0][1]
         else:
-            return avg_ra, avg_dec    
-                                      
-                                      
+            return avg_ra, avg_dec
+
+
     def combine_keys(self, key, method):
         keymap= {"HST": {"expstart": ("expstart", 1),
                          "expend": ("expend", 1),
@@ -624,15 +625,15 @@ class CCDSegmentList(SegmentList):
                 if maxwave > max_wavelength: max_wavelength = maxwave
             self.min_wavelength = int(min_wavelength)
             self.max_wavelength = int(max_wavelength) + 1
-    
+
             max_delta_wavelength = 0.0
-    
+
             for segment in self.members:
                 wavediffs = segment.data['wavelength'][1:] - segment.data['wavelength'][:-1]
                 max_delta_wavelength = max(max_delta_wavelength, wavediffs.max())
-    
+
             self.delta_wavelength = max_delta_wavelength
-    
+
             wavegrid = np.arange(self.min_wavelength, self.max_wavelength, self.delta_wavelength)
 
             self.output_wavelength = wavegrid
@@ -679,7 +680,7 @@ class CCDSegmentList(SegmentList):
                 for i in range(npts):
                     self.output_sumweight[indices[i]] = self.output_sumweight[indices[i]] + weight[i]
                     self.output_sumflux[indices[i]] = self.output_sumflux[indices[i]] + flux[i] * weight[i]
-                    self.output_sumsqerrors[indices[i]] = self.output_sumsqerrors[indices[i]] + (err[i] * weight[i])**2 
+                    self.output_sumsqerrors[indices[i]] = self.output_sumsqerrors[indices[i]] + (err[i] * weight[i])**2
                     self.output_exptime[indices[i]] = self.output_exptime[indices[i]] + segment.exptime
             good_dq = np.where(self.output_exptime > 0.)
             self.first_good_wavelength = self.output_wavelength[good_dq][0]

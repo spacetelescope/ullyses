@@ -7,9 +7,9 @@ import numpy as np
 
 from astropy.io import fits
 
-from coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDSegmentList
-from coadd import abut
-from ullyses_config import RENAME, VERSION, HLSP_DIR
+from ullyses.coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDSegmentList
+from ullyses.coadd import abut
+from ullyses_utils.ullyses_config import RENAME, VERSION
 
 '''
 This wrapper goes through each target folder in the ullyses data directory and find
@@ -19,17 +19,21 @@ the data and which gratings are present. This info is then fed into coadd.py.
 def main(indir, outdir, version=VERSION, clobber=False):
     outdir_inplace = False
     if outdir is None:
+        HLSP_DIR = os.getenv('HLSP_DIR')
+        if HLSP_DIR is None:
+            print("Environment variable HLSP_DIR must be defined if outdir is not specified")
+            raise RuntimeError("Please set HLSP_DIR and restart")
         outdir_inplace = True
     for root, dirs, files in os.walk(indir, topdown=False):
         # Given a dir structure as follow, setting depth=2 ensure subdir/ will not be read
         # ULLYSES_DATA/
         # |___targ1/
         #     |___subdir/
-        # 
+        #
         depth = 2
         if root[len(indir):].count(os.sep) >= depth:
-            continue 
-        
+            continue
+
         print(root)
         dirname = root.split('/')[-1]
         print(f"   {dirname}")
@@ -59,7 +63,7 @@ def main(indir, outdir, version=VERSION, clobber=False):
         if not uniqmodes:
             print(f'No data to coadd for {dirname}.')
             continue
-        
+
         # Create dictionary of all products, with each set to None by default
         products = defaultdict(lambda: None)
 
@@ -163,7 +167,7 @@ def main(indir, outdir, version=VERSION, clobber=False):
 
         # Determine which gratings should contribute to the final level 4 SED HLSP.
         # Starting with the bluest product and working redward, find which products,
-        # if any, overlap with the bluer product. If more than one overlaps, use 
+        # if any, overlap with the bluer product. If more than one overlaps, use
         # the one that extends further. If none overlap, still abut them- there
         # will just be a region of flux=0 in between.
         level = 4
@@ -181,9 +185,9 @@ def main(indir, outdir, version=VERSION, clobber=False):
             df = pd.DataFrame({"gratings": gratings, "ins": ins, "minwls": minwls, "maxwls": maxwls})
             used = pd.DataFrame()
             # Start with the bluest product, and remove rows from the dataframe
-            # until no rows remain. The only exception is if the bluest product is 
+            # until no rows remain. The only exception is if the bluest product is
             # STIS/echelle *and* G130M+G160M combo exists. Then use G130M+G160M as bluest
-            # and ignore STIS/echelle 
+            # and ignore STIS/echelle
             lowind = df["minwls"].idxmin()
             if df.loc[lowind, "gratings"] in ["E140M", "E140H"]:
                 if "G130M" in gratings and "G160M" in gratings:
@@ -208,7 +212,7 @@ def main(indir, outdir, version=VERSION, clobber=False):
                 df = df.drop(lowind)
             while len(df) > 0:
                 lowind = df.loc[(df["minwls"] < maxwl) & (df["maxwls"] > maxwl)].index.values
-                # If G130M and G160M both exist for a given target, *always* 
+                # If G130M and G160M both exist for a given target, *always*
                 # abut them together regardless of other available gratings.
                 # This captures the case where there is FUSE bluer than COS/FUV.
                 if "G130M" in used.gratings.values and "G160M" in gratings and "G160M" not in used.gratings.values:
@@ -301,12 +305,12 @@ def create_output_file_name(prod, version=VERSION, level=3):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--indir", 
-                        default="/astro/ullyses/all_vetted_data_{VERSION}",
+    parser.add_argument("-i", "--indir",
+                        default=f"/astro/ullyses/all_vetted_data_{VERSION}",
                         help="Directory(ies) with data to combine")
     parser.add_argument("-o", "--outdir", default=None,
                         help="Directory for output HLSPs")
-    parser.add_argument("-v", "--version", default=VERSION, 
+    parser.add_argument("-v", "--version", default=VERSION,
                         help="Version number of the HLSP")
     parser.add_argument("-c", "--clobber", default=False,
                         action="store_true",
