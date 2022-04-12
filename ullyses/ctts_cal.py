@@ -1,4 +1,3 @@
-import argparse
 import numpy as np
 from astropy.io import fits
 import glob
@@ -22,9 +21,10 @@ BINS = {"v-tw-hya": {"g160m": {"time": 30, "wave": 3, "min_exptime": 20}, # expt
         "v-gm-aur": {"g160m": {"time": 90, "wave": 6, "min_exptime": 50}, # exptime = 186
                      "g230l": {"time": 10, "wave": 1, "min_exptime": 9}}} # exptime = 184
 
-BAD_IPPPSS = ["le9d1k",  # TW Hydra
-              "leit1d", "leitad", "leit1l",  # RU Lup
-              "lek71f"]  # GM Aur
+BAD_IPPPSS = ["le9d1k", # TW Hydra
+              "leit1d", "leitad", "leit1l", # RU Lup
+              "lek71f"] # GM Aur 
+
 
 G230L_DISPTAB = os.path.join(utils_dir, 'data/ref_files/ullyses_cos_nuv_disp.fits')
 
@@ -45,15 +45,14 @@ WL_SHIFT = {'le9d1c': os.path.join(utils_dir, "data/cos_shifts/twhya_shifts.txt"
 # 'le9d1cdoq',
 # 'le9d1gw7q']
 
-
 def copy_origdata(datadir, orig_datadir):
     """
     Copy the original raw data, to ensure nothing is mistakenly edited.
-    Data is copied from orig_datadir to datadir.
+    Data is copied from /astro/ullyses/ULLYSES_DATA/{targ} to
+    /astro/ullyses/custom_cal/{version}/{targ}.
 
     Args:
-        datadir (str): Destination directory to copy data into
-        orig_datadir (str): Path to the original raw data
+        datadir (str): Destination directory to copy data into.
     """
 
     files = glob.glob(os.path.join(orig_datadir, "l*corrtag*fits"))
@@ -69,20 +68,11 @@ def copy_origdata(datadir, orig_datadir):
 
     return datadir
 
-
 def calibrate_data(datadir, custom_caldir=None, g230l_disptab=G230L_DISPTAB):
     """
     Calibrate data which require special calibration. This will be for
-    1) all G230L data which need to be calibrated with a custom COS/NUV DISPTAB
-    2) some TW Hydra exposures which were offset in wavelength
-
-    Args:
-        datadir (str): Path to directory with raw timeseries datasets
-        custom_caldir (str): Path to output directory
-        g230l_disptab (str): Path to custom COS NUV DISPTAB
-
-    Returns:
-        custom_caldir: Path to output directory with custom data products
+    1) all G230L data which need to be calibrated with Will's custom DISPTAB
+    2) some TW Hydra exposures which were offset in wavelength. 
     """
 
     calrequired0 = []
@@ -118,15 +108,9 @@ def calibrate_data(datadir, custom_caldir=None, g230l_disptab=G230L_DISPTAB):
 
     return custom_caldir
 
-
 def copy_caldata(datadir, custom_caldir=None): 
     """
     Copy the products for each target.
-
-    Args:
-        datadir (str): Path to directory with timeseries datasets
-        custom_caldir (str): Path to directory with custom calcos outputs
-
     """
     
     if custom_caldir is None:
@@ -172,7 +156,7 @@ def copy_caldata(datadir, custom_caldir=None):
                 d = datadir_nuv
             shutil.copy(orig_corrs[i], d)
 
-    x1ds = glob.glob(os.path.join(custom_caldir, "*x1d.fits"))
+    x1ds = glob.glob(os.path.join(outdir, "*x1d.fits"))
     orig_x1ds = glob.glob(os.path.join(datadir, "*x1d.fits"))
     orig_x1dfiles = [os.path.basename(x) for x in orig_x1ds]
     x1dfiles = [os.path.basename(x) for x in x1ds]
@@ -188,16 +172,7 @@ def copy_caldata(datadir, custom_caldir=None):
     print(f"\nCopied all corrtags and x1ds to {datadir}/g160m/ and g230l/\n")
     
 
-def create_splittags(datadir, targ):
-    """
-    Split the input data into several different time and wavlength bins
-    by calling splittag_wrapper.
-
-    Args:
-        datadir (str): Path to data directory
-        targ (str): Target name
-    """
-
+def create_splittags(datadir):
     for grat in ["g160m", "g230l"]:
         indir = os.path.join(datadir, grat)
         splitdir = os.path.join(indir, "split")
@@ -222,16 +197,6 @@ def create_splittags(datadir, targ):
 
 
 def correct_vignetting(datadir):
-    """
-    Correct for vignetting on the COS/NUV detector in the G230L/2950 mode.
-
-    Args:
-        datadir (str):
-
-    Returns:
-        None
-    """
-
     indirs = [os.path.join(datadir, "g230l", "exp"),
               os.path.join(datadir, "g230l", "split")]
     for indir in indirs:
@@ -243,24 +208,13 @@ def correct_vignetting(datadir):
                 assert os.path.exists(scale_file), f"No scaling file found for {item}"
                 scale = np.loadtxt(scale_file)
                 with fits.open(item, mode="update") as hdulist:
-                    assert len(scale) == len(hdulist[1].data["flux"][1]),\
-                        f"Shape of FITS and scaling factor do not match for {item}"
-                    hdulist[1].data["flux"][1] /= scale  # NUVB is 0th index
+                    assert len(scale) == len(hdulist[1].data["flux"][1]), f"Shape of FITS and scaling factor do not match for {item}"
+                    hdulist[1].data["flux"][1] /= scale # NUVB is 0th index
 
     print(f'Applied scaling factor to G230L/2950 NUVB data in {os.path.join(datadir, "g230l")}') 
 
 
-def create_timeseries(datadir, tss_outdir, targ):
-    """
-    Creates the timeseries high level science products for ULLYSES monitoring targets
-    from the custom-calibrated and split data products.
-
-    Args:
-        datadir (str): Path to input data
-        tss_outdir (str): Path to time series data product output directory
-        targ (str): Target name
-    """
-
+def create_timeseries(datadir, tss_outdir):
     for grat in ["g160m", "g230l"]:
         if not os.path.exists(tss_outdir):
             os.makedirs(tss_outdir)
@@ -271,48 +225,20 @@ def create_timeseries(datadir, tss_outdir, targ):
         
         indir = os.path.join(datadir, grat, "split")
         outfile = os.path.join(tss_outdir, f"hlsp_ullyses_hst_cos_{targ}_{grat}_{VERSION.lower()}_split-tss.fits")
-        timeseries.process_files(grat.upper(), outfile, indir,
-                                 BINS[targ][grat]["wave"], BINS[targ][grat]["min_exptime"], overwrite=True)
+        timeseries.process_files(grat.upper(), outfile, indir, 
+                BINS[targ][grat]["wave"], BINS[targ][grat]["min_exptime"], overwrite=True) 
 
     return tss_outdir
 
-
-def main(datadir, orig_datadir, tss_outdir, targ, custom_caldir=None,
+def main(datadir, orig_datadir, tss_outdir, custom_caldir=None, 
          g230l_disptab=G230L_DISPTAB):
-    """
-    Perfroms the timeseries data product calibration and creation.
-
-    Args:
-        datadir (str):
-        orig_datadir (str):
-        tss_outdir (str):
-        targ (str):
-        custom_caldir (str):
-        g230l_disptab (str):
-    """
-
     copy_origdata(datadir, orig_datadir)
     calibrate_data(datadir, custom_caldir, g230l_disptab)
     copy_caldata(datadir)
-    create_splittags(datadir, targ)
+    create_splittags(datadir)
     correct_vignetting(datadir)
-    create_timeseries(datadir, tss_outdir, targ)
-
+    create_timeseries(datadir, tss_outdir)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument(dest="datadir",
-                        help="Path to directory with timeseries data")
-    parser.add_argument(dest="orig_datadir",
-                        help="")
-    parser.add_argument(dest="tss_outdir",
-                        help="")
-    parser.add_argument(targ="targ",
-                        help="Name of target")
-    parser.add_argument(dest="custom_caldir",
-                        help="")
-    parser.add_argument(dest="disptab", default=G230L_DISPTAB,
-                        help="If specified, custom COS NUV DISPTAB to use for calibration")
-    args = parser.parse_args()
-
-    main(args.datadir, args.orig_datadir, args.tss_outdir, args.targ, args.custom_caldir, args.disptab)
+    # Need to add argparsing 
+    main()
