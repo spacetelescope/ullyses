@@ -10,7 +10,9 @@ except OSError:
     pass
 from matplotlib import gridspec
 
-COLORS =  ["#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e", "#a6cee3", "#1f78b4", "#b2df8a", "#33a02c", "#fb9a99", "#e31a1c", "#fdbf6f", "#ff7f00", "#cab2d6", "#6a3d9a", "#ffff99", "#b15928"]
+COLORS = ["#1b9e77", "#d95f02", "#7570b3", "#e7298a", "#66a61e", "#a6cee3", "#1f78b4", "#b2df8a", "#33a02c",
+          "#fb9a99", "#e31a1c", "#fdbf6f", "#ff7f00", "#cab2d6", "#6a3d9a", "#ffff99", "#b15928"]
+
 
 def plot_all_x1d(newx1dfile, oldx1dfile, targ, outdir, newname="Custom", oldname="MAST", savepng=False):
     newx1d = fits.getdata(newx1dfile)
@@ -184,6 +186,7 @@ def compare_dq(newx1d, oldx1d, targ, grating, outdir, newname="Custom", oldname=
         plt.close()
     return fig 
 
+
 def overplot(newx1d, oldx1d, targ, grating, outdir, newname="Custom", oldname="MAST", savepng=False):
     fig,ax = plt.subplots(figsize=(20,7))
     ax.plot(oldx1d["wavelength"][0], oldx1d["flux"][0], "k", label=oldname)
@@ -200,6 +203,7 @@ def overplot(newx1d, oldx1d, targ, grating, outdir, newname="Custom", oldname="M
         plt.close()
     return fig 
 
+
 def plotdiv(newx1d, oldx1d, targ, grating, outdir, newname="Custom", oldname="MAST", savepng=False):
     fig,ax = plt.subplots(figsize=(20,7))
     div = newx1d["flux"][0] / oldx1d["flux"][0]
@@ -213,6 +217,7 @@ def plotdiv(newx1d, oldx1d, targ, grating, outdir, newname="Custom", oldname="MA
         plt.cla()
         plt.close()
     return fig 
+
 
 def plotdiff(newx1d, oldx1d, targ, grating, outdir, newname="Custom", oldname="MAST", savepng=False):
     fig,ax = plt.subplots(figsize=(20,7))
@@ -228,22 +233,3 @@ def plotdiff(newx1d, oldx1d, targ, grating, outdir, newname="Custom", oldname="M
         plt.cla()
         plt.close()
     return fig
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--new",
-                        help="Name of new x1d file") 
-    parser.add_argument("--old",
-                        help="Name of old x1d file")
-    parser.add_argument("--targ",
-                        help="Name of target being compared")
-    parser.add_argument("--outdir", default=".", 
-                        help="Output directory for plots")
-    parser.add_argument("--newlabel", default="Custom",
-                        help="Label for new data (default=Custom)")
-    parser.add_argument("--oldlabel", default="MAST",
-                        help="Label for old data (default=MAST)")
-    parser.add_argument("--savepng", default=False, action="store_true",
-                        help="If True, save each plot to a separate png, if False save all to single PDF")
-    args = parser.parse_args()
-    plot_all(args.new, args.old, args.targ, args.outdir, args.newlabel, args.oldlabel, args.savepng)
