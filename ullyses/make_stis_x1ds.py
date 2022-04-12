@@ -1,3 +1,4 @@
+import argparse
 import datetime
 import shutil
 import numpy as np
@@ -12,6 +13,7 @@ import subprocess
 from calibrate_stis_data import calibrate_stis_data
 from stis_coadd_x1d import coadd_1d_spectra
 import ullyses_utils
+
 utils_dir = ullyses_utils.__path__[0]
 from ullyses_utils.ullyses_config import VERSION, RENAME
 from ullyses_utils.readwrite_yaml import read_config
@@ -22,10 +24,37 @@ nowdt = datetime.datetime.now()
 if OUTDIR_ROOT is None:
     OUTDIR_ROOT = nowdt.strftime("%Y%m%d_%H%M")
 
-def copy_origfiles(datadir, orig_datadir):
+"""
+This code is used to preform custom calibrations
+ of STIS MAMA and CCD data.
+
+Arguments:
+    datadir (str): Path to working data directory
+    targ (str): Target Name
+    orig_datadir (str): Path to original raw data
+    outdir (str): Directory for output calibrated data
+    config_dir (str): Path to directory with STIS configuration files
+    copydir (str): Name of directory to copy output products to
+
+Examples of the YAML configuration file for STIS targets
+are located in the ullyses-utils github repo:
+https://github.com/spacetelescope/ullyses-utils/tree/main/utils/data/stis_configs.
+"""
+
+
+def copy_origfiles(targ, datadir, orig_datadir):
     """
     Copy the original STIS files to ensure we leave them intact.
+
+    Args:
+        targ (str): Target name
+        datadir (str): Path to directory to copy data to
+        orig_datadir (str): Path to directory with original data
+
+    Return:
+        None
     """
+
     files = glob.glob(os.path.join(orig_datadir, "o*fits"))
     # Targs with periods in their name must be specially renamed or defringe will crash
     if "." in targ:
@@ -42,32 +71,71 @@ def copy_origfiles(datadir, orig_datadir):
 def copy_cvso104_fringeflat(cvso109_dir, cvso104_fringeflat):
     """
     A special fringeflat is needed for CVSO-109.
-    Copy CVSO-104's fringeflat to use with CVSO-109
+    Copy CVSO-104's fringeflat to use with CVSO-109.
     """
+
     if not os.path.exists(cvso109_dir):
         os.makedirs(cvso109_dir)
     shutil.copy(cvso104_fringeflat, cvso109_dir)
 
 
 def make_custom_x1ds(datadir, outdir, targ, config_dir=CONFIG_DIR):
+    """
+    Calibrate the STIS x1ds using the calibrate_stis_data function.
+
+    Args:
+        datadir (str):
+        outdir (str):
+        targ (str):
+        config_dir (str):
+
+    Return:
+        None
+    """
+
     configs = glob.glob(os.path.join(config_dir, f"{targ}*yaml"))
     assert len(configs) != 0, f"No config files for target {targ}"
     if "." in targ:
         assert targ in RENAME, f"Renaming scheme not known for {targ}"
-    calibrate_stis_data(datadir, config, outdir)
+    calibrate_stis_data(datadir, configs, outdir)
     print(f"\nMade custom products for target {targ}, wrote to {outdir}\n")
 
 
 def coadd_blended_spectra(x1ds, targ, outdir):
     """
+    Coadd STIS x1ds that have blended spectra.
+
     VERY IMPORTANT: the second listed target for each set of two needs to be the
     companion. The DQ arrays of the companion are ignored with coadding the two
-    spectra. 
+    spectra.
+
+    Args:
+        x1ds (list): List of x1ds to coadd
+        targ (str): Target name
+        outdir (str): Path to output directory
+
+    Return:
+        None
     """
+
     coadd_1d_spectra(x1ds, targ, outdir)
     print(f"\nMade coadded blended spectra for {targ}, wrote to {outdir}\n")
 
+
 def copy_rename_yaml(targ, outdir, config_dir=CONFIG_DIR):
+    """
+    Copy the YAML file from the configuration directory
+    to the output directory.
+
+    Args:
+        targ (str): Target name
+        outdir (str): Path to output directory
+        config_dir (str): Path to directory with configuration file
+
+    Return:
+        None
+    """
+
     yamlfiles = glob.glob(os.path.join(config_dir, f"{targ}*yaml"))
     for item in yamlfiles:
         f = os.path.basename(item)
@@ -83,13 +151,21 @@ def copy_rename_yaml(targ, outdir, config_dir=CONFIG_DIR):
             os.makedirs(outdir)
         shutil.copyfile(item, os.path.join(outdir, newname))
     print(f"\nCopied and renamed {targ} YAML files from {config_dir} to {outdir}\n")
-    
+
 
 def copy_products(outdir, copydir):
     """
     Once you have created custom STIS 1D spectra, you may
     copy them to another destination.
+
+    Args:
+        outdir (str): Path to output directory
+        copydir (str): Path to copy output to
+
+    Return:
+        None
     """
+
     files = glob.glob(os.path.join(outdir, "*x1d.fits"))
     for item in files:
         if not os.path.exists(copydir):
@@ -99,14 +175,44 @@ def copy_products(outdir, copydir):
 
 
 def main(datadir, targ, orig_datadir, outdir, config_dir=CONFIG_DIR, copydir=None):
-    copy_origfiles(datadir, orig_datadir)
-    #copy_cvso104_fringeflat(cvso109_dir, cvso104_fringeflat)
+    """
+    Run script to make custom x1d files for STIS.
+
+    Args:
+        datadir (str): Path to working data directory
+        targ (str): Target Name
+        orig_datadir (str): Path to original raw data
+        outdir (str): Directory for output calibrated data
+        config_dir (str): Path to directory with STIS configuration files
+        copydir (str): Name of directory to copy output products to
+
+    Return:
+        None
+    """
+
+    copy_origfiles(datadir, orig_datadir, targ)
+    # copy_cvso104_fringeflat(cvso109_dir, cvso104_fringeflat)
     make_custom_x1ds(datadir, outdir, targ, config_dir)
-    #coadd_blended_spectra(x1ds, targ, outdir)
+    # coadd_blended_spectra(x1ds, targ, outdir)
     copy_rename_yaml(targ, outdir, config_dir)
     if copydir is not None:
         copy_products(outdir, copydir)
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument(dest="datadir",
+                        help="Path to working data directory")
+    parser.add_argument(dest="orig_datadir", default=None,
+                        help="Path to original raw data. This is copied to datadir to protect the originals")
+    parser.add_argument(dest="outdir",
+                        help="Directory for output calibrated data")
+    parser.add_argument(dest="targ",
+                        help="Name of target to calibrate")
+    parser.add_argument("--config_dir", default=CONFIG_DIR,
+                        help="Path to directory with STIS configuration files")
+    parser.add_argument("--copydir", default=None,
+                        help="Name of directory to copy output products to")
+
+    args = parser.parse_args()
+    main(args.datadir, args.targ, args.orig_datadir, args.outdir, args.config_dir, args.copydir)
