@@ -2,9 +2,11 @@ import shutil
 import glob
 import os
 import argparse
+from astropy.io import fits
 
 from ullyses_utils.parse_csv import parse_aliases
 from fuse_add_dq import add_dq_col
+
 
 """
 This script is used to flag bad wavelength regions
@@ -12,6 +14,10 @@ in FUSE data. The bad regions for each target are
 listed in TARGS_TO_FLAG.
 
 
+Inputs:
+    indir (str): Path to input directory
+    outdir (str): Path to output directory
+    overwrite (bool): If true, files in outdir will be overwritted. Default=False
 """
 
 
@@ -232,7 +238,18 @@ FUSE_TARGS = {
     "DR5": []
 }
 
+
 def flag_file(vofile, outdir, overwrite=False):
+    """
+    This code steps through the targets and flags
+    the DQs appropriately
+
+    :param vofile: Path to VO file
+    :param outdir: Path to output directory
+    :param overwrite: If true, overwrite output. Default=False
+    :return: None
+    """
+
     if "dqscreened_" in vofile:
         print(f"Input file {vofile} is already flagged, skipping")
         return vofile
@@ -244,7 +261,7 @@ def flag_file(vofile, outdir, overwrite=False):
         ull_targname = aliases[alias_mask]["ULL_MAST_name"].values[0]
     else:
         raise KeyError(f"FUSE target {fuse_targname} not found in ULLYSES alias list")
-        
+
     vofilename = os.path.basename(vofile)
     outfilename = "dqscreened_" + vofilename
     outfile = os.path.join(outdir, outfilename)
@@ -253,18 +270,26 @@ def flag_file(vofile, outdir, overwrite=False):
     elif os.path.exists(outfile) and overwrite is False:
         print(f"Skipping {vofile}, output already exists and overwrite is False")
         return outfile
-    
+
     targstoedit = list(TARGS_TO_FLAG.keys())
     if ull_targname in targstoedit:
-        pars = TARGS_TO_FLAG[targ]
+        pars = TARGS_TO_FLAG[ull_targname]
         add_dq_col(vofile, outfile, pars["minwl"], pars["maxwl"], pars["dq"], overwrite=overwrite)
     else:
         print(f"No bad regions in {vofile}, but still adding DQ array")
         add_dq_col(vofile, outfile, [], [], [], overwrite=True)
 
 
-def main(indir, outdir):
-    flag_data(indir, outdir)
+def main(indir, outdir, overwrite):
+    """
+    Perform flagging.
+    :param indir: Path to input directory
+    :param outdir: Path to output directory
+    :param overwrite: If true, overwrite output. Default=False
+    :return: None
+    """
+
+    flag_file(indir, outdir, overwrite)
 
 
 if __name__ == "__main__":
@@ -273,7 +298,10 @@ if __name__ == "__main__":
                         help="Path to input directory with input NVO files to flag")
     parser.add_argument("-o", "--outdir",
                         help="Output path to place flagged NVO files")
+    parser.add_argument("-c", "--overwrite", default=False,
+                        action="store_true",
+                        help="If True, overwrite existing products")
 
     args = parser.parse_args()
 
-    main(args.indir, args.outdir)
+    main(args.indir, args.outdir, args.overwrite)
