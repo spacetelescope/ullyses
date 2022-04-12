@@ -2,7 +2,7 @@
 
 This repo contains the codes used to create the high level science products (HLSPs) for the targets in the ULLYSES special program. See more info about ULLYSES and the targets here: ullyses.stsci.edu.
 
-### Installation
+## Installation
 
 JWST pipeline readme - has info on how to do conda
 add link to conda/anaconda
@@ -13,7 +13,7 @@ python setup.py install
 
 should also install ullyses-utils repo (link here)
 
-### Creating HLSPs
+## Creating HLSPs
 
 wrapper.py
 
@@ -22,15 +22,15 @@ splittag_wrapper.py
 
 
 timeseries.py
-#### Creating custom-calibrated individual spectra
-Prior to turning spectra into ULLYSES HLSPs, some targets require extra reprocessing to
-fix various calibration issues. For example, STIS/G750L data need to be defringed, and
-COS/G230L data need to be corrected to remove vignetting effects. Once these custom
+## Creating custom-calibrated individual spectra
+Prior to turning spectra into ULLYSES HLSPs, some targets require extra processing to
+fix various calibration issues. For example, STIS/G750L data need to be defringed, and 
+wavelength offsets due to miscentering in the aperture need to be corrected. Once these custom
 calibration steps have been applied, a keyword is added to the output FITS file signifying
-that the file should be considered a *level0* HLSP, or custom-calibrated *individual*
+that the file should be considered a level0 HLSP- that is, a custom-calibrated *individual*
 1D spectrum. The various level0 products, and how to create them, are described below.
 
-**Custom-calibrated STIS spectra**
+### Custom-calibrated STIS spectra
 All T Tauri star STIS CCD observations, and a subset of STIS NUV- and FUV-MAMA observations,
 require tailored calibrations. Special calibration steps can include: 
 custom hot pixel identification and flagging, defringing for G750L observations, and 
@@ -51,41 +51,40 @@ python calibrate_stis_data.py -i <indir> -y <yaml> -o <outdir>
 
 where `<indir>` is the input directory that houses the data you wish to calibrate,
 `<yaml>` is the name of the yaml file, and `<outdir>` is the output directory
-where products and diagnostic plots will be written.
+where products, logs, and diagnostic plots will be written. A log file of the format
+`YYYYMMDD_HHmm_cal.log` will be written, unless otherwise specified using the optional
+arguments below.
 
-Other optional arguments are:
+Optional arguments are:
 ```
   -c, --clobber                     If True, overwrite existing products
   --nolog                           If True, do not produce log file
   -l LOGFILE, --logfile LOGFILE
-                                    Name of output log file
+                                    Alternative name of output log file
 ```
 
 **TODO:** add info about coadding blended spectra.
 
-**Wavelength-shifted COS spectra**
+### Wavelength-shifted COS spectra
 If a target is not perfectly centered in the COS aperture, the wavelength array can be
 offset from its true values. Wavelength offsets can be easily corrected by recalibrating
 the data and supplying a shift file to CalCOS, as described in the 
 [COS Data Handbook](https://hst-docs.stsci.edu/cosdhb/chapter-5-cos-data-analysis/5-3-working-with-extracted-spectra#id-5.3WorkingwithExtractedSpectra-5.3.2RedoingSpectralExtraction).
 
-The ULLYSES team has identified stars which require such wavelength offset corrections, and 
+The ULLYSES team has identified stars which require such wavelength offset corrections and 
 documented the necessary shifts in text files stored in the 
 [ullyses-utils](https://github.com/spacetelescope/ullyses-utils/tree/main/utils/data/cos_shifts) 
 repository.
 
-You can easily create wavelength-shifted COS spectra using the pre-defined ULLYSES shift 
-files like so:
-
-Once you have a shift file, you can create wavelength-shifted COS spectra by operating on
-a directory with multiple exposures, or by operating on a single file. You can easily 
-create wavelength-shifted COS spectra using the pre-defined ULLYSES shift files like so
+Once you have a shift file, you can create wavelength-shifted COS spectra by supplying on
+a directory with multiple exposures, or by supplying on a single file. You can easily 
+create wavelength-shifted COS spectra using the pre-defined ULLYSES shift files like so:
 ```
 python apply_cos_shifts.py <infiledir> <outdir> 
 ```
 where `<infiledir>` is the input filename or directory of files that should be shifted,
 and `<outdir>` is the directory to write shifted 1D spectra.
-In this case, the target name in the input file(s) header(s) *must* match the target name
+In this case, the target name in the input file(s) header(s) **_must_** match the target name
 in the shift file. If for some reason it does not, you must also supply the target name 
 as it appears in the shift file using an additional `-t <targ>` argument.
 
@@ -103,7 +102,7 @@ Other optional arguments are:
     -c, --overwrite       If True, overwrite existing products
 ```
 
-**Custom-flagged FUSE spectra**
+### Custom-flagged FUSE spectra
 The ULLYSES team uses FUSE 
 [VO (Virtual Observatory)](https://ui.adsabs.harvard.edu/abs/2007PASP..119..527D/abstract) 
 files with minimal modification. A DQ (Data Quality) array is added to each VO file, as is
@@ -117,7 +116,7 @@ Possible DQ flags include:
 To create these custom-flagged FUSE spectra:
 **Still need to fill this in**
 
-### Contributing
+## Contributing
 
 If you want to suggest changes to this content do the following:
 
