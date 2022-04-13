@@ -306,7 +306,7 @@ def create_output_file_name(prod, version=VERSION, level=3):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--indir",
-                        default=f"/astro/ullyses/all_vetted_data_{VERSION}",
+                        default="./",
                         help="Directory(ies) with data to combine")
     parser.add_argument("-o", "--outdir", default=None,
                         help="Directory for output HLSPs")
