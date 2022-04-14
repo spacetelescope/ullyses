@@ -40,8 +40,8 @@ def apply_shifts_file(infile, outdir, shift_file):
     Apply shifts from input txt file. The txt file is given
     as an input to calcos, which recalibrates the rawtag files.
     :param infile: ASN file of the datasets to recalibrate
-    :param outdir: output directory
-    :param shift_file: text file containing the shifts to apply for each dataset
+    :param outdir: Output directory
+    :param shift_file: Text file containing the shifts to apply for each dataset
     :return: None
     """
 
@@ -68,9 +68,9 @@ def apply_shifts_dir(indir, outdir, shift_file):
     """
     Apply shifts from input txt file. The txt file is given
     as an input to calcos, which recalibrates the rawtag files.
-    :param indir: directory with ASN files of the datasets to recalibrate
-    :param outdir: output directory
-    :param shift_file: text file containing the shifts to apply for each dataset
+    :param indir: Directory with ASN files of the datasets to recalibrate
+    :param outdir: Output directory
+    :param shift_file: Text file containing the shifts to apply for each dataset
     :return: None
     """
 
@@ -108,9 +108,9 @@ def determine_file_shifts(infile, targ=None):
 def determine_dir_shifts(indir, targ=None):
     """
     Find the shift file path if not specified.
-    :param indir:
-    :param targ:
-    :return:
+    :param indir: Directory with ASN files of the datasets to recalibrate
+    :param targ: Target name
+    :return: Shift file for the target specified
     """
 
     all_files = glob.glob(os.path.join(indir, targ, "*asn.fits"))

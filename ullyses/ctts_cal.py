@@ -119,7 +119,7 @@ def calibrate_data(datadir, custom_caldir=None, g230l_disptab=G230L_DISPTAB):
     return custom_caldir
 
 
-def copy_caldata(datadir, custom_caldir=None): 
+def copy_caldata(datadir, custom_caldir=None):
     """
     Copy the products for each target.
 
