@@ -1,9 +1,14 @@
+import argparse
 import datetime
 import shutil
 import numpy as np
 import os
 import glob
-import argparse
+from astropy.io import fits
+import matplotlib
+import matplotlib.pyplot as pl
+from stistools import x1d
+import subprocess
 
 from calibrate_stis_data import calibrate_stis_data
 from stis_coadd_x1d import coadd_1d_spectra
@@ -105,7 +110,7 @@ def coadd_blended_spectra(x1ds, targ, outdir):
     spectra.
 
     Args:
-        x1ds (list):
+        x1ds (list): List of x1ds to coadd
         targ (str): Target name
         outdir (str): Path to output directory
 
