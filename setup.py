@@ -24,7 +24,7 @@ setup(
                         "numpy",
                         "astropy>=5.0.4",
 			"ullyses_utils",
-                        "stistools>=1.4.1",
+                        "stistools>=1.4.2",
                         "pandas",
                         "calcos>=3.4.0",
                         "matplotlib",

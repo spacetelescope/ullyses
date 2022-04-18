@@ -29,6 +29,11 @@ Then invoke the script from the directory containing the files to be processed:
     cd /directory/containing/data/files/
     python $ubin/wrapper.py -o './products'
 
+Alternatively, the script can be run from a directory that doesn't contain the data
+to be processed by using the ``-i /directory/containing/data/`` option:
+
+    python $ubin/wrapper.py -o /directory/to/put/products -i /directory/containing/input/data
+
 splittag_wrapper.py
 
 
