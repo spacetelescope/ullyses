@@ -23,10 +23,11 @@ setup(
     install_requires = ["setuptools",
                         "numpy",
                         "astropy<=4.3.1",
-			"ullyses_utils",
+                        "ullyses_utils",
                         "stistools>=1.4.1",
                         "pandas",
                         "calcos>=3.4.0",
+                        "costools",
                         "matplotlib",
                         "pyyaml"
                         ],
