@@ -5,7 +5,7 @@ import argparse
 from astropy.io import fits
 
 from ullyses_utils.parse_csv import parse_aliases
-from fuse_add_dq import add_dq_col
+from ullyses.fuse_add_dq import add_dq_col
 
 
 """

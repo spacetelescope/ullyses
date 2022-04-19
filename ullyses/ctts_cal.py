@@ -6,8 +6,8 @@ import os
 import shutil
 import calcos
 
-import splittag_wrapper
-import timeseries
+from ullyses import splittag_wrapper
+from ullyses import timeseries
 import ullyses_utils
 from ullyses_utils.ullyses_config import VERSION
 

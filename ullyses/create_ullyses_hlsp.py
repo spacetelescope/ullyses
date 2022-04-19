@@ -9,8 +9,8 @@ import datetime
 from datetime import datetime as dt
 from astropy.time import Time
 
-from ullyses_jira.parse_csv import parse_aliases
-from ullyses_config import VERSION, CAL_VER, HLSP_DIR, VETTED_DIR, RENAME
+from ullyses_utils.parse_csv import parse_aliases
+from ullyses_utils.ullyses_config import VERSION, CAL_VER, HLSP_DIR, VETTED_DIR, RENAME
 
 CODEDIR = os.path.dirname(__file__)
 RED = "\033[1;31m"

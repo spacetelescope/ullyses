@@ -10,8 +10,8 @@ import matplotlib.pyplot as pl
 from stistools import x1d
 import subprocess
 
-from calibrate_stis_data import calibrate_stis_data
-from stis_coadd_x1d import coadd_1d_spectra
+from ullyses.calibrate_stis_data import calibrate_stis_data
+from ullyses.stis_coadd_x1d import coadd_1d_spectra
 import ullyses_utils
 
 utils_dir = ullyses_utils.__path__[0]

@@ -15,7 +15,7 @@ from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
 from ullyses_utils.readwrite_yaml import read_config, write_config
-import plot_stis_data
+from ullyses import plot_stis_data
 os.environ["oref"] = "/grp/hst/cdbs/oref/"
 
 OREF_DIR = "/grp/hst/cdbs/oref"

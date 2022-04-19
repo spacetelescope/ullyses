@@ -1,10 +1,8 @@
 import os
 import glob
 import numpy as np
-
 import calcos
 from costools import splittag
-
 import argparse
 from astropy.io import fits
 from functools import partial

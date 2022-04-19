@@ -2,19 +2,19 @@ import argparse
 import astropy
 from astropy.io import fits
 from astropy.time import Time
-
 import datetime
 from datetime import datetime as dt
 import re
 import numpy as np
-import coadd, wrapper
 from costools import splittag
 import calcos
 import glob
 import os
 
+from ullyses import coadd, wrapper
+from ullyses_utils.ullyses_config import VERSION
+
 SECONDS_PER_DAY = 86400.0
-version = wrapper.DEFAULT_VERSION
 
 """
     Timeseries product creation code.
@@ -565,7 +565,7 @@ def create_primary_header(ensemble, filename):
     hdr0['HSLPNAME'] = ('Hubble UV Legacy Library of Young Stars as Essential Standards',
                     'Name ID of this HLSP collection')
     hdr0['HLSPLEAD'] = ('Julia Roman-Duval', 'Full name of HLSP project lead') 
-    hdr0['HLSP_VER'] = (version,'HLSP data release version identifier')
+    hdr0['HLSP_VER'] = (VERSION,'HLSP data release version identifier')
     hdr0['HLSP_LVL'] = (level, 'ULLYSES HLSP Level')
     hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
     hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
