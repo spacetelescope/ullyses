@@ -22,6 +22,7 @@ setup(
     package_dir = {"ullyses": "ullyses"},
     install_requires = ["setuptools",
                         "numpy",
+                        "cython",
                         "astropy>=5.0.4",
 			"ullyses_utils",
                         "stistools>=1.4.2",
