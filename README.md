@@ -36,10 +36,26 @@ All package dependencies will be installed simultaneously, including `ullyses-ut
 
 ### Creating HLSPs
 
-wrapper.py
+Individual HLSPs for a single target can be created by putting all of the input
+files into one directory.  The input files are _x1d.fits files for COS and STIS,
+and _vo.fits for FUSE.  You can create all the HLSPs for this target by running
+the wrapper script, which can be done from the command line.  For convenience,
+it is recommended to create an environment variable pointing to the location
+of the wrapper script:
 
+    export ubin=/path/to/github/checkout/ullyses
 
-splittag_wrapper.py 
+Then invoke the script from the directory containing the files to be processed:
+
+    cd /directory/containing/data/files/
+    python $ubin/wrapper.py -o './products'
+
+Alternatively, the script can be run from a directory that doesn't contain the data
+to be processed by using the ``-i /directory/containing/data/`` option:
+
+    python $ubin/wrapper.py -o /directory/to/put/products -i /directory/containing/input/data
+
+splittag_wrapper.py
 
 
 timeseries.py
@@ -62,3 +78,4 @@ We strive to provide a welcoming community to all of our users by abiding with
 the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 If you have questions or concerns regarding the software, please open an issue at https://github.com/spacetelescope/ullyses/issues or contact the [HST Help Desk](https://hsthelp.stsci.edu). If you have questions regarding the ULLYSES program design or data, please contact the [HST Help Desk](https://hsthelp.stsci.edu).
+
