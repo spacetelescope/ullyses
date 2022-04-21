@@ -3,7 +3,9 @@
 
 name: ULLYSES Pytest
 
-on: [push, pull_request]
+on: 
+  push:
+  pull_request:
   schedule:
     - cron: '00 00 * * *'  # every day at midnight
 
