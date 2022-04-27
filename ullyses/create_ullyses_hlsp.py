@@ -41,8 +41,6 @@ def make_imaging_hlsps(drcfile, outdir, targ, hdr_targ=None, hlspname=None):
 def make_lcogt_tss(indir, outdir, targ, hlspname=None, photfile=None):
     if photfile is None:
         photfile = os.path.join(PHOT_DIR, f"{targ.upper()}_phot.txt")
-    if targ.lower() == "sstc2dj161344.1-373646":
-        return # REMOVE THIS AFTER DR4!!!!
     aliases = parse_aliases()
     alias_mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ.upper())).any(), axis=1)
     if set(alias_mask) != {False}:

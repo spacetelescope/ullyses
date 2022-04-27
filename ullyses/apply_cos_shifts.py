@@ -118,7 +118,6 @@ def determine_dir_shifts(indir, targ=None):
     """
 
     all_files = glob.glob(os.path.join(indir, "l*asn.fits"))
-    import pdb; pdb.set_trace()
     if targ is not None:
         targ = targ.lower()
         shift_file = determine_file_shifts(all_files[0], targ=targ)
