@@ -73,28 +73,18 @@ def flag_file(vofile, outdir, ull_targname=None, overwrite=False):
     return outfile
 
 
-def main(indir, outdir, overwrite):
-    """
-    Perform flagging.
-    :param indir: Path to input directory
-    :param outdir: Path to output directory
-    :param overwrite: If true, overwrite output. Default=False
-    :return: None
-    """
-
-    flag_file(indir, outdir, overwrite)
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--indir", default=".",
+    parser.add_argument("-i", "--infile", default=".",
                         help="Path to input directory with input NVO files to flag")
     parser.add_argument("-o", "--outdir",
                         help="Output path to place flagged NVO files")
+    parser.add_argument("-t", "--targ",
+                        help="ULLYSES name of target")
     parser.add_argument("-c", "--overwrite", default=False,
                         action="store_true",
                         help="If True, overwrite existing products")
 
     args = parser.parse_args()
 
-    main(args.indir, args.outdir, args.overwrite)
+    flag_file(args.infile, args.outdir, args.targ, args.overwrite)
