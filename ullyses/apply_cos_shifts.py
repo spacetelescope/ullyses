@@ -5,6 +5,7 @@ import os
 import shutil
 import glob
 import pandas as pd
+
 import ullyses_utils
 utils_dir = ullyses_utils.__path__[0]
 
@@ -40,8 +41,8 @@ def apply_shifts_file(infile, outdir, shift_file):
     Apply shifts from input txt file. The txt file is given
     as an input to calcos, which recalibrates the rawtag files.
     :param infile: ASN file of the datasets to recalibrate
-    :param outdir: output directory
-    :param shift_file: text file containing the shifts to apply for each dataset
+    :param outdir: Output directory
+    :param shift_file: Text file containing the shifts to apply for each dataset
     :return: None
     """
 
@@ -53,8 +54,10 @@ def apply_shifts_file(infile, outdir, shift_file):
                      names=["rootname", "fppos", "flash", "segment", "shift1"],
                      header=None)
 
+    all_ipppss = [x[:6] for x in df["rootname"]]
+    uniq_ipppss = set(all_ipppss)
     ipppss = os.path.basename(infile)[:6]
-    if ipppss not in df["rootname"].values:
+    if ipppss not in uniq_ipppss:
         raise RuntimeError(f"Specified input file {infile} not in shifts file")
 
     if not os.path.exists(outdir):
@@ -68,9 +71,9 @@ def apply_shifts_dir(indir, outdir, shift_file):
     """
     Apply shifts from input txt file. The txt file is given
     as an input to calcos, which recalibrates the rawtag files.
-    :param indir: directory with ASN files of the datasets to recalibrate
-    :param outdir: output directory
-    :param shift_file: text file containing the shifts to apply for each dataset
+    :param indir: Directory with ASN files of the datasets to recalibrate
+    :param outdir: Output directory
+    :param shift_file: Text file containing the shifts to apply for each dataset
     :return: None
     """
 
@@ -78,11 +81,12 @@ def apply_shifts_dir(indir, outdir, shift_file):
     df = pd.read_csv(shift_file, delim_whitespace=True,
                      names=["rootname", "fppos", "flash", "segment", "shift1"],
                      header=None)
-    uniq_ipppss = list(set(df["rootname"]))
+    all_ipppss = [x[:6] for x in df["rootname"]]
+    uniq_ipppss = set(all_ipppss)
     for ipppss in uniq_ipppss:
         files = glob.glob(os.path.join(indir, f"{ipppss}*asn.fits"))
         if len(files) == 0:
-            raise FileNotFoundError(f"{ipppss}* files are in shift file, but not in specified directory")
+            raise FileNotFoundError(f"{ipppss}* files are in shift file, but not in specified directory {indir}")
 
         apply_shifts_file(files[0], outdir, shift_file)
 
@@ -108,12 +112,12 @@ def determine_file_shifts(infile, targ=None):
 def determine_dir_shifts(indir, targ=None):
     """
     Find the shift file path if not specified.
-    :param indir:
-    :param targ:
-    :return:
+    :param indir: Directory with ASN files of the datasets to recalibrate
+    :param targ: Target name
+    :return: Shift file for the target specified
     """
 
-    all_files = glob.glob(os.path.join(indir, targ, "*asn.fits"))
+    all_files = glob.glob(os.path.join(indir, "l*asn.fits"))
     if targ is not None:
         targ = targ.lower()
         shift_file = determine_file_shifts(all_files[0], targ=targ)
@@ -162,7 +166,7 @@ def copy_output_x1ds(outdir, copydir, overwrite=False):
                 os.remove(existing)
         # else: normal copy error will be triggered below
         shutil.copy(x1d, copydir)
-    print(f"Copied custom x1ds to {copydir}")
+    print(f"\nCopied wavelength-shifted x1ds to {copydir}")
 
 
 def apply_cos_shifts(infiledir, outdir, shift_file=None, targ=None, copydir=None,
@@ -179,16 +183,18 @@ def apply_cos_shifts(infiledir, outdir, shift_file=None, targ=None, copydir=None
     """
 
     if isinstance(infiledir, str):
-        infiledir = []
+        infiledir = [infiledir]
     for item in infiledir:
         if os.path.isdir(item):
             if shift_file is None:
-                targ = targ.lower()
+                if targ is not None:
+                    targ = targ.lower()
                 shift_file = determine_dir_shifts(item, targ)
             apply_shifts_dir(item, outdir, shift_file)
         elif os.path.isfile(item):
             if shift_file is None:
-                targ = targ.lower()
+                if targ is not None:
+                    targ = targ.lower()
                 shift_file = determine_file_shifts(item, targ)
             apply_shifts_file(item, outdir, shift_file)
     add_hlsp_lvl0(outdir)

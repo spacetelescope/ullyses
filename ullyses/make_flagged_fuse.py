@@ -1,18 +1,8 @@
-import shutil
-import glob
-import os
-import argparse
-from astropy.io import fits
-
-from ullyses_utils.parse_csv import parse_aliases
-from ullyses_utils.fuse_target_info import FILESTOEDIT, FUSE_TARGS, TARGS_TO_FLAG
-from fuse_add_dq import add_dq_col
-
-
 """
 This script is used to flag bad wavelength regions
 in FUSE data. The bad regions for each target are
-listed in fuse_target_info.py in ullyses-utils.
+listed in TARGS_TO_FLAG.
+
 
 Inputs:
     indir (str): Path to input directory
@@ -20,51 +10,49 @@ Inputs:
     overwrite (bool): If true, files in outdir will be overwritted. Default=False
 """
 
+import re
+import shutil
+import glob
+import os
+import argparse
+from astropy.io import fits
 
-def flag_data(indir, outdir, overwrite=False):
+from ullyses.fuse_add_dq import add_dq_col
+import ullyses_utils
+from ullyses_utils.parse_csv import parse_aliases
+from ullyses_utils.readwrite_yaml import read_config
+utils_dir = ullyses_utils.__path__[0]
+fuse_dir = os.path.join(utils_dir, "data", "fuse")
+TARGS_TO_FLAG = read_config(os.path.join(fuse_dir, "fuse_dq_flagging.yaml"))
+
+
+def flag_file(vofile, outdir, ull_targname=None, overwrite=False):
     """
     This code steps through the targets and flags
     the DQs appropriately
 
-    :param indir: Path to input directory
+    :param vofile: Path to VO file
     :param outdir: Path to output directory
+    :param ull_targname: If known, name of official ULLYSES MAST target name.
     :param overwrite: If true, overwrite output. Default=False
-    :return:
+    :return: None
     """
 
-    targstoedit = list(FILESTOEDIT.keys())
-    all_targs = []
-    for k, v in FUSE_TARGS.items():
-        all_targs += v
-    for targ in all_targs:
-        vofiles0 = glob.glob(os.path.join(indir, targ, "*_vo.fits"))
-        vofiles = [x for x in vofiles0 if "dqscreened" not in x]
-        if len(vofiles) > 1:
-            print(f"more than one VO file for {targ}, exiting")
-            break
-        vofile = vofiles[0]
-        vofilename = os.path.basename(vofile)
-        outfilename = "dqscreened_" + vofilename
-        outfile = os.path.join(outdir, targ, outfilename)
-        # We don't edit FUSE data from DR to DR, so if a product already exists,
-        # skip that target. This might change in the future.
-        if os.path.exists(outfile):
-            continue
-        if targ in targstoedit:
-            pars = FILESTOEDIT[targ]
-            add_dq_col(vofile, outfile, pars["minwl"], pars["maxwl"], pars["dq"], overwrite=True)
+    if "dqscreened_" in vofile:
+        print(f"Input file {vofile} is already flagged, skipping")
+        return vofile
+
+    if ull_targname is None:
+        fuse_targname = fits.getval(vofile, "targname")
+        aliases = parse_aliases()
+        alias_mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(fuse_targname.upper())).any(), axis=1)
+        if set(alias_mask) != {False}:
+            ull_targname = aliases[alias_mask]["ULL_MAST_name"].values[0]
         else:
-            add_dq_col(vofile, outfile, [], [], [], overwrite=True)
-    print("Flagged VO files")
+            raise KeyError(f"FUSE target {fuse_targname} not found in ULLYSES alias list")
 
-    fuse_targname = fits.getval(vofile, "targname")
-    aliases = parse_aliases()
-    alias_mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ.upper())).any(), axis=1)
-    if set(alias_mask) != {False}:
-        ull_targname = aliases[alias_mask]["ULL_MAST_name"].values[0]
-    else:
-        raise KeyError(f"FUSE target {fuse_targname} not found in ULLYSES alias list")
-
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
     vofilename = os.path.basename(vofile)
     outfilename = "dqscreened_" + vofilename
     outfile = os.path.join(outdir, outfilename)
@@ -76,31 +64,13 @@ def flag_data(indir, outdir, overwrite=False):
 
     targstoedit = list(TARGS_TO_FLAG.keys())
     if ull_targname in targstoedit:
-        pars = TARGS_TO_FLAG[targ]
+        pars = TARGS_TO_FLAG[ull_targname]
         add_dq_col(vofile, outfile, pars["minwl"], pars["maxwl"], pars["dq"], overwrite=overwrite)
     else:
         print(f"No bad regions in {vofile}, but still adding DQ array")
         add_dq_col(vofile, outfile, [], [], [], overwrite=True)
 
-
-def copy_data(outdir, copydir):
-    """
-    Copies the output files into another directory.
-    :param outdir: Path to the output directory
-    :param copydir: Path to the directory to copy to
-    :return: None
-    """
-    all_targs = []
-    for k, v in FUSE_TARGS.items():
-        all_targs += v
-    for targ in all_targs:
-        screened = glob.glob(os.path.join(outdir, targ, "dqscreened*_vo.fits"))
-        for item in screened:
-            destdir = os.path.join(copydir, targ.lower())
-            if not os.path.exists(destdir):
-                os.makedirs(destdir)
-            shutil.copy(item, destdir)
-    print(f"Copied flagged files to {destdir}")
+    return outfile
 
 
 def main(indir, outdir, overwrite):
@@ -112,7 +82,7 @@ def main(indir, outdir, overwrite):
     :return: None
     """
 
-    flag_data(indir, outdir, overwrite)
+    flag_file(indir, outdir, overwrite)
 
 
 if __name__ == "__main__":

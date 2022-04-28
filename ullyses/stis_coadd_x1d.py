@@ -5,8 +5,8 @@ import os
 import numpy as np
 from astropy.io import fits
 
-from coadd import STISSegmentList
-from fuse_add_dq import add_column
+from ullyses.coadd import STISSegmentList
+from ullyses.fuse_add_dq import add_column
 
 """
 This code takes a list of STIS x1ds and coadds

@@ -14,8 +14,8 @@ from stistools.ocrreject import ocrreject
 from matplotlib import pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 
-from ullyses_utils.readwrite_yaml import read_config
-import plot_stis_data
+from ullyses_utils.readwrite_yaml import read_config, write_config
+from ullyses import plot_stis_data
 os.environ["oref"] = "/grp/hst/cdbs/oref/"
 
 OREF_DIR = "/grp/hst/cdbs/oref"
@@ -58,6 +58,7 @@ class Tee:
 class StisData:
     """
     A class to describe STIS data that need to be custom-calibrated.
+
     Attributes:
         outdir (str): Path where output products should be written.
         infiles (list): List of input raw datasets.
@@ -310,7 +311,7 @@ class StisData:
     def find_product(self, ext):
         """
         Find the dark referece file, if avaiable, and add to the header for calibration.
-        :param ext: extension
+        :param ext: Extension
         :return:
         """
         prod = os.path.join(self.basedir, self.rootname+"_"+ext+".fits")
@@ -390,7 +391,7 @@ class StisCcd(StisData):
     A class to calibrate STIS CCD data.
     """
 
-    def __init__(self, infile, yamlfile, dolog=True, logfile=None, outdir=None, 
+    def __init__(self, infile, yamlfile, dolog=True, logfile=None, outdir=None,
                  overwrite=True): 
         super().__init__(infile, yamlfile, dolog, logfile, outdir, overwrite)
         self.detector = "CCD"
@@ -539,7 +540,7 @@ class StisCcd(StisData):
     def custom_crrej(self):
         """
         Perform custom cosmic ray rejection.
-        Check on CR rejection rate comes from Joleen Carlberg's code: 
+        Check on CR rejection rate comes from Joleen Carlberg's code:
         https://github.com/spacetelescope/stistools/blob/jkc_cr_analysis/stistools/crrej_exam.py
         """
        
@@ -715,7 +716,7 @@ class StisMama(StisData):
     A class to perform the calibration of STIS MAMA data.
     """
 
-    def __init__(self, infile, yamlfile, dolog=True, logfile=None, outdir=None, 
+    def __init__(self, infile, yamlfile, dolog=True, logfile=None, outdir=None,
                  overwrite=True): 
         super().__init__(infile, yamlfile, dolog, logfile, outdir, overwrite)
         self.detector = "MAMA"
