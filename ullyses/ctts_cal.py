@@ -14,8 +14,6 @@ from ullyses_utils.readwrite_yaml import read_config
 
 UTILS_DIR = ullyses_utils.__path__[0]
 
-G230L_DISPTAB = os.path.join(UTILS_DIR, 'data/ref_files/ullyses_cos_nuv_disp.fits')
-
 
 def read_tss_yaml(targ, yamlfile=None):
     if yamlfile is None:
@@ -65,31 +63,20 @@ def copy_origdata(datadir, orig_datadir, tss_params):
     return datadir
 
 
-def calibrate_data(datadir, tss_params, custom_caldir=None, 
-                   g230l_disptab=G230L_DISPTAB):
+def calibrate_data(datadir, tss_params, custom_caldir=None): 
     """
     Calibrate data which require special calibration. This will be for
-    1) all G230L data which need to be calibrated with a custom COS/NUV DISPTAB
-    2) some TW Hydra exposures which were offset in wavelength
+    any exposures which were offset in wavelength
 
     Args:
         datadir (str): Path to directory with raw timeseries datasets
         custom_caldir (str): Path to output directory
-        g230l_disptab (str): Path to custom COS NUV DISPTAB
 
     Returns:
         custom_caldir: Path to output directory with custom data products
     """
 
     calrequired0 = []
-    raws = glob.glob(os.path.join(datadir, "l*rawtag*fits"))
-    for raw in raws:
-        if fits.getval(raw, "opt_elem") == "G230L":
-            with fits.open(raw, mode="update") as hdulist:
-                hdr0 = hdulist[0].header
-                hdr0.set("DISPTAB", g230l_disptab)
-            root = os.path.basename(raw)[:9]
-            calrequired0.append(root)
     
     wl_shift_dict = tss_params["wavelength_shift"]
     if wl_shift_dict is not None:
@@ -121,7 +108,7 @@ def calibrate_data(datadir, tss_params, custom_caldir=None,
         else:
             calcos.calcos(asn, outdir=custom_caldir, verbosity=0)
 
-    print(f"\nCalibrated data that required a shift or custom DISPTAB\n\tOutput dir={custom_caldir}")
+    print(f"\nCalibrated data that required a wavelength shift\n\tOutput dir={custom_caldir}")
 
     return custom_caldir
 
@@ -337,8 +324,7 @@ def move_output_epoch_data(datadir, tss_params):
     print(f"\nMoved x1ds to a single directory to be made into TSS")
 
 
-def main(datadir, orig_datadir, tss_outdir, targ, yamlfile=None, custom_caldir=None,
-         g230l_disptab=G230L_DISPTAB):
+def main(datadir, orig_datadir, tss_outdir, targ, yamlfile=None, custom_caldir=None):
     """
     Performs the timeseries data product calibration and creation.
 
@@ -348,12 +334,11 @@ def main(datadir, orig_datadir, tss_outdir, targ, yamlfile=None, custom_caldir=N
         tss_outdir (str):
         targ (str):
         custom_caldir (str):
-        g230l_disptab (str):
     """
 
     tss_params = read_tss_yaml(targ, yamlfile)
     copy_origdata(datadir, orig_datadir, tss_params)
-    calibrate_data(datadir, tss_params, custom_caldir, g230l_disptab)
+    calibrate_data(datadir, tss_params, custom_caldir)
     copy_caldata(datadir, tss_params, custom_caldir)
     move_input_epoch_data(datadir, tss_params)
     create_splittags(datadir, tss_params)
@@ -364,18 +349,18 @@ def main(datadir, orig_datadir, tss_outdir, targ, yamlfile=None, custom_caldir=N
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument(dest="datadir",
-                        help="Path to directory with timeseries data")
-    parser.add_argument(dest="orig_datadir",
-                        help="")
-    parser.add_argument(dest="tss_outdir",
-                        help="")
-    parser.add_argument(targ="targ",
+    parser.add_argument("--orig",
+                        help="Path to all data to be made into a timeseries spectrum")
+    parser.add_argument("--copydir",
+                        help="Path to copy intermediate products to")
+    parser.add_argument("--hlspdir", dest="tss_outdir",
+                        help="Directory to write final timeseries HLSPs")
+    parser.add_argument("-t", "--targ",
                         help="Name of target")
-    parser.add_argument(dest="custom_caldir",
-                        help="")
-    parser.add_argument(dest="disptab", default=G230L_DISPTAB,
-                        help="If specified, custom COS NUV DISPTAB to use for calibration")
+    parser.add_argument("-y", "--yaml",
+                        help="Name of YAML configuration file")
+    parser.add_argument("--custom_caldir",
+                        help="Name of directory to write splittag products, by default uses current runtime")
     args = parser.parse_args()
 
-    main(args.datadir, args.orig_datadir, args.tss_outdir, args.targ, args.custom_caldir, args.disptab)
+    main(args.copydir, args.orig, args.hlspdir, args.targ, args.yaml, args.custom_caldir)
