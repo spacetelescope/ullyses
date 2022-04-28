@@ -36,9 +36,19 @@ All package dependencies will be installed simultaneously, including `ullyses-ut
 
 ## Creating HLSPs
 
-Individual HLSPs for a single target can be created by putting all of the input
-files into one directory.  The input files are _x1d.fits files for COS and STIS,
-and _vo.fits for FUSE.  You can create all the HLSPs for this target by running
+There are four main types of HLSPs that ULLYSES produces:
+1. coadded spectra
+2. timeseries spectra
+3. re-packaged drizzled images
+4. custom-calibrated individual spectra, called "level0" HLSPs
+
+Below are instructions for creating each type of HLSP.
+
+### Coadded Spectra HLSPs 
+Individual coadded products for a single target can be created by putting all of the input
+files into one directory. The input files are `_x1d.fits` files for COS and STIS,
+and `_vo.fits` for FUSE. These input files may also be level0 (custom-calibrated spectra) 
+themselves. You can create all the coadd HLSPs for this target by running
 the wrapper script, which can be done from the command line.  For convenience,
 it is recommended to create an environment variable pointing to the location
 of the wrapper script:
@@ -55,15 +65,79 @@ to be processed by using the ``-i /directory/containing/data/`` option:
 
     python $ubin/wrapper.py -o /directory/to/put/products -i /directory/containing/input/data
 
-## Creating custom-calibrated individual spectra
+### Timeseries Spectra HLSPs
+
+There are two main flavors of timeseries spectra: exposure level and sub-exposure level.
+Exposure level timeseries spectra are essentially stacked individual 1D spectra.
+Sub-exposure level timeseries spectra are made from _split_ 1D spectra. That is, for 
+time-tag data (COS and STIS UV data), exposures are broken down into even smaller time 
+chunks. 
+
+#### HST Timeseries
+
+For HST, both exposure and sub-exposure timeseries spectra are created the same way.
+To create a timeseries spectrum, you must supply a configuration YAML file. The ULLYSES
+team has already created such files for all monitoring stars and recorded the optimal
+parameters in YAML files stored in the
+[ullyses-utils](https://github.com/spacetelescope/ullyses-utils/tree/main/utils/data/timeseries)
+repository. You may use the ULLYSES YAML files as input, or supply your own, but they
+must conform to the format outlined here. TODO- ADD LINK TO TEMPLATE FILE
+
+Once you have a YAML file, you create the timeseries spectrum like so:
+```
+python ctts_cal.py --orig <origdir> --copydir <copydir> --hlspdir <hlspdir> --targ <targ> --yaml <yaml>
+```
+
+where `<origdir>` is the directory which houses all the input data, `<copydir>` is the directory
+to copy input data to (data will be modified), `<hlspdir>` is the directory to write the final
+timeseries spectra, `<targ>` is the ULLYSES name of the target being calibrated, and `<yaml>` is the
+YAML confirmation file.
+
+#### Photometric Timeseries
+
+It is possible to create a timeseries "spectrum" using photometric measurements over time.
+The ULLYSES team has performed photometry on ULLYSES low-mass stars using the LCOGT network
+of telescopes.
+
+To create LCOGT photometric timeseries spectra:
+```
+python lcogt_hlsps_wrapper.py -i <indir> -o <outdir> -t <targ>
+```
+
+where `<indir>` is the directory which contain the original LCOGT FITS images (used to 
+extract observational metadata), `<outdir>` is the directory to write the HLSPs, and
+`<targ>` is the ULLYSES target name.
+
+### Re-packaged Drizzled Image HLSPs
+
+The ULLYSES team creates drizzled WFC3 images for the low-metallicity galaxies NGC3109 and
+SextansA. These images are repackaged to conform to the ULLYSES HLSP requirements, but the 
+data array values are left untouched. 
+
+To create drizzled image HLSPs:
+```
+python imaging_hlsps_wrapper.py <drcfile> -o <outdir> -t <targ>
+```
+
+where `<drcfile>` is the name of the original drizzled DRC file, `<outdir>` is the 
+directory to write the HLSP to, and `<targ>` is the ULLYSES target name.
+
+Optional arguments are:
+```
+  --hdr_targ HDR_TARG   If specified, alternative target name to use in HLSP file name
+  --hlspname HLSPNAME   Name of output HLSP file. By default, follows ULLYSES standard
+```
+
+### Custom-calibrated Spectra (level0) HLSPs
+
 Prior to turning spectra into ULLYSES HLSPs, some targets require extra processing to
-fix various calibration issues. For example, STIS/G750L data need to be defringed, and 
-wavelength offsets due to miscentering in the aperture need to be corrected. Once these custom
+fix various calibration issues. For example, STIS/G750L data must be defringed or
+wavelength offsets due to miscentering in the aperture must be corrected. Once these custom
 calibration steps have been applied, a keyword is added to the output FITS file signifying
 that the file should be considered a level0 HLSP- that is, a custom-calibrated *individual*
 1D spectrum. The various level0 products, and how to create them, are described below.
 
-### Custom-calibrated STIS spectra
+#### Custom-calibrated STIS spectra
 All T Tauri star STIS CCD observations, and a subset of STIS NUV- and FUV-MAMA observations,
 require tailored calibrations. Special calibration steps can include: 
 custom hot pixel identification and flagging, defringing for G750L observations, and 
@@ -98,7 +172,7 @@ Optional arguments are:
 
 **TODO:** add info about coadding blended spectra.
 
-### Wavelength-shifted COS spectra
+#### Wavelength-shifted COS spectra
 If a target is not perfectly centered in the COS aperture, the wavelength array can be
 offset from its true values. Wavelength offsets can be easily corrected by recalibrating
 the data and supplying a shift file to CalCOS, as described in the 
@@ -132,11 +206,11 @@ where `<shift_file>` is the name of your custom shift file.
 Other optional arguments are:
 ```
   --copydir COPYDIR     Name of directory to copy shifted products to
-    -c, --overwrite       If True, overwrite existing products
+  -c, --overwrite       If True, overwrite existing products
 ```
 
-### Custom-flagged FUSE spectra
-The ULLYSES team uses FUSE 
+#### Custom-flagged FUSE spectra
+The ULLYSES team typically uses FUSE 
 [VO (Virtual Observatory)](https://ui.adsabs.harvard.edu/abs/2007PASP..119..527D/abstract) 
 files with minimal modification. A DQ (Data Quality) array is added to each VO file, as is
 required by the ULLYSES pipeline. For the majority of FUSE targets, this DQ array is 
@@ -147,10 +221,18 @@ Possible DQ flags include:
 * DQ=2 (poor photometric quality) 
 
 To create these custom-flagged FUSE spectra:
-**Still need to fill this in**
+```
+python make_flagged_fuse.py -i <infile> -o <outdir>
+```
+where `<infile>` is the file to flag and `<outdir>` is the output directory.
 
+Other optional arguments are:
+```
+  -t TARG or --targ TARG  ULLYSES name of target
+  -c or --overwrite       If True, overwrite existing products
+```
 
-### Contributions and Feedback
+## Contributions and Feedback
 
 We welcome contributions and feedback on this project. If you want to suggest changes to this content, please do the following:
 
