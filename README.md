@@ -1,12 +1,12 @@
 # ULLYSES
 
-This repo contains the codes used to create the high level science products (HLSPs) for the targets in the Hubble Space Telescope’s (HST) Ultraviolet Legacy Library of Young Stars as Essential Standards (ULLYSES) program. See more info about ULLYSES and its targets at [ullyses.stsci.edu](https://ullyses.stsci.edu).
+This repository contains the codes used to create the high level science products (HLSPs) for the targets in the Hubble Space Telescope’s (HST) Ultraviolet Legacy Library of Young Stars as Essential Standards (ULLYSES) program. See more info about ULLYSES and its targets at [ullyses.stsci.edu](https://ullyses.stsci.edu).
 
 A full description of the data products produced by the ULLYSES team can be found at [ULLYSES Data Products](https://ullyses.stsci.edu/ullyses-data-description.html). 
 
 ## Installation
 
-The `ullyses` package can be installed into a virtualenv or conda environment via `pip`. We recommend that for each installation you start by creating a fresh environment that only has Python installed and then install the `ullyses` package and its dependencies into that bare environment. If using conda environments, first make sure you have a recent version of Anaconda or Miniconda installed.
+The `ullyses` package can be installed into a virtualenv or conda environment via `pip`. We recommend that for each installation you start by creating a fresh environment that only has Python installed and then install the `ullyses` package and its dependencies into that bare environment. If using conda environments, first make sure you have a recent version of [Anaconda](https://www.anaconda.com/) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html) installed.
 
 The first two steps are to create and activate an environment:
 
@@ -34,22 +34,25 @@ install from your local checked-out copy as an "editable" install:
 
 All package dependencies will be installed simultaneously, including `ullyses-utils`, which can be found at https://github.com/spacetelescope/ullyses-utils.
 
-## Creating HLSPs
+## Creating HLSPs (High Level Science Products)
 
-There are four main types of HLSPs that ULLYSES produces:
-1. coadded spectra
+There are four main types of ULLYSES HLSPs:
+1. [coadded](https://ullyses.stsci.edu/ullyses-data-description.html#CoaddSpectra) and [abutted](https://ullyses.stsci.edu/ullyses-data-description.html#AbutSpectra) spectra
 2. timeseries spectra
 3. re-packaged drizzled images
-4. custom-calibrated individual spectra, called "level0" HLSPs
+4. custom-calibrated individual spectra, or level0 HLSPs
 
 Below are instructions for creating each type of HLSP.
 
 ### Coadded Spectra HLSPs 
-Individual coadded products for a single target can be created by putting all of the input
-files into one directory. The input files are `_x1d.fits` files for COS and STIS,
-and `_vo.fits` for FUSE. These input files may also be level0 (custom-calibrated spectra) 
-themselves. You can create all the coadd HLSPs for this target by running
-the wrapper script, which can be done from the command line.  For convenience,
+[Coadded](https://ullyses.stsci.edu/ullyses-data-description.html#CoaddSpectra) 
+and [abutted](https://ullyses.stsci.edu/ullyses-data-description.html#AbutSpectra)
+spectra for a single target are created by first putting all input
+files into a single directory. Currently supported instruments are HST/COS, HST/STIS, and FUSE.
+The input files are `_x1d.fits` files for COS and STIS,
+and `_vo.fits` for FUSE. These input files may also be level0 (custom-calibrated spectra, see below) 
+themselves. Coadded and abutted spectra are then created using
+the wrapper script, which can be run from the command line.  For convenience,
 it is recommended to create an environment variable pointing to the location
 of the wrapper script:
 
@@ -67,21 +70,26 @@ to be processed by using the ``-i /directory/containing/data/`` option:
 
 ### Timeseries Spectra HLSPs
 
-There are two main flavors of timeseries spectra: exposure level and sub-exposure level.
+There are two main flavors of [timeseries spectra](https://ullyses.stsci.edu/ullyses-data-description.html#TSS): 
+exposure level and sub-exposure level.
 Exposure level timeseries spectra are essentially stacked individual 1D spectra.
 Sub-exposure level timeseries spectra are made from _split_ 1D spectra. That is, for 
-time-tag data (COS and STIS UV data), exposures are broken down into even smaller time 
-chunks. 
+time-tag data (currently only COS/UV), exposures are broken down into even smaller time 
+chunks, then stacked.
 
 #### HST Timeseries
 
 For HST, both exposure and sub-exposure timeseries spectra are created the same way.
-To create a timeseries spectrum, you must supply a configuration YAML file. The ULLYSES
-team has already created such files for all monitoring stars and recorded the optimal
-parameters in YAML files stored in the
+To create an HST timeseries spectrum, you must supply a configuration YAML file. The ULLYSES
+team has already created such files for the monitoring stars (V-TW-HYA, V-BP-TAU, V-RU-LUP, V-GM-AUR)
+and recorded the optimal parameters in YAML files stored in the
 [ullyses-utils](https://github.com/spacetelescope/ullyses-utils/tree/main/utils/data/timeseries)
 repository. You may use the ULLYSES YAML files as input, or supply your own, but they
 must conform to the format outlined here. TODO- ADD LINK TO TEMPLATE FILE
+
+**WARNING:** To create the HST timeseries spectra, individual split exposures must be created
+and calibrated. This process can be very time-consuming, taking up to several hours on
+some systems.
 
 Once you have a YAML file, you create the timeseries spectrum like so:
 ```
@@ -91,13 +99,16 @@ python ctts_cal.py --orig <origdir> --copydir <copydir> --hlspdir <hlspdir> --ta
 where `<origdir>` is the directory which houses all the input data, `<copydir>` is the directory
 to copy input data to (data will be modified), `<hlspdir>` is the directory to write the final
 timeseries spectra, `<targ>` is the ULLYSES name of the target being calibrated, and `<yaml>` is the
-YAML confirmation file.
+YAML confirmation file. If no YAML file is supplied, the target name will be used to fetch the
+appropriate file from the `ullyses-utils` repository.
+
+The `ctts_cal.py` also corrects for vignetting in the COS/NUV data.
 
 #### Photometric Timeseries
 
 It is possible to create a timeseries "spectrum" using photometric measurements over time.
-The ULLYSES team has performed photometry on ULLYSES low-mass stars using the LCOGT network
-of telescopes.
+The ULLYSES team has [performed photometry](https://ullyses.stsci.edu/ullyses-data-description.html#LCOGT)
+on ULLYSES low-mass stars using the LCOGT network of telescopes.
 
 To create LCOGT photometric timeseries spectra:
 ```
@@ -106,11 +117,13 @@ python lcogt_hlsps_wrapper.py -i <indir> -o <outdir> -t <targ>
 
 where `<indir>` is the directory which contain the original LCOGT FITS images (used to 
 extract observational metadata), `<outdir>` is the directory to write the HLSPs, and
-`<targ>` is the ULLYSES target name.
+`<targ>` is the ULLYSES target name. The target name will be used to fetch the 
+appropriate photometric measurements in the `ullyses-utils` repository.
 
 ### Re-packaged Drizzled Image HLSPs
 
-The ULLYSES team creates drizzled WFC3 images for the low-metallicity galaxies NGC3109 and
+The ULLYSES team creates [drizzled WFC3 images](https://ullyses.stsci.edu/ullyses-data-description.html#hlspFormatWFC3)
+for the low-metallicity galaxies NGC3109 and
 SextansA. These images are repackaged to conform to the ULLYSES HLSP requirements, but the 
 data array values are left untouched. 
 
@@ -131,8 +144,8 @@ Optional arguments are:
 ### Custom-calibrated Spectra (level0) HLSPs
 
 Prior to turning spectra into ULLYSES HLSPs, some targets require extra processing to
-fix various calibration issues. For example, STIS/G750L data must be defringed or
-wavelength offsets due to miscentering in the aperture must be corrected. Once these custom
+fix various calibration issues. For example, STIS/G750L data must be defringed, or
+wavelength offsets must be corrected. Once these custom
 calibration steps have been applied, a keyword is added to the output FITS file signifying
 that the file should be considered a level0 HLSP- that is, a custom-calibrated *individual*
 1D spectrum. The various level0 products, and how to create them, are described below.
@@ -143,7 +156,8 @@ require tailored calibrations. Special calibration steps can include:
 custom hot pixel identification and flagging, defringing for G750L observations, and 
 customized spectral extraction parameters for T Tauri stars and their companions.
 
-To create a custom-calibrated STIS spectra, you must supply a configuration YAML file.
+To create a custom-calibrated STIS spectra, you must supply a configuration YAML file
+which lists the specific calibration parameters.
 The ULLYSES team has already examined each T Tauri star and recorded the optimal 
 custom calibration parameters in YAML files stored in the 
 [ullyses-utils](https://github.com/spacetelescope/ullyses-utils/tree/main/utils/data/stis_configs) 
@@ -183,8 +197,8 @@ documented the necessary shifts in text files stored in the
 [ullyses-utils](https://github.com/spacetelescope/ullyses-utils/tree/main/utils/data/cos_shifts) 
 repository.
 
-Once you have a shift file, you can create wavelength-shifted COS spectra by supplying on
-a directory with multiple exposures, or by supplying on a single file. You can easily 
+Once you have a shift file, you can create wavelength-shifted COS spectra by supplying
+a directory with multiple exposures, or by supplying a single file. You can 
 create wavelength-shifted COS spectra using the pre-defined ULLYSES shift files like so:
 ```
 python apply_cos_shifts.py <infiledir> <outdir> 
@@ -248,5 +262,5 @@ We welcome contributions and feedback on this project. If you want to suggest ch
 We strive to provide a welcoming community to all of our users by abiding with
 the [Code of Conduct](CODE_OF_CONDUCT.md).
 
-If you have questions or concerns regarding the software, please open an issue at https://github.com/spacetelescope/ullyses/issues or contact the [HST Help Desk](https://hsthelp.stsci.edu). If you have questions regarding the ULLYSES program design or data, please contact the [HST Help Desk](https://hsthelp.stsci.edu).
+If you have questions or concerns regarding the software, please [open an issue](https://github.com/spacetelescope/ullyses/issues) or contact the [HST Help Desk](https://hsthelp.stsci.edu). If you have questions regarding the ULLYSES program design or data, please contact the [HST Help Desk](https://hsthelp.stsci.edu).
 
