@@ -24,10 +24,11 @@ setup(
                         "numpy",
                         "cython",
                         "astropy>=5.0.4",
-			"ullyses_utils",
+                        "ullyses_utils",
                         "stistools>=1.4.2",
                         "pandas",
                         "calcos>=3.4.0",
+                        "costools",
                         "matplotlib",
                         "pyyaml"
                         ],

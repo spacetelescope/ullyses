@@ -10,8 +10,8 @@ import matplotlib.pyplot as pl
 from stistools import x1d
 import subprocess
 
-from calibrate_stis_data import calibrate_stis_data
-from stis_coadd_x1d import coadd_1d_spectra
+from ullyses.calibrate_stis_data import calibrate_stis_data
+from ullyses.stis_coadd_x1d import coadd_1d_spectra
 import ullyses_utils
 
 utils_dir = ullyses_utils.__path__[0]
@@ -42,12 +42,11 @@ https://github.com/spacetelescope/ullyses-utils/tree/main/utils/data/stis_config
 """
 
 
-def copy_origfiles(targ, datadir, orig_datadir):
+def copy_origfiles(datadir, orig_datadir):
     """
     Copy the original STIS files to ensure we leave them intact.
 
     Args:
-        targ (str): Target name
         datadir (str): Path to directory to copy data to
         orig_datadir (str): Path to directory with original data
 
@@ -56,10 +55,6 @@ def copy_origfiles(targ, datadir, orig_datadir):
     """
 
     files = glob.glob(os.path.join(orig_datadir, "o*fits"))
-    # Targs with periods in their name must be specially renamed or defringe will crash
-    if "." in targ:
-        assert targ in RENAME, f"Renaming scheme not known for {targ}"
-        targ = RENAME[targ]
     if not os.path.exists(datadir):
         os.makedirs(datadir)
     for item in files:
@@ -93,11 +88,10 @@ def make_custom_x1ds(datadir, outdir, targ, config_dir=CONFIG_DIR):
         None
     """
 
-    configs = glob.glob(os.path.join(config_dir, f"{targ}*yaml"))
+    configs = glob.glob(os.path.join(config_dir, f"{targ}_*yaml"))
     assert len(configs) != 0, f"No config files for target {targ}"
-    if "." in targ:
-        assert targ in RENAME, f"Renaming scheme not known for {targ}"
-    calibrate_stis_data(datadir, configs, outdir)
+    for config in configs:
+        calibrate_stis_data(datadir, config, outdir=outdir)
     print(f"\nMade custom products for target {targ}, wrote to {outdir}\n")
 
 
