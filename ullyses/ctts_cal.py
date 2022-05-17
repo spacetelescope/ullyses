@@ -177,11 +177,11 @@ def copy_caldata(datadir, tss_params, custom_caldir=None):
     for i in range(len(orig_x1ds)):
         ipppss = os.path.basename(orig_x1ds[i])[:6]
         if orig_x1dfiles[i] not in x1dfiles and ipppss not in bad_ipppss: 
-            if fits.getval(orig_corrs[i], "opt_elem") == "G160M":
+            if fits.getval(orig_x1ds[i], "opt_elem") == "G160M":
                 d = datadir_fuv
             else:
                 d = datadir_nuv
-            shutil.copy(orig_corrs[i], os.path.join(d, "exp"))
+            shutil.copy(orig_x1ds[i], os.path.join(d, "exp"))
 
     print(f"\nCopied all corrtags and x1ds to\n\t {datadir}/g160m/ and g230l/\n")
     
@@ -363,4 +363,4 @@ if __name__ == "__main__":
                         help="Name of directory to write splittag products, by default uses current runtime")
     args = parser.parse_args()
 
-    main(args.copydir, args.orig, args.hlspdir, args.targ, args.yaml, args.custom_caldir)
+    main(args.copydir, args.orig, args.tss_outdir, args.targ, args.yaml, args.custom_caldir)
