@@ -24,8 +24,8 @@ BAD_SEGMENTS = ['NUVC']
 
 class SegmentList:
 
-    def __init__(self, grating, path='.'):
-        self.grating = grating
+    def __init__(self, instrument, grating, path='.'):
+        self.grating = grating.upper()
         self.min_wavelength = None
         self.max_wavelength = None
         self.output_wavelength = None
@@ -33,7 +33,7 @@ class SegmentList:
         self.output_sumweight = None
         self.output_flux = None
         self.output_errors = None
-        self.instrument = None
+        self.instrument = instrument.upper()
         self.detector = ''
         self.disperser = ''
         self.cenwave = ''
@@ -56,12 +56,12 @@ class SegmentList:
         for file in x1dfiles:
             f1 = fits.open(file)
             prihdr = f1[0].header
-            if prihdr['OPT_ELEM'] == grating:
+            if prihdr['OPT_ELEM'].upper() == self.grating and prihdr['INSTRUME'].upper() == self.instrument:
                 data = f1[1].data
                 if len(data) > 0:
-                    print('{} added to file list for grating {}'.format(file, grating))
+                    print('{} added to file list for instrument/grating {}/{}'.format(file, instrument, grating))
                     gratinglist.append(f1)
-                    self.instrument = prihdr['INSTRUME']
+                    self.instrument = prihdr['INSTRUME'].upper()
                     self.datasets.append(file)
                     target = prihdr['TARGNAME'].strip()
                     if target not in self.targnames:
@@ -506,7 +506,7 @@ weight_function = {
 class STISSegmentList(SegmentList):
 
     def __init__(self, grating, path, weighting_method='throughput'):
-        SegmentList.__init__(self, grating, path)
+        SegmentList.__init__(self, 'STIS', grating, path)
 
         self.weighting_method = weighting_method
 
@@ -523,6 +523,9 @@ class STISSegmentList(SegmentList):
 
 class COSSegmentList(SegmentList):
 
+    def __init__(self, grating, path):
+        SegmentList.__init__(self, 'COS', grating, path)
+
     def get_flux_weight(self, segment):
         thru_nans = segment.data['net'] / segment.data['flux']
         if set(np.isnan(thru_nans)) == {False}:
@@ -538,6 +541,9 @@ class COSSegmentList(SegmentList):
         return np.abs(weight)
 
 class FUSESegmentList(SegmentList):
+
+    def __init__(self, grating, path):
+        SegmentList.__init__(self, 'FUSE', 'FUSE', path)
 
     def get_gross_counts(self, segment):
         print("FUSE doesn't use gross counts")
@@ -587,7 +593,7 @@ class FUSESegmentList(SegmentList):
 class CCDSegmentList(SegmentList):
 
     def __init__(self, grating, path, weighting_method='throughput'):
-        SegmentList.__init__(self, grating, path)
+        SegmentList.__init__(self, 'STIS', grating, path)
 
         self.weighting_method = weighting_method
 
@@ -730,7 +736,7 @@ def abut(product_short, product_long):
             long_indices = np.where(product_long.output_wavelength > first_good_long)
             transition_index_long = long_indices[0][0]
         output_grating = product_short.grating + '-' + product_long.grating
-        product_abutted = SegmentList(output_grating)
+        product_abutted = SegmentList('', output_grating)
         nout = len(product_short.output_wavelength[:transition_index_short])
         nout = nout + len(product_long.output_wavelength[transition_index_long:])
         product_abutted.nelements = nout
