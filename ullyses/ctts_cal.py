@@ -15,6 +15,28 @@ from ullyses_utils.readwrite_yaml import read_config
 UTILS_DIR = ullyses_utils.__path__[0]
 
 
+def get_bad_exposures(tss_params):
+    bad_files = tss_params["bad_files"]
+    bad_ipppss = []
+    bad_ipppssoot = []
+    if bad_files is None:
+        bad_ipppss.append(None)
+        bad_ipppssoot.append(None)
+    else:
+        for item in bad_files:
+            if len(item) == 9:
+                bad_ipppssoot.append(item)
+            elif len(item) == 7 and "*" in item:
+                ipppss = item.strip("*")
+                bad_ipppss.append(ipppss)
+            elif len(item) == 6:
+                bad_ipppss.append(item)
+    tss_params["bad_ipppss"] = bad_ipppss
+    tss_params["bad_ipppssoot"] = bad_ipppssoot
+    
+    return tss_params
+
+
 def read_tss_yaml(targ, yamlfile=None):
     if yamlfile is None:
         yamlfile = os.path.join(UTILS_DIR, f"data/timeseries/{targ}.yaml")
@@ -43,10 +65,6 @@ def copy_origdata(datadir, orig_datadir, tss_params):
         orig_datadir (str): Path to the original raw data
     """
 
-    bad_ipppss = tss_params["bad_ipppss"]
-    if bad_ipppss is None:
-        bad_ipppss = [None]
-    
     files = glob.glob(os.path.join(orig_datadir, "l*corrtag*fits"))
     files += glob.glob(os.path.join(orig_datadir, "l*rawtag*.fits"))
     files += glob.glob(os.path.join(orig_datadir, "l*spt*.fits"))
@@ -55,9 +73,12 @@ def copy_origdata(datadir, orig_datadir, tss_params):
     if not os.path.exists(datadir):
         os.makedirs(datadir)
     for item in files:
-        ipppss = os.path.basename(item)[:6]
-        if ipppss not in bad_ipppss:
-            shutil.copy(item, datadir)
+        basen = os.path.basename(item)
+        ipppssoot = basen[:9]
+        ipppss = basen[:6]
+        if ipppss in tss_params["bad_ipppss"] or ipppssoot in tss_params["bad_ipppssoot"]:
+            continue
+        shutil.copy(item, datadir)
     print(f"\nCopied original files to {datadir}")
 
     return datadir
@@ -86,10 +107,6 @@ def calibrate_data(datadir, tss_params, custom_caldir=None):
         wl_shift_ipppss = [None]
     calrequired = [x[:6] for x in calrequired0]
 
-    bad_ipppss = tss_params["bad_ipppss"]
-    if bad_ipppss is None:
-        bad_ipppss = [None]
-
     asns = glob.glob(os.path.join(datadir, "*asn.fits"))
     if custom_caldir is None:
         custom_caldir = os.path.join(datadir, "custom_calibration")
@@ -99,7 +116,7 @@ def calibrate_data(datadir, tss_params, custom_caldir=None):
         ipppss = os.path.basename(asn)[:6]
         if ipppss not in calrequired:
             continue
-        if ipppss in bad_ipppss: # This is a bad visit
+        if ipppss in tss_params["bad_ipppss"]: # This is a bad visit
             continue
         if ipppss in wl_shift_ipppss:
             shift_file0 = wl_shift_dict[ipppss]
@@ -153,17 +170,14 @@ def copy_caldata(datadir, tss_params, custom_caldir=None):
         for x1d in x1ds:
             shutil.copy(x1d, os.path.join(d, "exp"))
 
-    bad_ipppss = tss_params["bad_ipppss"]
-    if bad_ipppss is None:
-        bad_ipppss = [None]
-    
     # Then copy the corrtags that didn't require custom calibration
     orig_corrs = glob.glob(os.path.join(datadir, "*corrtag*"))
     orig_corrfiles = [os.path.basename(x) for x in orig_corrs]
     corrfiles = [os.path.basename(x) for x in corrs]
     for i in range(len(orig_corrs)):
         ipppss = os.path.basename(orig_corrs[i])[:6]
-        if orig_corrfiles[i] not in corrfiles and ipppss not in bad_ipppss:
+        ipppssoot = os.path.basename(orig_corrs[i])[:9]
+        if orig_corrfiles[i] not in corrfiles and ipppss not in tss_params["bad_ipppss"] and ipppssoot not in tss_params["bad_ipppssoot"]:
             if fits.getval(orig_corrs[i], "opt_elem") == "G160M":
                 d = datadir_fuv
             else:
@@ -176,7 +190,8 @@ def copy_caldata(datadir, tss_params, custom_caldir=None):
     x1dfiles = [os.path.basename(x) for x in x1ds]
     for i in range(len(orig_x1ds)):
         ipppss = os.path.basename(orig_x1ds[i])[:6]
-        if orig_x1dfiles[i] not in x1dfiles and ipppss not in bad_ipppss: 
+        ipppssoot = os.path.basename(orig_x1ds[i])[:9]
+        if orig_x1dfiles[i] not in x1dfiles and ipppss not in tss_params["bad_ipppss"] and ipppssoot not in tss_params["bad_ipppssoot"]:
             if fits.getval(orig_x1ds[i], "opt_elem") == "G160M":
                 d = datadir_fuv
             else:
@@ -337,6 +352,7 @@ def main(datadir, orig_datadir, tss_outdir, targ, yamlfile=None, custom_caldir=N
     """
 
     tss_params = read_tss_yaml(targ, yamlfile)
+    tss_params = get_bad_exposures(tss_params)
     copy_origdata(datadir, orig_datadir, tss_params)
     calibrate_data(datadir, tss_params, custom_caldir)
     copy_caldata(datadir, tss_params, custom_caldir)
