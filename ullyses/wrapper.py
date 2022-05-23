@@ -142,7 +142,7 @@ def main(indir, outdir, version=VERSION, clobber=False):
         lvl3_modes = {"cos_fuv_m": ["COS/G130M", "COS/G160M", "COS/G185M"],
                       "stis_m": ["STIS/E140M", "STIS/E230M"],
                       "stis_h": ["STIS/E140H", "STIS/E230H"],
-                      "stis_l": ["STIS/G230L", "STIS/G430L", "STIS/G750L"]}
+                      "stis_l": ["STIS/G140L", "STIS/G230L", "STIS/G430L", "STIS/G750L"]}
         for outprod,modes in lvl3_modes.items():
             abutted = None
             dowrite = False
