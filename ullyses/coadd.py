@@ -51,16 +51,22 @@ class SegmentList:
         vofiles = glob.glob(os.path.join(path, '*_vo.fits'))
         x1dfiles = glob.glob(os.path.join(path, '*_x1d.fits')) + glob.glob(os.path.join(path, '*_sx1.fits'))
 
-        gratinglist = []
+        alldata = []
+        allhdr0 = []
+        allhdr1 = []
 
         for file in x1dfiles:
-            f1 = fits.open(file)
-            prihdr = f1[0].header
-            if prihdr['OPT_ELEM'].upper() == self.grating and prihdr['INSTRUME'].upper() == self.instrument:
+            with fits.open(file) as f1:
+                prihdr = f1[0].header
+                hdr1 = f1[1].header
                 data = f1[1].data
+                alldata.append(prihdr)
+                allhdr0.append(prihdr)
+                allhdr1.append(hdr1)
+
+            if prihdr['OPT_ELEM'].upper() == self.grating and prihdr['INSTRUME'].upper() == self.instrument:
                 if len(data) > 0:
                     print('{} added to file list for instrument/grating {}/{}'.format(file, instrument, grating))
-                    gratinglist.append(f1)
                     self.instrument = prihdr['INSTRUME'].upper()
                     self.datasets.append(file)
                     target = prihdr['TARGNAME'].strip()
@@ -73,17 +79,19 @@ class SegmentList:
                         pass
                 else:
                     print('{} has no data'.format(file))
-            else:
-                f1.close()
 
         if grating == 'FUSE':
             for file in vofiles:
-                f1 = fits.open(file)
-                prihdr = f1[0].header
-                data = f1[1].data
+                with fits.open(file) as f1:
+                    prihdr = f1[0].header
+                    hdr1 = f1[1].header
+                    data = f1[1].data
+                    alldata.append(prihdr)
+                    allhdr0.append(prihdr)
+                    allhdr1.append(hdr1)
+                
                 if len(data) > 0:
                     print('{} added to file list for FUSE'.format(file))
-                    gratinglist.append(f1)
                     self.instrument = 'FUSE'
                     aperture = prihdr["APERTURE"]
                     self.aperture = aperture
@@ -98,24 +106,25 @@ class SegmentList:
         self.primary_headers = []
         self.first_headers = []
 
-        if len(gratinglist) > 0:
-            for hdulist in gratinglist:
-
-                data = hdulist[1].data
+        if len(alldata) > 0:
+            for i in range(len(alldata)):
+                data = alldata[i]
+                hdr0 = allhdr0[i]
+                hdr1 = allhdr1[i]
                 if len(data) > 0:
-                    self.primary_headers.append(hdulist[0].header)
-                    self.first_headers.append(hdulist[1].header)
+                    self.primary_headers.append(hdr0)
+                    self.first_headers.append(hdr1)
                     if self.instrument == 'FUSE':
                         sdqflags = 3
                     else:
-                        sdqflags = hdulist[1].header['SDQFLAGS']
+                        sdqflags = hdr1['SDQFLAGS']
                         if self.instrument == "STIS" and (sdqflags&16) == 16 and \
-                                hdulist[0].header['DETECTOR'] in STIS_NON_CCD_DETECTORS:
+                                hdr0['DETECTOR'] in STIS_NON_CCD_DETECTORS:
                             sdqflags -= 16
                     if self.instrument == 'FUSE':
-                        exptime = hdulist[1].header['EXPOSURE']
+                        exptime = hdr1['EXPOSURE']
                     else:
-                        exptime = hdulist[1].header['EXPTIME']
+                        exptime = hdr1['EXPTIME']
                     for row in data:
                         if self.instrument == 'COS' and row['SEGMENT'] in BAD_SEGMENTS:
                             continue
@@ -125,8 +134,8 @@ class SegmentList:
                         segment.sdqflags = sdqflags
                         segment.exptime = exptime
                         if self.instrument == 'COS':
-                            cenwave = hdulist[0].header['CENWAVE']
-                            fppos = hdulist[0].header['FPPOS']
+                            cenwave = hdr0['CENWAVE']
+                            fppos = hdr0['FPPOS']
                         self.members.append(segment)
 
     def create_output_wavelength_grid(self):
