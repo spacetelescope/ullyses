@@ -147,7 +147,7 @@ def copy_rename_yaml(targ, outdir, config_dir=CONFIG_DIR):
     print(f"\nCopied and renamed {targ} YAML files from {config_dir} to {outdir}\n")
 
 
-def copy_products(outdir, copydir):
+def copy_products(files, copydir):
     """
     Once you have created custom STIS 1D spectra, you may
     copy them to another destination.
@@ -160,7 +160,6 @@ def copy_products(outdir, copydir):
         None
     """
 
-    files = glob.glob(os.path.join(outdir, "*x1d.fits"))
     for item in files:
         if not os.path.exists(copydir):
             os.makedirs(copydir)
