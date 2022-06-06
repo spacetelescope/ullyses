@@ -249,7 +249,7 @@ def correct_vignetting(datadir):
                 with fits.open(item, mode="update") as hdulist:
                     assert len(scale) == len(hdulist[1].data["flux"][1]),\
                         f"Shape of FITS and scaling factor do not match for {item}"
-                    hdulist[1].data["flux"][1] /= scale  # NUVB is 0th index
+                    hdulist[1].data["flux"][1] /= scale  # NUVB is 1st index
 
     print(f'\nApplied scaling factor to G230L/2950 NUVB data in {os.path.join(datadir, "g230l")}') 
 
