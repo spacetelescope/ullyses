@@ -15,7 +15,7 @@ import ullyses_utils
 ULLYSES_DATA_LOCATION = 'https://ullyses.stsci.edu/files/'
 
 COS_TARGETS = ['sk-70d16',
-               'lh9-89']
+               'n11-els-018']
 
 STIS_TARGETS = ['lh9-34',
                 'pgmw3120']
@@ -78,10 +78,10 @@ class TestWrapper():
         new_hlsps = glob.glob('hlsp_ullyses*')
         all_ok = True
         fitsdiff_report = ''
-        keywords_to_ignore = ['DATE', 'FITS_SW']
+        keywords_to_ignore = ['DATE', 'FITS_SW', 'FILENAME', 'HLSP_VER']
         for new_product in new_hlsps:
-            truth_file = './truth/' + new_product
-            fdiff = FITSDiff(new_product, truth_file, ignore_hdus=['provenance'],
+            truth_filename = self.get_truth_filename(new_product)
+            fdiff = FITSDiff(new_product, truth_filename, ignore_hdus=['provenance'],
             ignore_keywords=keywords_to_ignore,
             rtol=1.0e-7)
             fitsdiff_report += fdiff.report()
@@ -90,6 +90,27 @@ class TestWrapper():
         if not all_ok:
             raise AssertionError(os.linesep + fitsdiff_report)
         return
+
+    def get_truth_filename(self, product):
+        # Get the truth filename.  The data release might be different
+        dr_position = product.find('_dr')
+        if dr_position == -1:
+            print('Cannot find dr version in {}'.format(product))
+            return None
+        stop = dr_position + 3
+        filestring = './truth/' + product[:stop] + '*'
+        truth_filename_list = glob.glob(filestring)
+        if len(truth_filename_list) > 1:
+            print('More than 1 truth filename matches {} != 1'.format(product))
+            for file in truth_filename_list:
+                print(file)
+            print('Returning first instance: {}'.format(truth_filename_list[0]))
+        elif len(truth_filename_list) == 0:
+            print('No truth files match product specification {}'.format(filestring))
+            return None
+        return truth_filename_list[0]
+            
+        return truth_filename
 
     def cleanup(self, target):
         os.chdir('..')
