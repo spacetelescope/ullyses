@@ -66,8 +66,12 @@ def make_lcogt_tss(indir, outdir, targ, hlspname=None, photfile=None):
     filenames = df.filename.tolist()
     filepaths = [os.path.join(indir, x) for x in filenames]
     if hlspname is None:
+        if 3560 in df["wl"].values:
+            filts = "uprime-v-iprime"
+        else:
+            filts = "v-iprime"
         file_targname = rename_target(ull_targname)
-        hlspname = f"hlsp_ullyses_lcogt_04m_{file_targname.lower()}_v-iprime_{VERSION}_tss.fits"
+        hlspname = f"hlsp_ullyses_lcogt_04m_{file_targname.lower()}_{filts}_{VERSION}_tss.fits"
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     outfile = os.path.join(outdir, hlspname)

@@ -119,6 +119,7 @@ class StisData:
         self.opt_elem = fits.getval(infile, "opt_elem")
         self.darkfile = fits.getval(infile, "darkfile")
         
+        self.acq = None 
         raws = glob.glob(os.path.join(self.basedir, "o*raw.fits"))
         for item in raws:
             if fits.getval(item, "obsmode") == "ACQ":
@@ -382,8 +383,11 @@ class StisData:
             twod_im = self.flt
         for target,target_pars in self.target_dict.items():
             customx1d = target_pars['out_x1d']
-            pdffile = plot_stis_data.plot_all_2d(twod_im, self.acq, customx1d, target, self.outdir)
-            self.target_dict[target]["twod_plot"] = pdffile
+            if self.acq is not None:
+                pdffile = plot_stis_data.plot_all_2d(twod_im, self.acq, customx1d, target, self.outdir)
+                self.target_dict[target]["twod_plot"] = pdffile
+            else:
+                self.target_dict[target]["twod_plot"] = None
 
 
 class StisCcd(StisData):

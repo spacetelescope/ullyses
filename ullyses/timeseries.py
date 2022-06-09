@@ -169,7 +169,7 @@ def sort_x1dfiles(x1dfiles, min_exptime=20.0):
     sorted_x1dlist = sorted(x1dlist, key=lambda x: x[1])
     return sorted_x1dlist
 
-def create_ensemble_segmentlist(grating, indir=".", wavelength_binning=1.0):
+def create_ensemble_segmentlist(grating, indir=".", wavelength_binning=1.0, ins="COS"):
     """Create the ensemble COSSegmentList whose wavelength and array
     sizing parameters are to be used to create the output product.
     Should be created from full exposures (not splits), so make sure
@@ -188,8 +188,11 @@ def create_ensemble_segmentlist(grating, indir=".", wavelength_binning=1.0):
     Returns:
         COSSegmentList:
         
-    """     
-    a = coadd.COSSegmentList(grating, path=indir)
+    """
+    if ins == "COS":
+        a = coadd.COSSegmentList(grating, path=indir)
+    elif ins == "STIS":
+        a = coadd.STISSegmentList(grating, path=indir)
     a.create_output_wavelength_grid()
     if wavelength_binning != 1:
         a.delta_wavelength = a.delta_wavelength * wavelength_binning
@@ -224,9 +227,12 @@ def rename_all_split_x1ds(indir="."):
     None
     
     """
-    x1dfiles = glob.glob(os.path.join(indir, 'split*_x1d.fits'))
+    x1dfiles = glob.glob(os.path.join(indir, 'split*_x1d.fits')) + glob.glob(os.path.join(indir, 'split*_sx1.fits'))
     for oldfile in x1dfiles:
-        newfile = oldfile.replace('_x1d.fits', '_without.fits')
+        if "x1d.fits" in oldfile:
+            newfile = oldfile.replace('_x1d.fits', '_without.fits')
+        elif "sx1.fits" in oldfile:
+            newfile = oldfile.replace('_sx1.fits', '_without.fits')
         os.rename(oldfile, newfile)
     return
 
@@ -246,11 +252,18 @@ def rename_all_x1ds(indir="."):
     None
     
     """
-    x1dfiles = glob.glob(os.path.join(indir, '*_x1d.fits'))
+    x1dfiles = glob.glob(os.path.join(indir, '*_x1d.fits')) + glob.glob(os.path.join(indir, '*_sx1.fits'))
+    renaming_old = {}
+    renaming_new = {}
     for oldfile in x1dfiles:
-        newfile = oldfile.replace('_x1d.fits', '_without.fits')
+        if "x1d.fits" in oldfile:
+            newfile = oldfile.replace('_x1d.fits', '_without.fits')
+        elif "sx1.fits" in oldfile:
+            newfile = oldfile.replace('_sx1.fits', '_without.fits')
+        renaming_old[oldfile] = newfile
+        renaming_new[newfile] = oldfile
         os.rename(oldfile, newfile)
-    return
+    return renaming_old, renaming_new
 
 def rename_all_full_x1ds(indir="."):
     """Rename all full exposures (that don't start with 'split') from
@@ -268,12 +281,15 @@ def rename_all_full_x1ds(indir="."):
     None
     
     """
-    x1dfiles = glob.glob(os.path.join(indir, '*_x1d.fits'))
+    x1dfiles = glob.glob(os.path.join(indir, '*_x1d.fits')) + glob.glob(os.path.join(indir, '*_sx1.fits'))
     for file in x1dfiles:
         if file.startswith('split'):
-            x1sfiles.remove(file)
+            x1dfiles.remove(file)
     for oldfile in x1dfiles:
-        newfile = oldfile.replace('_x1d.fits', '_without.fits')
+        if "x1d.fits" in oldfile:
+            newfile = oldfile.replace('_x1d.fits', '_without.fits')
+        elif "sx1.fits" in oldfile:
+            newfile = oldfile.replace('_sx1.fits', '_without.fits')
         os.rename(oldfile, newfile)
     return
 
@@ -314,7 +330,7 @@ def transfer_from_ensemble(ensemble, segmentlist):
     return
 
 def process_files(grating, outfile, indir=".", wavelength_binning=1, min_exptime=20,
-                  overwrite=False):
+                  overwrite=False, ins="COS"):
     """Process all x1d files in the current directory with the selected grating.  
     
     Parameters:
@@ -341,21 +357,21 @@ def process_files(grating, outfile, indir=".", wavelength_binning=1, min_exptime
     # have the appropriate grating. The ensemble
     # is used to determine the start, stop and delta wavelength of the product
     # and to contain the headers used to create the provenance table    
-    ensemble = create_ensemble_segmentlist(grating, indir, wavelength_binning)
+    ensemble = create_ensemble_segmentlist(grating, indir, wavelength_binning, ins=ins)
     # Rename all the x1d.fits files to remove the _x1d.fits ending so that
     # subsequent COSSegmentLists can be created one at a time
-    rename_all_x1ds(indir)
+    renaming_old, renaming_new = rename_all_x1ds(indir)
     # create a list of split files sorted by expstart
     sorted_files = sort_x1ds(grating, indir, min_exptime=min_exptime)
     # process this list of files one at a time to each write a single row
     # to the output flux and error arrays.  Write the output file when complete
-    process_sorted_filelist(sorted_files, grating, ensemble, outfile, indir,
-                            overwrite)
+    process_sorted_filelist(sorted_files, grating, ensemble, outfile, renaming_new, indir,
+                            overwrite, ins=ins)
     # Rename the files back from _without.fits to _x1d.fits
-    rename_files_back(indir)
+    rename_files_back(renaming_new)
     
-def process_sorted_filelist(sorted_list, grating, ensemble, outfile, indir=".", 
-                            overwrite=False):
+def process_sorted_filelist(sorted_list, grating, ensemble, outfile, renaming_new, indir=".", 
+                            overwrite=False, ins="COS"):
     """Create a timeseries product from a sorted list of (input file, expstart) tuples.
     
     Parameters:
@@ -391,17 +407,21 @@ def process_sorted_filelist(sorted_list, grating, ensemble, outfile, indir=".",
     wavelengths = ensemble.output_wavelength
     ensemble.primary_headers = []
     ensemble.first_headers = []
-    for oldfile, expstart in sorted_list:
-        newfile = oldfile.replace('_without.fits', '_x1d.fits')
-        os.rename(oldfile, newfile)
+    if ins == "COS":
+        segmentlist = coadd.COSSegmentList
+    elif ins == "STIS":
+        segmentlist = coadd.STISSegmentList
+    for newfile, expstart in sorted_list:
+        oldfile = renaming_new[newfile]
+        os.rename(newfile, oldfile)
         # Make sure this file uses the required grating
-        f1 = fits.open(newfile)
+        f1 = fits.open(oldfile)
         this_grating = f1[0].header['OPT_ELEM']
         if this_grating != grating:
             print(f"Skipping file {newfile} as it doesn't have the required grating")
             f1.close()
             continue
-        a = coadd.COSSegmentList(grating, path=indir)
+        a = segmentlist(grating, path=indir)
         transfer_from_ensemble(ensemble, a)
         a.coadd()
         start_time = a.first_headers[0]['expend'] - a.first_headers[0]['exptime']/SECONDS_PER_DAY
@@ -413,14 +433,14 @@ def process_sorted_filelist(sorted_list, grating, ensemble, outfile, indir=".",
         row = row + 1
         # Rename the file back to _without.fits so that it won't appear in subsequent
         # COSSegmentLists
-        os.rename(newfile, oldfile)
+        os.rename(oldfile, newfile)
         ensemble.primary_headers.append(a.primary_headers[0])
         ensemble.first_headers.append(a.first_headers[0])
     write_product(output_flux, output_error, starttimes, endtimes, wavelengths, 
                   ensemble, outfile, overwrite)
     return
 
-def rename_files_back(indir):
+def rename_files_back(renaming_new):
     """After processing files, they are left with names that end in '_without.fits'.
     This routine renames them back so they end in '_x1d.fits'
     
@@ -435,10 +455,8 @@ def rename_files_back(indir):
     None
     
     """
-    wfiles = glob.glob(os.path.join(indir, "*_without.fits"))
-    for oldfile in wfiles:
-        newfile = oldfile.replace('_without.fits', '_x1d.fits')
-        os.rename(oldfile, newfile)
+    for newfile,oldfile in renaming_new.items():
+        os.rename(newfile, oldfile)
 
 def write_product(flux, error, starttimes, endtimes, wavelengths, ensemble, outfile, overwrite=False):
     """Write the timeseries product to a FITS file.  The output file has a primary extension
