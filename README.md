@@ -85,7 +85,9 @@ team has already created such files for the monitoring stars (V-TW-HYA, V-BP-TAU
 and recorded the optimal parameters in YAML files stored in the
 [ullyses-utils](https://github.com/spacetelescope/ullyses-utils/tree/main/utils/data/timeseries)
 repository. You may use the ULLYSES YAML files as input, or supply your own, but they
-must conform to the format outlined here. TODO- ADD LINK TO TEMPLATE FILE
+must conform to the required format. See the 
+[TW Hydra YAML](https://github.com/spacetelescope/ullyses-utils/blob/main/utils/data/timeseries/v-tw-hya.yaml)
+file as an example.
 
 **WARNING:** To create the HST timeseries spectra, individual split exposures must be created
 and calibrated. This process can be very time-consuming, taking up to several hours on
@@ -183,8 +185,6 @@ Optional arguments are:
   -l LOGFILE, --logfile LOGFILE
                                     Alternative name of output log file
 ```
-
-**TODO:** add info about coadding blended spectra.
 
 #### Wavelength-shifted COS spectra
 If a target is not perfectly centered in the COS aperture, the wavelength array can be
