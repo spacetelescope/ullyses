@@ -20,17 +20,10 @@ To install your own copy of the code into that environment, you first need to fo
     cd <where you want to put the repo>
     git clone https://github.com/spacetelescope/ullyses
     cd ullyses
-    
-*Note: `python setup.py install` and `python setup.py develop` commands do not work.*
 
 Install from your local checked-out copy:
 
-    pip install .
-
-If you anticipate making edits to any of the ULLYSES scripts, it may be more useful to 
-install from your local checked-out copy as an "editable" install:
-
-    pip install -e .
+    python setup.py install
 
 All package dependencies will be installed simultaneously, including `ullyses-utils`, which can be found at https://github.com/spacetelescope/ullyses-utils.
 
