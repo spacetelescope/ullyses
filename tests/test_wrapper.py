@@ -29,16 +29,20 @@ class TestWrapper():
         for target in COS_TARGETS:
             self.setup_tree(target)
             self.run_wrapper('./')
-            self.compare_outputs()
+            report = self.compare_outputs()
             self.cleanup(target)
+            if report is not None:
+                raise AssertionError(report)
         return
 
     def test_stis_data(self):
         for target in STIS_TARGETS:
             self.setup_tree(target)
             self.run_wrapper('./')
-            self.compare_outputs()
+            report = self.compare_outputs()
             self.cleanup(target)
+            if report is not None:
+                raise AssertionError(report)
         return
 
     def test_fuse_data(self):
@@ -48,24 +52,28 @@ class TestWrapper():
         for target in MULTIPLE_TARGETS:
             self.setup_tree(target)
             self.run_wrapper('./')
-            self.compare_outputs()
+            report = self.compare_outputs()
             self.cleanup(target)
+            if report is not None:
+                raise AssertionError(report)
         return
 
     def setup_tree(self, target):
         if os.path.isdir(target):
             shutil.rmtree(target)
+        if os.path.isdir('truth'):
+            shutil.rmtree('truth')
         filename = target + '.tar.gz'
         fullurl = ULLYSES_DATA_LOCATION + filename
         print("Retrieving {}".format(fullurl))
         urllib.request.urlretrieve(fullurl, filename)
         tarball = tarfile.open(filename)
         tarball.extractall()
-        os.chdir(target)
         os.mkdir('truth')
+        os.chdir(target)
         hlsps = glob.glob('hlsp_ullyses*')
         for datafile in hlsps:
-            os.rename(datafile,'truth/'+datafile)
+            os.rename(datafile,'../truth/'+datafile)
         return
 
     def run_wrapper(self, indir):
@@ -73,6 +81,7 @@ class TestWrapper():
         return
 
     def compare_outputs(self):
+        report = None
         # Outputs from current run are in ./, truth files to compare
         # with are in ./truth
         new_hlsps = glob.glob('hlsp_ullyses*')
@@ -88,8 +97,9 @@ class TestWrapper():
             if not fdiff.identical and all_ok:
                 all_ok = False
         if not all_ok:
-            raise AssertionError(os.linesep + fitsdiff_report)
-        return
+            report = os.linesep + fitsdiff_report
+            return report
+        return None
 
     def get_truth_filename(self, product):
         # Get the truth filename.  The data release might be different
@@ -98,7 +108,7 @@ class TestWrapper():
             print('Cannot find dr version in {}'.format(product))
             return None
         stop = dr_position + 3
-        filestring = './truth/' + product[:stop] + '*'
+        filestring = '../truth/' + product[:stop] + '*'
         truth_filename_list = glob.glob(filestring)
         if len(truth_filename_list) > 1:
             print('More than 1 truth filename matches {} != 1'.format(product))
@@ -115,5 +125,6 @@ class TestWrapper():
     def cleanup(self, target):
         os.chdir('..')
         shutil.rmtree(target)
+        shutil.rmtree('truth')
         os.remove(target+'.tar.gz')
         return
