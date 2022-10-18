@@ -25,13 +25,17 @@ the data and which gratings are present. This info is then fed into coadd.py.
 '''
 
 class Ullyses_SegmentList(SegmentList):
+    """This class is a mixin to add the project-specific write function and functions
+    to populate the target name and coordinates
+
+    """
 
     def write(self, filename, overwrite=False, level="", version=""):
 
         # If the target is a ULLYSES target, use the official
         # target name and coords
-        self.target = self.ull_targname()
-        self.targ_ra, self.targ_dec = self.ull_coords()
+        self.target = self.get_targname()
+        self.targ_ra, self.targ_dec = self.get_coords()
 
         # Table 1 - HLSP data
 
@@ -180,7 +184,7 @@ class Ullyses_SegmentList(SegmentList):
 #        extent_ra = (2.5 / 2 / 3600) + ra_diff
 #        extent_dec = (2.5 / 2 / 3600) + dec_diff
 #        radius = max([extent_ra, extent_dec])
-        self.targ_ra, self.targ_dec = self.ull_coords()
+        self.targ_ra, self.targ_dec = self.get_coords()
         radius = (2.5 / 2 / 3600)
         center_ra = self.targ_ra
         center_dec = self.targ_dec
@@ -188,7 +192,7 @@ class Ullyses_SegmentList(SegmentList):
         s_region = f"CIRCLE {center_ra} {center_dec} {radius}"
         return s_region
 
-    def ull_targname(self):
+    def get_targname(self):
         aliases_file = ullyses_utils.__path__[0] + '/data/target_metadata/pd_all_aliases.json'
         aliases = pd.read_json(aliases_file, orient="split")
         # These are just preliminary target names, in case we can't find a match
@@ -209,7 +213,7 @@ class Ullyses_SegmentList(SegmentList):
             print(f"{RED}WARNING: Could not match target name {ull_targname} to ULLYSES alias list{RESET}")
         return ull_targname
 
-    def ull_coords(self):
+    def get_coords(self):
         ras = list(set([h["ra_targ"] for h in self.primary_headers]))
         decs = list(set([h["dec_targ"] for h in self.primary_headers]))
         avg_ra = np.average(ras)
@@ -225,10 +229,88 @@ class Ullyses_SegmentList(SegmentList):
         else:
             return avg_ra, avg_dec
 
-class Ullyses_COSSegmentList(COSSegmentList, Ullyses_SegmentList):
+    def combine_keys(self, key, method):
+        keymap= {"HST": {"expstart": ("expstart", 1),
+                         "expend": ("expend", 1),
+                         "exptime": ("exptime", 1),
+                         "telescop": ("telescop", 0),
+                         "instrume": ("instrume", 0),
+                         "detector": ("detector", 0),
+                         "opt_elem": ("opt_elem", 0),
+                         "cenwave": ("cenwave", 0),
+                         "aperture": ("aperture", 0),
+                         "obsmode": ("obsmode", 0),
+                         "proposid": ("proposid", 0),
+                         "centrwv": ("centrwv", 0),
+                         "minwave": ("minwave", 0),
+                         "maxwave": ("maxwave", 0),
+                         "filename": ("filename", 0),
+                         "specres": ("specres", 0),
+                         "cal_ver": ("cal_ver", 0)},
+                "FUSE": {"expstart": ("obsstart", 0),
+                         "expend": ("obsend", 0),
+                         "exptime": ("obstime", 0),
+                         "telescop": ("telescop", 0),
+                         "instrume": ("instrume", 0),
+                         "detector": ("detector", 0),
+                         "opt_elem": ("detector", 0),
+                         "cenwave": ("centrwv", 0),
+                         "aperture": ("aperture", 0),
+                         "obsmode": ("instmode", 0),
+                         "proposid": ("prgrm_id", 0),
+                         "centrwv": ("centrwv", 0),
+                         "minwave": ("wavemin", 0),
+                         "maxwave": ("wavemax", 0),
+                         "filename": ("filename", 0),
+                         "specres": ("spec_rp", 1),
+                         "cal_ver": ("cf_vers", 0)}}
 
-    def dummy():
-        pass
+        vals = []
+        for i in range(len(self.primary_headers)):
+            tel = self.primary_headers[i]["telescop"]
+            actual_key = keymap[tel][key][0]
+            hdrno = keymap[tel][key][1]
+            if hdrno == 0:
+                val = self.primary_headers[i][actual_key]
+            else:
+                val = self.first_headers[i][actual_key]
+            if tel == "FUSE" and key == "filename":
+                val = val.replace(".fit", "_vo.fits")
+            vals.append(val)
+
+        # Allowable methods are min, max, average, sum, multi, arr
+        if method == "multi":
+            keys_set = list(set(vals))
+            if len(keys_set) > 1:
+                return "MULTI"
+            else:
+                return keys_set[0]
+        elif method == "min":
+            return min(vals)
+        elif method == "max":
+            return max(vals)
+        elif method == "average":
+            return np.average(vals)
+        elif method == "sum":
+            return np.sum(vals)
+        elif method == "arr":
+            return np.array(vals)
+
+class Ullyses_COSSegmentList(COSSegmentList, Ullyses_SegmentList):
+    pass
+
+
+class Ullyses_STISSegmentList(STISSegmentList, Ullyses_SegmentList):
+    pass
+
+
+class Ullyses_CCDSegmentList(CCDSegmentList, Ullyses_SegmentList):
+    pass
+
+
+class Ullyses_FUSESegmentList(FUSESegmentList, Ullyses_SegmentList):
+    pass
+
 
 def main(indir, outdir, version=VERSION, clobber=False):
     outdir_inplace = False
@@ -288,18 +370,18 @@ def main(indir, outdir, version=VERSION, clobber=False):
                 prod = Ullyses_COSSegmentList(grating, path=root)
             elif instrument == 'STIS':
                 if detector == 'CCD':
-                    prod = CCDSegmentList(grating, path=root)
+                    prod = Ullyses_CCDSegmentList(grating, path=root)
                 else:
-                    prod = STISSegmentList(grating, path=root)
+                    prod = Ullyses_STISSegmentList(grating, path=root)
             elif instrument == 'FUSE':
-                prod = FUSESegmentList(grating, path=root)
+                prod = Ullyses_FUSESegmentList(grating, path=root)
                 products[f'{instrument}/{grating}'] = prod
             else:
                 print(f'Unknown mode [{instrument}, {grating}, {detector}]')
                 continue
 
-            prod.target = prod.ull_targname()
-            prod.targ_ra, prod.targ_dec = prod.ull_coords()
+            prod.target = prod.get_targname()
+            prod.targ_ra, prod.targ_dec = prod.get_coords()
 
             # these two calls perform the main functions
             if len(prod.members) > 0:
@@ -307,8 +389,8 @@ def main(indir, outdir, version=VERSION, clobber=False):
                 prod.coadd()
                 # this writes the output file
                 # If making HLSPs for a DR, put them in the official folder
-                prod.target = prod.ull_targname()
-                prod.targ_ra, prod.targ_dec = prod.ull_coords()
+                prod.target = prod.get_targname()
+                prod.targ_ra, prod.targ_dec = prod.get_coords()
                 target = prod.target.lower()
                 if "." in target:
                     assert target in RENAME, f"Renaming scheme not known for {targ}"
