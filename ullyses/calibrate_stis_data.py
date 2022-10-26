@@ -31,6 +31,8 @@ if system == "Darwin":
         OREF_DIR = "/Volumes/cdbs/oref"
     else:
         monterey = False
+else:
+    monterey = False
 
 if monterey is False:
     os.environ["oref"] = "/grp/hst/cdbs/oref/"
