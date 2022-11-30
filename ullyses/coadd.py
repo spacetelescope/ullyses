@@ -18,7 +18,10 @@ BAD_SEGMENTS = ['NUVC']
 class SegmentList:
 
     def __init__(self, instrument, grating, path='.'):
-        self.grating = grating.upper()
+        self.get_datasets = False
+        if instrument is not None and grating is not None:
+            self.get_datasets = True
+        if grating is not None: self.grating = grating.upper()
         self.min_wavelength = None
         self.max_wavelength = None
         self.output_wavelength = None
@@ -26,7 +29,7 @@ class SegmentList:
         self.output_sumweight = None
         self.output_flux = None
         self.output_errors = None
-        self.instrument = instrument.upper()
+        if instrument is not None: self.instrument = instrument.upper()
         self.detector = ''
         self.disperser = ''
         self.cenwave = ''
@@ -41,97 +44,98 @@ class SegmentList:
         self.datasets = []
         self.level0 = False
 
-        vofiles = glob.glob(os.path.join(path, '*_vo.fits'))
-        x1dfiles = glob.glob(os.path.join(path, '*_x1d.fits')) + glob.glob(os.path.join(path, '*_sx1.fits'))
+        if self.get_datasets:
+            vofiles = glob.glob(os.path.join(path, '*_vo.fits'))
+            x1dfiles = glob.glob(os.path.join(path, '*_x1d.fits')) + glob.glob(os.path.join(path, '*_sx1.fits'))
 
-        alldata = []
-        allhdr0 = []
-        allhdr1 = []
+            alldata = []
+            allhdr0 = []
+            allhdr1 = []
 
-        for file in x1dfiles:
-            with fits.open(file) as f1:
-                prihdr = f1[0].header
-                if prihdr['OPT_ELEM'].upper() == self.grating and prihdr['INSTRUME'].upper() == self.instrument:
-                    hdr1 = f1[1].header
-                    data = f1[1].data
-                    alldata.append(data)
-                    allhdr0.append(prihdr)
-                    allhdr1.append(hdr1)
-                else:
-                    continue
-
-            if len(data) > 0:
-                print('{} added to file list for instrument/grating {}/{}'.format(file, instrument, grating))
-                self.instrument = prihdr['INSTRUME'].upper()
-                self.datasets.append(file)
-                target = prihdr['TARGNAME'].strip()
-                if target not in self.targnames:
-                    self.targnames.append(target)
-                try:
-                    if prihdr['HLSP_LVL'] == 0:
-                        self.level0 = True
-                except:
-                    pass
-            else:
-                print('{} has no data'.format(file))
-
-        if grating == 'FUSE':
-            for file in vofiles:
+            for file in x1dfiles:
                 with fits.open(file) as f1:
                     prihdr = f1[0].header
-                    hdr1 = f1[1].header
-                    data = f1[1].data
-                    alldata.append(data)
-                    allhdr0.append(prihdr)
-                    allhdr1.append(hdr1)
+                    if prihdr['OPT_ELEM'].upper() == self.grating and prihdr['INSTRUME'].upper() == self.instrument:
+                        hdr1 = f1[1].header
+                        data = f1[1].data
+                        alldata.append(data)
+                        allhdr0.append(prihdr)
+                        allhdr1.append(hdr1)
+                    else:
+                        continue
 
                 if len(data) > 0:
-                    print('{} added to file list for FUSE'.format(file))
-                    self.instrument = 'FUSE'
-                    aperture = prihdr["APERTURE"]
-                    self.aperture = aperture
+                    print('{} added to file list for instrument/grating {}/{}'.format(file, instrument, grating))
+                    self.instrument = prihdr['INSTRUME'].upper()
                     self.datasets.append(file)
                     target = prihdr['TARGNAME'].strip()
                     if target not in self.targnames:
                         self.targnames.append(target)
+                    try:
+                        if prihdr['HLSP_LVL'] == 0:
+                            self.level0 = True
+                    except:
+                        pass
                 else:
                     print('{} has no data'.format(file))
 
-        self.members = []
-        self.primary_headers = []
-        self.first_headers = []
+            if grating == 'FUSE':
+                for file in vofiles:
+                    with fits.open(file) as f1:
+                        prihdr = f1[0].header
+                        hdr1 = f1[1].header
+                        data = f1[1].data
+                        alldata.append(data)
+                        allhdr0.append(prihdr)
+                        allhdr1.append(hdr1)
 
-        if len(alldata) > 0:
-            for i in range(len(alldata)):
-                data = alldata[i]
-                hdr0 = allhdr0[i]
-                hdr1 = allhdr1[i]
-                if len(data) > 0:
-                    self.primary_headers.append(hdr0)
-                    self.first_headers.append(hdr1)
-                    if self.instrument == 'FUSE':
-                        sdqflags = 3
+                    if len(data) > 0:
+                        print('{} added to file list for FUSE'.format(file))
+                        self.instrument = 'FUSE'
+                        aperture = prihdr["APERTURE"]
+                        self.aperture = aperture
+                        self.datasets.append(file)
+                        target = prihdr['TARGNAME'].strip()
+                        if target not in self.targnames:
+                            self.targnames.append(target)
                     else:
-                        sdqflags = hdr1['SDQFLAGS']
-                        if self.instrument == "STIS" and (sdqflags&16) == 16 and \
-                                hdr0['DETECTOR'] in STIS_NON_CCD_DETECTORS:
-                            sdqflags -= 16
-                    if self.instrument == 'FUSE':
-                        exptime = hdr1['EXPOSURE']
-                    else:
-                        exptime = hdr1['EXPTIME']
-                    for row in data:
-                        if self.instrument == 'COS' and row['SEGMENT'] in BAD_SEGMENTS:
-                            continue
+                        print('{} has no data'.format(file))
 
-                        segment = Segment()
-                        segment.data = row
-                        segment.sdqflags = sdqflags
-                        segment.exptime = exptime
-                        if self.instrument == 'COS':
-                            cenwave = hdr0['CENWAVE']
-                            fppos = hdr0['FPPOS']
-                        self.members.append(segment)
+            self.members = []
+            self.primary_headers = []
+            self.first_headers = []
+
+            if len(alldata) > 0:
+                for i in range(len(alldata)):
+                    data = alldata[i]
+                    hdr0 = allhdr0[i]
+                    hdr1 = allhdr1[i]
+                    if len(data) > 0:
+                        self.primary_headers.append(hdr0)
+                        self.first_headers.append(hdr1)
+                        if self.instrument == 'FUSE':
+                            sdqflags = 3
+                        else:
+                            sdqflags = hdr1['SDQFLAGS']
+                            if self.instrument == "STIS" and (sdqflags&16) == 16 and \
+                                    hdr0['DETECTOR'] in STIS_NON_CCD_DETECTORS:
+                                sdqflags -= 16
+                        if self.instrument == 'FUSE':
+                            exptime = hdr1['EXPOSURE']
+                        else:
+                            exptime = hdr1['EXPTIME']
+                        for row in data:
+                            if self.instrument == 'COS' and row['SEGMENT'] in BAD_SEGMENTS:
+                                continue
+
+                            segment = Segment()
+                            segment.data = row
+                            segment.sdqflags = sdqflags
+                            segment.exptime = exptime
+                            if self.instrument == 'COS':
+                                cenwave = hdr0['CENWAVE']
+                                fppos = hdr0['FPPOS']
+                            self.members.append(segment)
 
     def create_output_wavelength_grid(self):
         min_wavelength = 10000.0
@@ -256,7 +260,9 @@ weight_function = {
 class STISSegmentList(SegmentList):
 
     def __init__(self, grating, path, weighting_method='throughput'):
-        SegmentList.__init__(self, 'STIS', grating, path)
+        instrument = 'STIS'
+        if grating is None: instrument = None
+        SegmentList.__init__(self, instrument, grating, path)
 
         self.weighting_method = weighting_method
 
@@ -274,7 +280,9 @@ class STISSegmentList(SegmentList):
 class COSSegmentList(SegmentList):
 
     def __init__(self, grating, path):
-        SegmentList.__init__(self, 'COS', grating, path)
+        instrument = 'COS'
+        if grating is None: instrument = None
+        SegmentList.__init__(self, instrument, grating, path)
 
     def get_flux_weight(self, segment):
         thru_nans = segment.data['net'] / segment.data['flux']
@@ -343,7 +351,9 @@ class FUSESegmentList(SegmentList):
 class CCDSegmentList(SegmentList):
 
     def __init__(self, grating, path, weighting_method='throughput'):
-        SegmentList.__init__(self, 'STIS', grating, path)
+        instrument = 'STIS'
+        if grating is None: instrument = None
+        SegmentList.__init__(self, instrument, grating, path)
 
         self.weighting_method = weighting_method
 
