@@ -518,6 +518,8 @@ def abut(product_short, product_long):
         product_abutted.primary_headers = product_short.primary_headers + product_long.primary_headers
         product_abutted.first_headers = product_short.first_headers + product_long.first_headers
         product_abutted.grating = output_grating
+        product_abutted.propid = product_short.propid
+        product_abutted.rootname = product_short.rootname
         product_short.target = product_short.get_targname()
         product_long.target = product_long.get_targname()
         if product_short.instrument in product_long.instrument:
