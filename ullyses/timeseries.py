@@ -702,7 +702,7 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--indir", default=".",
                         help="Path to input directory with either default x1d files or split x1d files")
     parser.add_argument("-g", "--grating", 
-                        help="Grating to process. Either G160M or G230L")
+                        help="Grating to process")
     parser.add_argument("-o", "--outfile",
                         help="Name of output file")
     parser.add_argument("-w", "--wl", default=1, type=int,
