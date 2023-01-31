@@ -532,7 +532,8 @@ def monitoring_star(datadir, orig_datadir, tss_outdir, targ, yamlfile=None, cust
     move_input_epoch_data(datadir, tss_params)
     create_splittags(datadir, tss_params)
     move_output_epoch_data(datadir, tss_params)
-    correct_vignetting(datadir)
+    if "g230l" in tss_params["gratings"]:
+        correct_vignetting(datadir)
     create_monitoring_timeseries(datadir, tss_outdir, targ, tss_params)
 
 
