@@ -5,7 +5,7 @@ import os
 import numpy as np
 from astropy.io import fits
 
-from ullyses.coadd import STISSegmentList
+from ullyses.wrapper import Ullyses_STISSegmentList
 from ullyses.fuse_add_dq import add_column
 
 """
@@ -19,7 +19,7 @@ Arguments:
 """
 
 
-class STIScoadd(STISSegmentList):
+class STIScoadd(Ullyses_STISSegmentList):
     """
     A class to perform coadditions of STIS x1ds.
     """
