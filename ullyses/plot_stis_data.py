@@ -40,13 +40,14 @@ def plot_all_x1d(newx1dfile, oldx1dfile, targ, outdir, newname="Custom", oldname
 
 def plot_all_2d(flt, acq, x1dfile, targ, outdir, savepng=False):
     spectral_im = fits.getdata(flt)
+    rootname = fits.getval(flt, "rootname")
     acq_im = fits.getdata(acq, 4)
     x1d = fits.getdata(x1dfile)
     grating = fits.getval(flt, "opt_elem")
     fig0 = twod_images(spectral_im, acq_im, x1d, targ, grating, outdir, savepng=savepng) 
     fig1 = plot_ee(spectral_im, x1d, targ, grating, outdir, savepng=savepng)
     if savepng is False:
-        pdffile = os.path.join(outdir, f"{targ}_{grating}_2D.pdf")
+        pdffile = os.path.join(outdir, f"{targ}_{grating}_{rootname.lower()}_2D.pdf")
         pdf = PdfPages(pdffile)
         pdf.savefig(fig0)
         pdf.savefig(fig1)
