@@ -825,7 +825,7 @@ def calibrate_stis_data(indir, yamlfile, dolog=True, logfile=None, outdir=None,
     for item in infiles:
         infile = os.path.join(indir, item)
         if not os.path.exists(infile):
-            raise FileNotFoundError(f"Input file defined in YAML, {infile_name}, cannot be found in direcotry {indir}")
+            raise FileNotFoundError(f"Input file defined in YAML, {infile}, cannot be found in direcotry {indir}")
         detector = fits.getval(infile, "detector")
         opt_elem = fits.getval(infile, "opt_elem")
         if detector == "CCD" and opt_elem !="MIRVIS":
