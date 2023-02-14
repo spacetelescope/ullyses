@@ -13,7 +13,6 @@ RESET = "\033[0;0m"
 
 
 STIS_NON_CCD_DETECTORS = ['FUV-MAMA', 'NUV-MAMA']
-BAD_SEGMENTS = {2635: 'NUVC', 2950: 'NUVC'}
 
 class SegmentList:
 
@@ -128,8 +127,10 @@ class SegmentList:
                             if self.instrument == 'COS':
                                 cenwave = hdr0['CENWAVE']
                                 fppos = hdr0['FPPOS']
-                                if cenwave in BAD_SEGMENTS and BAD_SEGMENTS[cenwave] == row['SEGMENT']:
-                                    continue
+                                if hasattr(self, "bad_segments"):
+                                    if cenwave in self.bad_segments and self.bad_segments[cenwave] == row['SEGMENT']:
+                                        print(f"Skipped bad segment {cenwave}/{row['SEGMENT']}")
+                                        continue
 
                             segment = Segment()
                             segment.data = row
