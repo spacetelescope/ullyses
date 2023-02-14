@@ -13,7 +13,6 @@ RESET = "\033[0;0m"
 
 
 STIS_NON_CCD_DETECTORS = ['FUV-MAMA', 'NUV-MAMA']
-BAD_SEGMENTS = ['NUVC']
 
 class SegmentList:
 
@@ -125,16 +124,17 @@ class SegmentList:
                         else:
                             exptime = hdr1['EXPTIME']
                         for row in data:
-                            if self.instrument == 'COS' and row['SEGMENT'] in BAD_SEGMENTS:
-                                continue
+                            if self.instrument == 'COS':
+                                cenwave = hdr0['CENWAVE']
+                                fppos = hdr0['FPPOS']
+                                if hasattr(self, "bad_segments"):
+                                    if cenwave in self.bad_segments and self.bad_segments[cenwave] == row['SEGMENT']:
+                                        continue
 
                             segment = Segment()
                             segment.data = row
                             segment.sdqflags = sdqflags
                             segment.exptime = exptime
-                            if self.instrument == 'COS':
-                                cenwave = hdr0['CENWAVE']
-                                fppos = hdr0['FPPOS']
                             self.members.append(segment)
 
     def create_output_wavelength_grid(self):

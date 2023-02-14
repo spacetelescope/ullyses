@@ -46,7 +46,7 @@ SECONDS_PER_DAY = 86400.0
 
 """
 
-def sort_split_x1ds(grating, indir=".", min_exptime=20.0):
+def sort_split_x1ds(ins, grating, indir=".", min_exptime=20.0):
     """Sort the split x1d files.    Select all files that match the
     pattern 'split_*_without.fits' and that match the grating and whose
     exposure time is greated than min_exptime, and sort them by expstart
@@ -70,13 +70,14 @@ def sort_split_x1ds(grating, indir=".", min_exptime=20.0):
     for file in x1dfiles:
         f1 = fits.open(file)
         this_grating = f1[0].header['OPT_ELEM']
-        if this_grating == grating:
+        this_ins = f1[0].header["INSTRUME"]
+        if this_grating == grating and this_ins == ins:
             good_list.append(file)
         f1.close()
     sorted_x1dlist = sort_x1dfiles(good_list, min_exptime=min_exptime)
     return sorted_x1dlist
 
-def sort_full_x1ds(grating, indir=".", min_exptime=20.0):
+def sort_full_x1ds(ins, grating, indir=".", min_exptime=20.0):
     """Sort the full x1d files.    Select all files that match the
     pattern '*_without.fits' and don't start with 'split', and that match
     the grating and whose exposure time is greated than min_exptime, and
@@ -103,13 +104,14 @@ def sort_full_x1ds(grating, indir=".", min_exptime=20.0):
             continue
         f1 = fits.open(file)
         this_grating = f1[0].header['OPT_ELEM']
-        if this_grating == grating:
+        this_ins = f1[0].header["INSTRUME"]
+        if this_grating == grating and this_ins == ins:
             good_list.append(file)
         f1.close()
     sorted_x1dlist = sort_x1dfiles(good_list, min_exptime=min_exptime)
     return sorted_x1dlist
 
-def sort_x1ds(grating, indir=".", min_exptime=20.0):
+def sort_x1ds(ins, grating, indir=".", min_exptime=20.0):
     """Sort the x1d files.    Select all files that match the
     pattern '*_without.fits' and that match
     the grating and whose exposure time is greater than min_exptime, and
@@ -134,7 +136,8 @@ def sort_x1ds(grating, indir=".", min_exptime=20.0):
     for file in x1dfiles:
         f1 = fits.open(file)
         this_grating = f1[0].header['OPT_ELEM']
-        if this_grating == grating:
+        this_ins = f1[0].header["INSTRUME"]
+        if this_grating == grating and this_ins == ins:
             good_list.append(file)
         f1.close()
     sorted_x1dlist = sort_x1dfiles(good_list, min_exptime=min_exptime)
@@ -192,7 +195,10 @@ def create_ensemble_segmentlist(grating, indir=".", wavelength_binning=1.0, ins=
     if ins == "COS":
         a = wrapper.Ullyses_COSSegmentList(grating, path=indir)
     elif ins == "STIS":
-        a = wrapper.Ullyses_STISSegmentList(grating, path=indir)
+        if grating in ["G230LB", "G230M", "G230LB", "G230MB", "G430L", "G430M", "G750L", "G750M"]:
+            a = wrapper.Ullyses_CCDSegmentList(grating, path=indir)
+        else:
+            a = wrapper.Ullyses_STISSegmentList(grating, path=indir)
     a.create_output_wavelength_grid()
     if wavelength_binning != 1:
         a.delta_wavelength = a.delta_wavelength * wavelength_binning
@@ -360,11 +366,15 @@ def process_files(grating, outfile, indir=".", wavelength_binning=1, min_exptime
     # Ullyses_COSSegmentLists have the Ullyses-specific get_target() and get_coords()
     # methods
     ensemble = create_ensemble_segmentlist(grating, indir, wavelength_binning, ins=ins)
+    # If there's only 1 matching file for hte specified grating, exit 
+    if len(ensemble.datasets) == 1:
+        print(f"SKIPPING: only one matching dataset for grating {grating}")
+        return
     # Rename all the x1d.fits files to remove the _x1d.fits ending so that
     # subsequent Ullyses_COSSegmentLists can be created one at a time
     renaming_old, renaming_new = rename_all_x1ds(indir)
     # create a list of split files sorted by expstart
-    sorted_files = sort_x1ds(grating, indir, min_exptime=min_exptime)
+    sorted_files = sort_x1ds(ins, grating, indir, min_exptime=min_exptime)
     # process this list of files one at a time to each write a single row
     # to the output flux and error arrays.  Write the output file when complete
     process_sorted_filelist(sorted_files, grating, ensemble, outfile, renaming_new, indir,
@@ -412,14 +422,18 @@ def process_sorted_filelist(sorted_list, grating, ensemble, outfile, renaming_ne
     if ins == "COS":
         segmentlist = wrapper.Ullyses_COSSegmentList
     elif ins == "STIS":
-        segmentlist = wrapper.Ullyses_STISSegmentList
+        if grating in ["G230LB", "G230M", "G230LB", "G230MB", "G430L", "G430M", "G750L", "G750M"]:
+            segmentlist = wrapper.Ullyses_CCDSegmentList
+        else:
+            segmentlist = wrapper.Ullyses_STISSegmentList
     for newfile, expstart in sorted_list:
         oldfile = renaming_new[newfile]
         os.rename(newfile, oldfile)
         # Make sure this file uses the required grating
         f1 = fits.open(oldfile)
         this_grating = f1[0].header['OPT_ELEM']
-        if this_grating != grating:
+        this_ins = f1[0].header["INSTRUME"]
+        if this_grating != grating and this_ins != ins:
             print(f"Skipping file {newfile} as it doesn't have the required grating")
             f1.close()
             continue
@@ -703,8 +717,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--indir", default=".",
                         help="Path to input directory with either default x1d files or split x1d files")
-    parser.add_argument("-g", "--grating",
-                        help="Grating to process. Either G160M or G230L")
+    parser.add_argument("-g", "--grating", 
+                        help="Grating to process")
     parser.add_argument("-o", "--outfile",
                         help="Name of output file")
     parser.add_argument("-w", "--wl", default=1, type=int,
