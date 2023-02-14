@@ -30,6 +30,12 @@ class Ullyses_SegmentList(SegmentList):
 
     """
 
+    # Segments that should be ignored for each cenwave.
+    # For ULLYSES this is G230L/2635/NUVC and G230L/2950/NUVC
+#    self.bad_segments = {2635: 'NUVC', 2950: 'NUVC'}
+    SegmentList.bad_segments = {2635: 'NUVC', 2950: 'NUVC'}
+    
+
     def write(self, filename, overwrite=False, level="", version=""):
 
         # If the target is a ULLYSES target, use the official
