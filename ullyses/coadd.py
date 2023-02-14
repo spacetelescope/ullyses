@@ -129,7 +129,6 @@ class SegmentList:
                                 fppos = hdr0['FPPOS']
                                 if hasattr(self, "bad_segments"):
                                     if cenwave in self.bad_segments and self.bad_segments[cenwave] == row['SEGMENT']:
-                                        print(f"Skipped bad segment {cenwave}/{row['SEGMENT']}")
                                         continue
 
                             segment = Segment()
