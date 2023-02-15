@@ -369,10 +369,10 @@ def correct_vignetting(datadir):
                         f"Shape of FITS and scaling factor do not match for {item}"
                     hdulist[1].data["flux"][1] /= scale  # NUVB is 1st index
 
-    print(f'\nApplied scaling factor to G230L/2950 NUVB data in {os.path.join(datadir, "g230l")}') 
+    print(f'\nApplied scaling factor to G230L/2950 NUVB data in {os.path.join(datadir, "g230l")}\n') 
 
 
-def create_serendipitous_timeseries(datadir, tss_outdir, targ, tss_params):
+def create_serendipitous_timeseries(datadir, tss_outdir, targ, tss_params, min_exptime=1):
     """
     Creates the timeseries high level science products for ULLYSES monitoring targets
     from the custom-calibrated and split data products.
@@ -391,7 +391,8 @@ def create_serendipitous_timeseries(datadir, tss_outdir, targ, tss_params):
     for grat in tss_params["gratings"]: 
         # Create the exposure level time-series spectra
         outfile = os.path.join(tss_outdir, f"hlsp_ullyses_hst_{ins}_{targ}_{grat}_{VERSION.lower()}_tss.fits")
-        timeseries.process_files(grat.upper(), outfile, datadir, overwrite=True, ins=ins.upper()) 
+        timeseries.process_files(grat.upper(), outfile, datadir, overwrite=True, 
+                                 ins=ins.upper(), min_exptime) 
         
     return tss_outdir
 
@@ -497,7 +498,8 @@ def move_output_epoch_data(datadir, tss_params):
     print(f"\nMoved x1ds to a single directory to be made into TSS")
 
 
-def serendipitous_star(datadir, tss_outdir, targ, yamlfile=None, custom_caldir=None):
+def serendipitous_star(datadir, tss_outdir, targ, yamlfile=None, custom_caldir=None,
+                       min_exptime=1):
     if not os.path.exists(tss_outdir):
         os.makedirs(tss_outdir)
     tss_params = read_tss_yaml(targ, yamlfile)
@@ -506,7 +508,7 @@ def serendipitous_star(datadir, tss_outdir, targ, yamlfile=None, custom_caldir=N
     #copy_serendipitous_origdata(datadir, orig_datadir, tss_params)
     #calibrate_cos_data(datadir, tss_params, custom_caldir)
     #copy_monitoring_caldata(datadir, tss_params, custom_caldir)
-    create_serendipitous_timeseries(datadir, tss_outdir, targ, tss_params)
+    create_serendipitous_timeseries(datadir, tss_outdir, targ, tss_params, min_exptime)
 
 
 def monitoring_star(datadir, orig_datadir, tss_outdir, targ, yamlfile=None, custom_caldir=None):
