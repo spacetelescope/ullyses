@@ -15,9 +15,10 @@ from astropy.time import Time
 from ullyses.coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDSegmentList
 from ullyses.coadd import abut, SegmentList
 import ullyses_utils
-from ullyses_utils.ullyses_config import RENAME, VERSION
+from ullyses_utils.ullyses_config import RENAME, VERSION, CAL_VER
 
-CAL_VER = 1.1
+RED = "\033[1;31m"
+RESET = "\033[0;0m"
 
 '''
 This wrapper goes through each target folder in the ullyses data directory and find

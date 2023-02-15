@@ -7,11 +7,6 @@ from astropy.io import fits
 # coadd data
 #
 
-CAL_VER = 1.1
-RED = "\033[1;31m"
-RESET = "\033[0;0m"
-
-
 STIS_NON_CCD_DETECTORS = ['FUV-MAMA', 'NUV-MAMA']
 
 class SegmentList:
