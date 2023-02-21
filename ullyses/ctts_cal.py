@@ -392,7 +392,7 @@ def create_serendipitous_timeseries(datadir, tss_outdir, targ, tss_params, min_e
         # Create the exposure level time-series spectra
         outfile = os.path.join(tss_outdir, f"hlsp_ullyses_hst_{ins}_{targ}_{grat}_{VERSION.lower()}_tss.fits")
         timeseries.process_files(grat.upper(), outfile, datadir, overwrite=True, 
-                                 ins=ins.upper(), min_exptime) 
+                                 ins=ins.upper(), min_exptime=min_exptime) 
         
     return tss_outdir
 
