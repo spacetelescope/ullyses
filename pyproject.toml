@@ -1,28 +1,42 @@
 [project]
 name = "ullyses"
 description = "Create ULLYSES data products"
-authors = [
-    { name = "ULLYSES STScI Team" },
-]
-keywords = [
-    "astronomy",
-]
+authors = [{ name = "ULLYSES STScI Team" }]
+readme = { file = "README.md", content-type = "text/markdown" }
+license = { text = "BSD-3-Clause", content-type = "text/plain" }
+keywords = ["astronomy"]
 classifiers = [
-    "Programming Language :: Python",
-    "Programming Language :: Python :: 3",
-    "Development Status :: 1 - Planning",
-    "Intended Audience :: Science/Research",
-    "Topic :: Scientific/Engineering :: Astronomy",
-    "Topic :: Scientific/Engineering :: Physics",
-    "Topic :: Software Development :: Libraries :: Python Modules",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3",
+  "Development Status :: 1 - Planning",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering :: Astronomy",
+  "Topic :: Scientific/Engineering :: Physics",
+  "Topic :: Software Development :: Libraries :: Python Modules",
 ]
-dynamic = [
-  "version",
+dependencies = [
+  "astropy>5.0.4",
+  "calcos>=3.4.0",
+  "costools",
+  "matplotlib",
+  "numpy", 
+  "pandas",
+  "pyyaml",
+  "stistools>=1.4.2",
+  "ullyses_utils",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+test = [
+  "pytest",
+  "stsci.tools==4.0.0",
 ]
 
 [build-system]
 requires = [
-    "setuptools>=61.2",
+  "setuptools>=61.2",
+  "cython",
 ]
 build-backend = "setuptools.build_meta"
 
