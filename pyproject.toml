@@ -23,7 +23,9 @@ dependencies = [
   "pandas",
   "pyyaml",
   "stistools>=1.4.2",
-  "ullyses_utils",
+  # "ullyses-utils",
+# remove this line when ulysses-utils is on PyPI
+  "ullyses-utils @ git+https://github.com/spacetelescope/ullyses-utils.git@main",
 ]
 dynamic = ["version"]
 
