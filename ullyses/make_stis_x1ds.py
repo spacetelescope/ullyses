@@ -130,14 +130,12 @@ def copy_rename_yaml(targ, outdir, config_dir=CONFIG_DIR):
         None
     """
 
-    yamlfiles = glob.glob(os.path.join(config_dir, f"{targ}*yaml"))
+    yamlfiles = glob.glob(os.path.join(config_dir, f"{targ}_*yaml"))
     for item in yamlfiles:
         f = os.path.basename(item)
         spl = f.split("_")
         targ = spl[0].lower()
-        # Targs with periods in their name must be specially renamed
-        if "." in targ:
-            assert targ in RENAME, f"Renaming scheme not known for {targ}"
+        if targ in RENAME:
             targ = RENAME[targ]
         grating = spl[1].split(".")[0]
         newname = f"hlsp_ullyses_hst_stis_{targ}_{grating}_{VERSION}_spec.yaml"
