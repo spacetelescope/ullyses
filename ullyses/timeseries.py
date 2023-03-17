@@ -12,7 +12,7 @@ import glob
 import os
 
 from ullyses import coadd, wrapper
-from ullyses_utils.ullyses_config import VERSION
+from ullyses_utils.ullyses_config import VERSION, CAL_VER
 
 SECONDS_PER_DAY = 86400.0
 
@@ -594,7 +594,7 @@ def create_primary_header(ensemble, filename):
     hdr0['PROPOSID'] = (ensemble.combine_keys("proposid", "multi"), 'Program identifier')
     hdr0.add_blank(after='TARG_DEC')
     hdr0.add_blank('           / PROVENANCE INFORMATION', before='PROPOSID')
-    hdr0['CAL_VER'] = (f'ULLYSES Cal {coadd.CAL_VER}', 'HLSP processing software version')
+    hdr0['CAL_VER'] = (f'ULLYSES Cal {CAL_VER}', 'HLSP processing software version')
     hdr0['HLSPID'] = ('ULLYSES', 'Name ID of this HLSP collection')
     hdr0['HSLPNAME'] = ('Hubble UV Legacy Library of Young Stars as Essential Standards',
                     'Name ID of this HLSP collection')

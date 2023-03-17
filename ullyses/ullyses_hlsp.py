@@ -17,9 +17,9 @@ RED = "\033[1;31m"
 RESET = "\033[0;0m"
 
 class Ullyses():
-    def __init__(self, files, hlspname, targname, ra, dec, cal_ver,  
-                 level, version=CAL_VER, hlsp_type="spectral", overwrite=True, 
-                 photfile=None):
+    def __init__(self, files, hlspname, targname, ra, dec, level,
+                 cal_ver=CAL_VER, version=VERSION, hlsp_type="spectral", 
+                 overwrite=True, photfile=None):
         self.hlsp_type = hlsp_type
         if hlsp_type == "lcogt":
             assert photfile is not None, "Photometry file must be supplied for LCOGT data"

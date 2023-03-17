@@ -15,9 +15,10 @@ from astropy.time import Time
 from ullyses.coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDSegmentList
 from ullyses.coadd import abut, SegmentList
 import ullyses_utils
-from ullyses_utils.ullyses_config import RENAME, VERSION
+from ullyses_utils.ullyses_config import RENAME, VERSION, CAL_VER
 
-CAL_VER = 1.1
+RED = "\033[1;31m"
+RESET = "\033[0;0m"
 
 '''
 This wrapper goes through each target folder in the ullyses data directory and find
@@ -398,8 +399,7 @@ def main(indir, outdir, version=VERSION, clobber=False):
                 prod.target = prod.get_targname()
                 prod.targ_ra, prod.targ_dec = prod.get_coords()
                 target = prod.target.lower()
-                if "." in target:
-                    assert target in RENAME, f"Renaming scheme not known for {targ}"
+                if target in RENAME:
                     dir_target = RENAME[target]
                 else:
                     dir_target = target
@@ -421,8 +421,7 @@ def main(indir, outdir, version=VERSION, clobber=False):
                 # this writes the output file
                 # If making HLSPs for a DR, put them in the official folder
                 target = prod.target.lower()
-                if "." in target:
-                    assert target in RENAME, f"Renaming scheme not known for {targ}"
+                if target in RENAME:
                     dir_target = RENAME[target]
                 else:
                     dir_target = target
@@ -570,8 +569,7 @@ def create_output_file_name(prod, version=VERSION, level=3):
     aperture = prod.aperture.lower()
 
     # Target names can't have a period in them or it breaks MAST
-    if "." in target:
-        assert target in RENAME, f"Renaming scheme not known for {targ}"
+    if target in RENAME:
         target = RENAME[target]
 
     if level == 0:
