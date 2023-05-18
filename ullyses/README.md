@@ -1,6 +1,6 @@
 ## Installation
 
-> :warning: **This release is intended for use only in reprocessing ULLYSES Data Release 1.**
+> :warning: **This release is intended for use only in reprocessing ULLYSES Data Release 1.** :warning:
 > 
 > Please use the release best suited for your needs.
 
