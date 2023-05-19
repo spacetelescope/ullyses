@@ -35,8 +35,6 @@ To run `coadd.py` manually:
 The latest changes will still use the same methods to create HLSPs, but there are a couple of
 changes in the products themselves:
 
- - the names have been changed to be more like the names specified in Dick Shaw's confluence page
-(https://innerspace.stsci.edu/display/ULLYSES/HLSP%3A+File+Naming+Convention)
  - the data are now in arrays in 1 table row, rather than having a row for each datapoint.  So when accessing
 the data you need to do
 ```python
@@ -46,8 +44,3 @@ the data you need to do
     wavelength = row['wavelength']
     flux = row['flux']
 ```
-You can of course combine lines 2 and 3 into
-
-    row = f[1].data[0]
-
-but it was written as above for clarity.  If you omit the [0], your matplotlib plots won't work.
