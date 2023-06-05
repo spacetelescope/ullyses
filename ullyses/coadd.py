@@ -344,8 +344,13 @@ class FUSESegmentList(SegmentList):
         nonzeros = np.where(self.output_errors != 0.0)
         self.signal_to_noise[nonzeros] = self.output_flux[nonzeros] / self.output_errors[nonzeros]
         good_dq = np.where(self.output_exptime > 0.)
-        self.first_good_wavelength = self.output_wavelength[good_dq][0]
-        self.last_good_wavelength = self.output_wavelength[good_dq][-1]
+        if len(good_dq[0]) > 0:
+            self.first_good_wavelength = self.output_wavelength[good_dq][0]
+            self.last_good_wavelength = self.output_wavelength[good_dq][-1]
+        else:
+            self.first_good_wavelength = None
+            self.last_good_wavelength = None
+            print('No good data in product')
         return
 
 class CCDSegmentList(SegmentList):
@@ -430,8 +435,13 @@ class CCDSegmentList(SegmentList):
             nonzeros = np.where(self.output_errors != 0.0)
             self.signal_to_noise[nonzeros] = self.output_flux[nonzeros] / self.output_errors[nonzeros]
             good_dq = np.where(self.output_exptime > 0.)
-            self.first_good_wavelength = self.output_wavelength[good_dq][0]
-            self.last_good_wavelength = self.output_wavelength[good_dq][-1]
+            if len(good_dq[0]) > 0:
+                self.first_good_wavelength = self.output_wavelength[good_dq][0]
+                self.last_good_wavelength = self.output_wavelength[good_dq][-1]
+            else:
+                self.first_good_wavelength = None
+                self.last_good_wavelength = None
+                print('No good data in product')
         else:
             nelements = len(self.output_wavelength)
             self.output_sumsqerrors = np.zeros(nelements)
@@ -449,8 +459,13 @@ class CCDSegmentList(SegmentList):
                     self.output_sumsqerrors[indices[i]] = self.output_sumsqerrors[indices[i]] + (err[i] * weight[i])**2
                     self.output_exptime[indices[i]] = self.output_exptime[indices[i]] + segment.exptime
             good_dq = np.where(self.output_exptime > 0.)
-            self.first_good_wavelength = self.output_wavelength[good_dq][0]
-            self.last_good_wavelength = self.output_wavelength[good_dq][-1]
+            if len(good_dq[0]) > 0:
+                self.first_good_wavelength = self.output_wavelength[good_dq][0]
+                self.last_good_wavelength = self.output_wavelength[good_dq][-1]
+            else:
+                self.first_good_wavelength = None
+                self.last_good_wavelength = None
+                print('No good data in product')
             nonzeros = np.where(self.output_sumweight != 0)
             self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / self.output_sumweight[nonzeros]
             self.output_errors[nonzeros] = np.sqrt(self.output_sumsqerrors[nonzeros]) / self.output_sumweight[nonzeros]
