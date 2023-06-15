@@ -80,7 +80,7 @@ def twod_images(flt, acq, x1d, targ, grating, outdir,
     vmin = -1
     vmax_im = 15
     detector = fits.getval(flt, "detector") 
-    if grating != "CCD":
+    if detector != "CCD":
         default = 5.5
     else:
         default = 3.5
