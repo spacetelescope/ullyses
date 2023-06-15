@@ -137,8 +137,10 @@ class StisData:
         self.opt_elem = fits.getval(infile, "opt_elem")
         self.darkfile = fits.getval(infile, "darkfile")
         
-        self.acq = None 
-        raws = glob.glob(os.path.join(self.basedir, "o*raw.fits"))
+        self.acq = None
+        raws = glob.glob(os.path.join(self.basedir, f"{self.rootname[:6].lower()}*raw.fits"))
+        if len(raws) == 0:
+            raws = glob.glob(os.path.join(self.basedir, "o*raw.fits"))
         for item in raws:
             if fits.getval(item, "obsmode") == "ACQ":
                 self.acq = item
@@ -325,7 +327,10 @@ class StisData:
                     bk2size = pars["b_hgt2"],
                     verbose=True,
                     **kwargs)
-            print(f"Wrote x1d file: {outfile}")
+            if not os.path.exists(outfile):
+                print("ERROR: 1D EXTRACTION FAILED!")
+            else:
+                print(f"Wrote x1d file: {outfile}")
 
     def find_product(self, ext):
         """
@@ -385,27 +390,30 @@ class StisData:
         Plot calibration output.
         """
 
+        print("\n", f" CREATING DIAGNOSTIC PLOTS ".center(NCOLS, SYM), "\n")
+        self.plots_made = True
         if self.x1d_mast is not None:
             self.plots_made = True
-            print("\n", f" CREATING DIAGNOSTIC PLOTS ".center(NCOLS, SYM), "\n")
             mastx1d = self.x1d_mast
             for target, target_pars in self.target_dict.items():
                 customx1d = target_pars['out_x1d']
                 pdffile = plot_stis_data.plot_all_x1d(customx1d, mastx1d, target, self.outdir)
                 self.target_dict[target]["oned_plot"] = pdffile
+        else:
+            self.plots_made = True
+            for target, target_pars in self.target_dict.items():
+                customx1d = target_pars['out_x1d']
+                pngfile = plot_stis_data.plot_one_x1d(customx1d, target, self.outdir, savefig=True)
+                self.target_dict[target]["oned_plot"] = pngfile
 
-        self.plots_made = True
         if self.detector == "CCD":
             twod_im = self.crj
         else:
             twod_im = self.flt
         for target,target_pars in self.target_dict.items():
             customx1d = target_pars['out_x1d']
-            if self.acq is not None:
-                pdffile = plot_stis_data.plot_all_2d(twod_im, self.acq, customx1d, target, self.outdir)
-                self.target_dict[target]["twod_plot"] = pdffile
-            else:
-                self.target_dict[target]["twod_plot"] = None
+            pdffile = plot_stis_data.plot_all_2d(twod_im, self.acq, customx1d, target, self.outdir)
+            self.target_dict[target]["twod_plot"] = pdffile
 
 
 class StisCcd(StisData):
