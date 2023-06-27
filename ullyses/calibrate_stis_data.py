@@ -391,7 +391,7 @@ class StisData:
         """
 
         print("\n", f" CREATING DIAGNOSTIC PLOTS ".center(NCOLS, SYM), "\n")
-        self.plots_made = True
+        self.plots_made = False
         if self.x1d_mast is not None:
             self.plots_made = True
             mastx1d = self.x1d_mast
