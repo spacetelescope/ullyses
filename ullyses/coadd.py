@@ -191,8 +191,11 @@ class SegmentList:
             weight = flux_weight[goodpixels]
             net_counts = segment.data['net'][goodpixels] * segment.exptime
             if self.instrument == 'COS':
-                variances = segment.data['variance_counts'][goodpixels] + segment.data['variance_bkg'][goodpixels] + segment.data['variance_flat'][goodpixels]
-
+                try:
+                    variances = segment.data['variance_counts'][goodpixels] + segment.data['variance_bkg'][goodpixels] + segment.data['variance_flat'][goodpixels]
+                except KeyError:
+                    print('WARNING: Cant get variance keywords for COS data, using gross counts instead')
+                    variances = gcounts
             flux = segment.data['flux'][goodpixels]
             for i in range(npts):
                 self.sumnetcounts[indices[i]] = self.sumnetcounts[indices[i]] + net_counts[i]
@@ -405,7 +408,7 @@ class CCDSegmentList(SegmentList):
 
             self.delta_wavelength = max_delta_wavelength
 
-            wavegrid = np.arange(self.min_wavelength, self.max_wavelength, self.delta_wavelength)
+            wavegrid = np.arange(self.min_wavelength, self.max_wavelength+self.delta_wavelength, self.delta_wavelength)
 
             self.output_wavelength = wavegrid
 
