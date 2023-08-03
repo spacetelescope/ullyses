@@ -40,10 +40,12 @@ def compare_spectra(files, use_grating=None, savefig=True, savedir=""):
 
         if use_grating is not None and grating != use_grating:
             # skip the file for now if the grating is not used
+            print(f"{grating} does not match expected {use_grating}. Skipping.")
             continue
 
         if len(grating_files) <= 1:
             # we don't need to check the variability if there is only 1 file
+            print(f'Only 1 file: {grating_files}. Skipping {grating}.')
             continue
 
         print(f'Plotting {len(grating_files)} files for {targname} {grating}')
@@ -96,12 +98,35 @@ def compare_spectra(files, use_grating=None, savefig=True, savedir=""):
         if savefig is True:
             figname = os.path.join(savedir, f"{targname}_{grating}_timeseries_check.html")
             fig.write_html(figname)
+            os.chmod(filename, 774)
             print(f"Saved {figname}")
 
 #-------------------------------------------------------------------------------
 
 if __name__ == "__main__":
 
-    files = glob.glob('/astro/ullyses/timeseries/v-bp-tau/dr6/*x1d*')
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--dir", type=str, default='/astro/ullyses/stis_data_checks/',
+                        help="Top level directory to search for files")
+    parser.add_argument("-t", "--target", type=str, default="",
+                        help="Use if you are specifying a single target directory")
+    parser.add_argument("-g", "--grating", type=str, default = None,
+                        help="Specify a grating")
+    parser.add_argument("-s", "--no_save", action='store_false', default=True,
+                        help="use if you do not want to save a plot")
+    args = parser.parse_args()
 
-    compare_spectra(files, savedir="")
+    if args.target != "":
+        targ_dirs = [os.path.join(args.dir, args.target)]
+    else:
+        targ_dirs = glob.glob(os.path.join(args.dir, '*'))
+
+    for targ_dir in targ_dirs:
+        print(targ_dir)
+        if not os.path.isdir(targ_dir):
+            # skipping over any files that live in the top level directory
+            continue
+
+        files = glob.glob(os.path.join(targ_dir, '*x1d*'))
+
+        compare_spectra(files, use_grating=args.grating, savefig=args.no_save, savedir=targ_dir)
