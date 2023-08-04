@@ -18,7 +18,48 @@ from ullyses_utils.match_aliases import match_aliases
 COLORS = ["#9970ab", "#5aae61", "#d95f02", "#e7298a", "#1bddf2", "#1f78b4", "#fb9a99", "#fdbf6f", "#ffe44b",
           "#b15928", "#cab2d6", "#b2df8a", "#000000", "#7a7a7a", "#911cff", "#a6cee3"]
 
-def compare_spectra(files, use_grating=None, savefig=True, savedir=""):
+#-------------------------------------------------------------------------------
+
+def add_tts_regions(fig, detector, wmin, wmax):
+    ''' Adding highlights to regions of interest for the T-Tauri stars.
+    '''
+
+    if 'FUV' in detector:
+        #from Section 1 of Ardila et al. 2013, ApJS, 207, 1
+        regions = [(1238, 1243), # N V doublet: 1239 + 1243
+                   (1393, 1404), # Si IV doublet: 1394 + 1403
+                   (1547, 1552), # C IV doublet: 1548 + 1551
+                   (1638, 1642) # He II 1640
+                   ]
+    elif 'NUV' in detector:
+        #from Table 5 of Robinson & Espaillat 2019, ApJ, 874, 129
+        regions = [(2323, 2327), # C II 2325
+                   (2668, 2672), # Al III 2670
+                   (2794, 2798), # Mg II 2796
+                   ]
+    elif detector == 'CCD':
+        # from Table B.1 of Alcala et al. 2017, A&A, 600, A20
+        regions = [(4860, 4864), # Hβ 4862
+                   (6561, 6565), # Hα 6563
+                   (5874, 5878), # He I 5876
+                   (7771, 7775), #O I 7773
+                   ]
+    else:
+        print(f'Unrecognized Detector: {detector}')
+        regions = []
+
+    # plot the regions
+    for x0, x1 in regions:
+        if x0 > wmax or x1 < wmin:
+            # don't plot regions outside of the wavelength range
+            continue
+        fig.add_vrect(x0=x0, x1=x1, line_width=0, fillcolor="mistyrose", opacity=0.2, layer='below')
+
+    return fig
+
+#-------------------------------------------------------------------------------
+
+def compare_spectra(files, use_grating=None, savefig=True, savedir="", tts_regions=True):
 
     # sort the files by grating
     files_d = defaultdict(list)
@@ -29,7 +70,8 @@ def compare_spectra(files, use_grating=None, savefig=True, savedir=""):
     if len(file_targets) > 1:
         raise ValueError(f'Too many targets in filelist. Expecting only 1: {file_tagets}')
     elif len(file_targets) == 0:
-        raise ValueError(f'No files!')
+        print('No Files!')
+        return
     else:
         targname = file_targets[0]
 
@@ -63,6 +105,7 @@ def compare_spectra(files, use_grating=None, savefig=True, savedir=""):
 
             # open the file to plot
             with fits.open(item) as hdulist:
+                detector = hdulist[0].header['DETECTOR']
                 for ext in range(1, n_ext):
                     # make sure to plot every SCI extension!
                     if hdulist[ext].name != "SCI":
@@ -81,6 +124,9 @@ def compare_spectra(files, use_grating=None, savefig=True, savedir=""):
                                              opacity=0.8,
                                              name=lbl,
                                              ))
+            if tts_regions:
+                # plot boxes around regions of interest for TTS
+                fig = add_tts_regions(fig, detector, wl.min(), wl.max())
 
         # set up plot labels
         fig.update_layout(yaxis={'showexponent': 'all',
