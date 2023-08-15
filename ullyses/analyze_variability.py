@@ -144,7 +144,7 @@ def compare_spectra(files, use_grating=None, savefig=True, savedir="", tts_regio
         if savefig is True:
             figname = os.path.join(savedir, f"{targname}_{grating}_timeseries_check.html")
             fig.write_html(figname)
-            os.chmod(figname, 774)
+            os.chmod(figname, 0o775)
             print(f"Saved {figname}")
 
 #-------------------------------------------------------------------------------
