@@ -15,8 +15,9 @@ from collections import defaultdict
 
 from ullyses_utils.match_aliases import match_aliases
 
-COLORS = ["#9970ab", "#5aae61", "#d95f02", "#e7298a", "#1bddf2", "#1f78b4", "#fb9a99", "#fdbf6f", "#ffe44b",
-          "#b15928", "#cab2d6", "#b2df8a", "#000000", "#7a7a7a", "#911cff", "#a6cee3"]
+COLORS = ["#9970ab", "#5aae61", "#d95f02", "#e7298a", "#1bddf2", "#1f78b4", "#fb9a99",
+          "#fdbf6f", "#ffe44b", "#b15928", "#cab2d6", "#b2df8a", "#749688", "#7a7a7a",
+          "#911cff", "#a6cee3"]
 
 #-------------------------------------------------------------------------------
 
@@ -68,7 +69,7 @@ def compare_spectra(files, use_grating=None, savefig=True, savedir="", tts_regio
 
     file_targets = np.unique([match_aliases(fits.getval(f, 'TARGNAME')) for f in files])
     if len(file_targets) > 1:
-        raise ValueError(f'Too many targets in filelist. Expecting only 1: {file_tagets}')
+        raise ValueError(f'Too many targets in filelist. Expecting only 1: {file_targets}')
     elif len(file_targets) == 0:
         print('No Files!')
         return
@@ -144,7 +145,7 @@ def compare_spectra(files, use_grating=None, savefig=True, savedir="", tts_regio
         if savefig is True:
             figname = os.path.join(savedir, f"{targname}_{grating}_timeseries_check.html")
             fig.write_html(figname)
-            os.chmod(figname, 0o775)
+            os.chmod(figname, 0o774)
             print(f"Saved {figname}")
 
 #-------------------------------------------------------------------------------
@@ -163,7 +164,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.target != "":
-        targ_dirs = [os.path.join(args.dir, args.target)]
+        targ_dirs = [os.path.join(args.dir, args.target.lower())]
     else:
         targ_dirs = glob.glob(os.path.join(args.dir, '*'))
 
@@ -173,6 +174,6 @@ if __name__ == "__main__":
             # skipping over any files that live in the top level directory
             continue
 
-        files = glob.glob(os.path.join(targ_dir, '*x1d*'))
+        files = np.sort(glob.glob(os.path.join(targ_dir, '*x1d*')))
 
         compare_spectra(files, use_grating=args.grating, savefig=args.no_save, savedir=targ_dir)
