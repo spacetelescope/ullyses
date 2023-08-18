@@ -99,6 +99,8 @@ def compare_spectra(files, use_grating=None, savefig=True, savedir="", tts_regio
         while len(COLORS) < len(grating_files):
             COLORS = COLORS * 2
 
+        median_arr = [] # used for calculating the median value of all files
+
         # plot the files
         for i, item in enumerate(grating_files):
             n_ext = fits.getval(item, "nextend") + 1 # how many extensions are in the file
@@ -116,6 +118,9 @@ def compare_spectra(files, use_grating=None, savefig=True, savedir="", tts_regio
                     wl = data["wavelength"].flatten()
                     flux = data["flux"].flatten()
 
+                    # add the flux to the median array to be calculated
+                    median_arr.append(flux)
+
                     lbl = f"{os.path.basename(item)} {date_obs} ext{ext}"
 
                     fig.add_trace(go.Scatter(x=wl,
@@ -125,9 +130,19 @@ def compare_spectra(files, use_grating=None, savefig=True, savedir="", tts_regio
                                              opacity=0.8,
                                              name=lbl,
                                              ))
-            if tts_regions:
-                # plot boxes around regions of interest for TTS
-                fig = add_tts_regions(fig, detector, wl.min(), wl.max())
+        if tts_regions:
+            # plot boxes around regions of interest for TTS
+            fig = add_tts_regions(fig, detector, wl.min(), wl.max())
+
+        # calculate the median of all files to overplot
+        fig.add_trace(go.Scatter(x=wl,
+                                 y=np.median(median_arr, axis=0),
+                                 mode='lines',
+                                 line=dict(color='gainsboro',
+                                           width=6),
+                                 opacity=0.8,
+                                 name='Median Value'
+                                 ) )
 
         # set up plot labels
         fig.update_layout(yaxis={'showexponent': 'all',
