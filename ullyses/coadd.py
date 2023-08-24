@@ -50,11 +50,17 @@ class SegmentList:
                 with fits.open(file) as f1:
                     prihdr = f1[0].header
                     if prihdr['OPT_ELEM'].upper() == self.grating and prihdr['INSTRUME'].upper() == self.instrument:
-                        hdr1 = f1[1].header
-                        data = f1[1].data
-                        alldata.append(data)
-                        allhdr0.append(prihdr)
-                        allhdr1.append(hdr1)
+                        for extension in f1[1:]:
+                            if extension.header['EXTNAME'] == 'SCI':
+                                hdr1 = extension.header
+                                data = extension.data
+                                alldata.append(data)
+                                allhdr0.append(prihdr)
+                                allhdr1.append(hdr1)
+                                extver = extension.header['extver']
+                                if extver> 1:
+                                    expname = extension.header['EXPNAME']
+                                    print(f'Extension {extver} with expname {expname} included for file {file}')
                     else:
                         continue
 
