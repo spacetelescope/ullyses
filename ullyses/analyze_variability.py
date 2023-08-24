@@ -99,7 +99,8 @@ def compare_spectra(files, use_grating=None, savefig=True, savedir="", tts_regio
         while len(COLORS) < len(grating_files):
             COLORS = COLORS * 2
 
-        median_arr = [] # used for calculating the median value of all files
+        median_flux = [] # used for calculating the median value of all files
+        median_wave = [] # used for plotting the median wave value of all files
 
         # plot the files
         for i, item in enumerate(grating_files):
@@ -119,7 +120,8 @@ def compare_spectra(files, use_grating=None, savefig=True, savedir="", tts_regio
                     flux = data["flux"].flatten()
 
                     # add the flux to the median array to be calculated
-                    median_arr.append(flux)
+                    median_flux.append(flux)
+                    median_wave.append(wl)
 
                     lbl = f"{os.path.basename(item)} {date_obs} ext{ext}"
 
@@ -135,8 +137,8 @@ def compare_spectra(files, use_grating=None, savefig=True, savedir="", tts_regio
             fig = add_tts_regions(fig, detector, wl.min(), wl.max())
 
         # calculate the median of all files to overplot
-        fig.add_trace(go.Scatter(x=wl,
-                                 y=np.median(median_arr, axis=0),
+        fig.add_trace(go.Scatter(x=np.median(median_wave, axis=0),
+                                 y=np.median(median_flux, axis=0),
                                  mode='lines',
                                  line=dict(color='gainsboro',
                                            width=6),
