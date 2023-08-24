@@ -1,6 +1,7 @@
 from astropy.io import fits
 import numpy as np
 
+
 def add_column(infile, outfile, colext, colname, colformat, colvals, 
                colunit=None, overwrite=False):
     """
@@ -48,7 +49,8 @@ def add_column(infile, outfile, colext, colname, colformat, colvals,
     new_hdulist = fits.HDUList(final_hdus)
     new_hdulist.writeto(outfile, overwrite=overwrite)
     print(f"Wrote {outfile}")
-    
+
+
 def add_dq_col(infile, outfile, wlstart, wlend, dqflag, overwrite=False):
     """
     Add a DQ column for FUSE data.
@@ -62,7 +64,7 @@ def add_dq_col(infile, outfile, wlstart, wlend, dqflag, overwrite=False):
             to flag as bad DQ
         dqflag (int, float, or array-like): DQ flag(s) corresponding to each
             wavelength range to flag.
-        overwite (Bool): If True, overwrite any existing files
+        overwrite (bool): If True, overwrite any existing files
     """
     if not isinstance(wlstart, (list, np.ndarray)):
         wlstart = [wlstart]
@@ -72,7 +74,7 @@ def add_dq_col(infile, outfile, wlstart, wlend, dqflag, overwrite=False):
         dqflag = [dqflag]
     wlstart += [0, 1179.9]
     wlend += [912, -1]
-    dqflag += [2,2]
+    dqflag += [2, 2]
 
     good_dq = 0
     

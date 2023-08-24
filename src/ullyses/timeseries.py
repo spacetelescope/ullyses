@@ -5,16 +5,14 @@ from astropy.time import Time
 
 import datetime
 from datetime import datetime as dt
-import re
 import numpy as np
-import coadd, wrapper
-from costools import splittag
-import calcos
+from .coadd import COSSegmentList, CAL_VER
+from .wrapper import DEFAULT_VERSION
 import glob
 import os
 
 SECONDS_PER_DAY = 86400.0
-version = wrapper.DEFAULT_VERSION
+version = DEFAULT_VERSION
 
 """
     Timeseries product creation code.
@@ -46,6 +44,7 @@ version = wrapper.DEFAULT_VERSION
     
 """
 
+
 def sort_split_x1ds(grating, indir=".", min_exptime=20.0):
     """Sort the split x1d files.    Select all files that match the
     pattern 'split_*_without.fits' and that match the grating and whose
@@ -75,7 +74,8 @@ def sort_split_x1ds(grating, indir=".", min_exptime=20.0):
         f1.close()
     sorted_x1dlist = sort_x1dfiles(good_list, min_exptime=min_exptime)
     return sorted_x1dlist
-    
+
+
 def sort_full_x1ds(grating, indir=".", min_exptime=20.0):
     """Sort the full x1d files.    Select all files that match the
     pattern '*_without.fits' and don't start with 'split', and that match
@@ -108,6 +108,7 @@ def sort_full_x1ds(grating, indir=".", min_exptime=20.0):
         f1.close()
     sorted_x1dlist = sort_x1dfiles(good_list, min_exptime=min_exptime)
     return sorted_x1dlist
+
 
 def sort_x1ds(grating, indir=".", min_exptime=20.0):
     """Sort the x1d files.    Select all files that match the
@@ -169,6 +170,7 @@ def sort_x1dfiles(x1dfiles, min_exptime=20.0):
     sorted_x1dlist = sorted(x1dlist, key=lambda x: x[1])
     return sorted_x1dlist
 
+
 def create_ensemble_segmentlist(grating, indir=".", wavelength_binning=1.0):
     """Create the ensemble COSSegmentList whose wavelength and array
     sizing parameters are to be used to create the output product.
@@ -189,7 +191,7 @@ def create_ensemble_segmentlist(grating, indir=".", wavelength_binning=1.0):
         COSSegmentList:
         
     """     
-    a = coadd.COSSegmentList(grating, path=indir)
+    a = COSSegmentList(grating, path=indir)
     a.create_output_wavelength_grid()
     if wavelength_binning != 1:
         a.delta_wavelength = a.delta_wavelength * wavelength_binning
@@ -207,6 +209,7 @@ def create_ensemble_segmentlist(grating, indir=".", wavelength_binning=1.0):
     # sort the headers in order of expstart
     
     return a
+
 
 def rename_all_split_x1ds(indir="."):
     """Rename all split exposures (that start with 'split') from
@@ -230,6 +233,7 @@ def rename_all_split_x1ds(indir="."):
         os.rename(oldfile, newfile)
     return
 
+
 def rename_all_x1ds(indir="."):
     """Rename all exposures from
     ending with '_x1d.fits' to ending with '_without.fits'.  This stops
@@ -252,6 +256,7 @@ def rename_all_x1ds(indir="."):
         os.rename(oldfile, newfile)
     return
 
+
 def rename_all_full_x1ds(indir="."):
     """Rename all full exposures (that don't start with 'split') from
     ending with '_x1d.fits' to ending with '_without.fits'.  This stops
@@ -271,11 +276,12 @@ def rename_all_full_x1ds(indir="."):
     x1dfiles = glob.glob(os.path.join(indir, '*_x1d.fits'))
     for file in x1dfiles:
         if file.startswith('split'):
-            x1sfiles.remove(file)
+            x1dfiles.remove(file)
     for oldfile in x1dfiles:
         newfile = oldfile.replace('_x1d.fits', '_without.fits')
         os.rename(oldfile, newfile)
     return
+
 
 def transfer_from_ensemble(ensemble, segmentlist):
     """Transfer the wavelength and array size information from the ensemble
@@ -312,6 +318,7 @@ def transfer_from_ensemble(ensemble, segmentlist):
     segmentlist.sumnetcounts = np.zeros(segmentlist.nelements)
     segmentlist.output_exptime = np.zeros(segmentlist.nelements)
     return
+
 
 def process_files(grating, outfile, indir=".", wavelength_binning=1, min_exptime=20,
                   overwrite=False):
@@ -353,7 +360,8 @@ def process_files(grating, outfile, indir=".", wavelength_binning=1, min_exptime
                             overwrite)
     # Rename the files back from _without.fits to _x1d.fits
     rename_files_back(indir)
-    
+
+
 def process_sorted_filelist(sorted_list, grating, ensemble, outfile, indir=".", 
                             overwrite=False):
     """Create a timeseries product from a sorted list of (input file, expstart) tuples.
@@ -401,7 +409,7 @@ def process_sorted_filelist(sorted_list, grating, ensemble, outfile, indir=".",
             print(f"Skipping file {newfile} as it doesn't have the required grating")
             f1.close()
             continue
-        a = coadd.COSSegmentList(grating, path=indir)
+        a = COSSegmentList(grating, path=indir)
         transfer_from_ensemble(ensemble, a)
         a.coadd()
         start_time = a.first_headers[0]['expend'] - a.first_headers[0]['exptime']/SECONDS_PER_DAY
@@ -419,6 +427,7 @@ def process_sorted_filelist(sorted_list, grating, ensemble, outfile, indir=".",
     write_product(output_flux, output_error, starttimes, endtimes, wavelengths, 
                   ensemble, outfile, overwrite)
     return
+
 
 def rename_files_back(indir):
     """After processing files, they are left with names that end in '_without.fits'.
@@ -439,6 +448,7 @@ def rename_files_back(indir):
     for oldfile in wfiles:
         newfile = oldfile.replace('_without.fits', '_x1d.fits')
         os.rename(oldfile, newfile)
+
 
 def write_product(flux, error, starttimes, endtimes, wavelengths, ensemble, outfile, overwrite=False):
     """Write the timeseries product to a FITS file.  The output file has a primary extension
@@ -485,8 +495,10 @@ def write_product(flux, error, starttimes, endtimes, wavelengths, ensemble, outf
     columns.append(fits.Column(name='MJDSTART', format=str(nrows)+'D', unit='Day'))
     columns.append(fits.Column(name='MJDEND', format=str(nrows) + 'D', unit='Day'))
     columns.append(fits.Column(name='WAVELENGTH', format=str(ncolumns)+'E', unit='Angstrom'))
-    columns.append(fits.Column(name='FLUX', format=str(npixels)+'E', dim=array_dimensions, unit='erg /s /cm**2 /Angstrom'))
-    columns.append(fits.Column(name='ERROR', format=str(npixels)+'E', dim=array_dimensions, unit='erg /s /cm**2 /Angstrom'))
+    columns.append(fits.Column(name='FLUX', format=str(npixels)+'E', dim=array_dimensions,
+                               unit='erg /s /cm**2 /Angstrom'))
+    columns.append(fits.Column(name='ERROR', format=str(npixels)+'E', dim=array_dimensions,
+                               unit='erg /s /cm**2 /Angstrom'))
     cd = fits.ColDefs(columns)
     hdr1 = create_extension_1_header(ensemble)
     table1 = fits.BinTableHDU.from_columns(cd, header=hdr1, nrows=1)
@@ -505,6 +517,7 @@ def write_product(flux, error, starttimes, endtimes, wavelengths, ensemble, outf
 
     print(f"\nWrote output file: {outfile}")
     return
+
 
 def create_primary_header(ensemble, filename):
     """Create the primary header of the timeseries product.
@@ -560,7 +573,7 @@ def create_primary_header(ensemble, filename):
     hdr0['PROPOSID'] = (ensemble.combine_keys("proposid", "multi"), 'Program identifier')
     hdr0.add_blank(after='TARG_DEC')
     hdr0.add_blank('           / PROVENANCE INFORMATION', before='PROPOSID')
-    hdr0['CAL_VER'] = (f'ULLYSES Cal {coadd.CAL_VER}', 'HLSP processing software version')
+    hdr0['CAL_VER'] = (f'ULLYSES Cal {CAL_VER}', 'HLSP processing software version')
     hdr0['HLSPID'] = ('ULLYSES', 'Name ID of this HLSP collection')
     hdr0['HSLPNAME'] = ('Hubble UV Legacy Library of Young Stars as Essential Standards',
                     'Name ID of this HLSP collection')
@@ -579,7 +592,8 @@ def create_primary_header(ensemble, filename):
 
     primary = fits.PrimaryHDU(header=hdr0)
     return primary
-    
+
+
 def create_extension_1_header(ensemble):
     """Create the extension 1 header for the timeseries product
     
@@ -615,7 +629,8 @@ def create_extension_1_header(ensemble):
     hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
     hdr1['XPOSURE'] = (ensemble.combine_keys("exptime", "sum"), '[s] Sum of exposure durations')
     return hdr1
-    
+
+
 def create_extension_2(ensemble):
     """Create the timeseries product provenance extension
     
@@ -696,4 +711,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     process_files(args.grating, args.outfile, args.indir, args.wl, args.min_exp, 
-         args.clobber)
+                  args.clobber)

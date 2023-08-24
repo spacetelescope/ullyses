@@ -14,13 +14,14 @@ from astropy.time import Time
 # coadd data
 #
 
-CAL_VER = 1.1
+CAL_VER = 1.5
 RED = "\033[1;31m"
 RESET = "\033[0;0m"
 
 
 STIS_NON_CCD_DETECTORS = ['FUV-MAMA', 'NUV-MAMA']
 BAD_SEGMENTS = ['NUVC']
+
 
 class SegmentList:
 
@@ -367,7 +368,6 @@ class SegmentList:
         #     names_dict = parse_name_csv(ttype)
         #     name_mapping = {**name_mapping, **names_dict}
 
-
     def obs_footprint(self):
         # Not using WCS at the moment
         # This is a placeholder, need to figure out polygon
@@ -424,43 +424,42 @@ class SegmentList:
             return coords[0][0], coords[0][1]
         else:
             return avg_ra, avg_dec    
-                                      
-                                      
+
     def combine_keys(self, key, method):
-        keymap= {"HST": {"expstart": ("expstart", 1),
-                         "expend": ("expend", 1),
-                         "exptime": ("exptime", 1),
-                         "telescop": ("telescop", 0),
-                         "instrume": ("instrume", 0),
-                         "detector": ("detector", 0),
-                         "opt_elem": ("opt_elem", 0),
-                         "cenwave": ("cenwave", 0),
-                         "aperture": ("aperture", 0),
-                         "obsmode": ("obsmode", 0),
-                         "proposid": ("proposid", 0),
-                         "centrwv": ("centrwv", 0),
-                         "minwave": ("minwave", 0),
-                         "maxwave": ("maxwave", 0),
-                         "filename": ("filename", 0),
-                         "specres": ("specres", 0),
-                         "cal_ver": ("cal_ver", 0)},
-                "FUSE": {"expstart": ("obsstart", 0),
-                         "expend": ("obsend", 0),
-                         "exptime": ("obstime", 0),
-                         "telescop": ("telescop", 0),
-                         "instrume": ("instrume", 0),
-                         "detector": ("detector", 0),
-                         "opt_elem": ("detector", 0),
-                         "cenwave": ("centrwv", 0),
-                         "aperture": ("aperture", 0),
-                         "obsmode": ("instmode", 0),
-                         "proposid": ("prgrm_id", 0),
-                         "centrwv": ("centrwv", 0),
-                         "minwave": ("wavemin", 0),
-                         "maxwave": ("wavemax", 0),
-                         "filename": ("filename", 0),
-                         "specres": ("spec_rp", 1),
-                         "cal_ver": ("cf_vers", 0)}}
+        keymap = {"HST": {"expstart": ("expstart", 1),
+                          "expend": ("expend", 1),
+                          "exptime": ("exptime", 1),
+                          "telescop": ("telescop", 0),
+                          "instrume": ("instrume", 0),
+                          "detector": ("detector", 0),
+                          "opt_elem": ("opt_elem", 0),
+                          "cenwave": ("cenwave", 0),
+                          "aperture": ("aperture", 0),
+                          "obsmode": ("obsmode", 0),
+                          "proposid": ("proposid", 0),
+                          "centrwv": ("centrwv", 0),
+                          "minwave": ("minwave", 0),
+                          "maxwave": ("maxwave", 0),
+                          "filename": ("filename", 0),
+                          "specres": ("specres", 0),
+                          "cal_ver": ("cal_ver", 0)},
+                  "FUSE": {"expstart": ("obsstart", 0),
+                           "expend": ("obsend", 0),
+                           "exptime": ("obstime", 0),
+                           "telescop": ("telescop", 0),
+                           "instrume": ("instrume", 0),
+                           "detector": ("detector", 0),
+                           "opt_elem": ("detector", 0),
+                           "cenwave": ("centrwv", 0),
+                           "aperture": ("aperture", 0),
+                           "obsmode": ("instmode", 0),
+                           "proposid": ("prgrm_id", 0),
+                           "centrwv": ("centrwv", 0),
+                           "minwave": ("wavemin", 0),
+                           "maxwave": ("wavemax", 0),
+                           "filename": ("filename", 0),
+                           "specres": ("spec_rp", 1),
+                           "cal_ver": ("cf_vers", 0)}}
 
         vals = []
         for i in range(len(self.primary_headers)):
@@ -496,11 +495,12 @@ class SegmentList:
 
 # Weight functions for STIS
 weight_function = {
-    'unity':      lambda x, y, z: np.ones(len(x)),
-    'gross':      lambda x, y, z: x,
-    'exptime':    lambda x, y, z: x * y,
+    'unity': lambda x, y, z: np.ones(len(x)),
+    'gross': lambda x, y, z: x,
+    'exptime': lambda x, y, z: x * y,
     'throughput': lambda x, y, z: y * z
 }
+
 
 class STISSegmentList(SegmentList):
 
@@ -535,6 +535,7 @@ class COSSegmentList(SegmentList):
             weight = thru * segment.exptime
 
         return np.abs(weight)
+
 
 class FUSESegmentList(SegmentList):
 
@@ -583,6 +584,7 @@ class FUSESegmentList(SegmentList):
         self.last_good_wavelength = self.output_wavelength[good_dq][-1]
         return
 
+
 class CCDSegmentList(SegmentList):
 
     def __init__(self, grating, path, weighting_method='throughput'):
@@ -591,14 +593,14 @@ class CCDSegmentList(SegmentList):
         self.weighting_method = weighting_method
 
     def get_flux_weight(self, segment):
-       exptime = segment.exptime
-       gross = segment.data['gross']
-       net = segment.data['net']
-       flux = segment.data['flux']
+        exptime = segment.exptime
+        gross = segment.data['gross']
+        net = segment.data['net']
+        flux = segment.data['flux']
 
-       weighted_gross = weight_function[self.weighting_method](gross, exptime, net/flux)
+        weighted_gross = weight_function[self.weighting_method](gross, exptime, net/flux)
 
-       return np.abs(weighted_gross)
+        return np.abs(weighted_gross)
 
     def create_output_wavelength_grid(self):
         if len(self.members) == 1:
@@ -695,6 +697,7 @@ class CCDSegmentList(SegmentList):
         error = segment.data['error']
         inverse_variance = 1.0 / (error*error)
         return inverse_variance
+
 
 class Segment:
 
@@ -800,9 +803,9 @@ def find_transition_wavelength(product_short, product_long):
     last_good_short = product_short.output_wavelength[goodshort][-1]
     first_good_long = product_long.output_wavelength[goodlong][0]
     last_good_long = product_long.output_wavelength[goodlong][-1]
-    if last_good_long < last_good_short: # long product is entirely in short spectrum
+    if last_good_long < last_good_short:  # long product is entirely in short spectrum
         return "bad"
-    if first_good_short > first_good_long and last_good_short < last_good_long: # short is entirely in long
+    if first_good_short > first_good_long and last_good_short < last_good_long:  # short is entirely in long
         return "bad"
     if last_good_short > first_good_long:
         return 0.5*(last_good_short + first_good_long)

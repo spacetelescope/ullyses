@@ -3,21 +3,21 @@ from collections import defaultdict
 import argparse
 import os
 import glob
-import numpy as np
 
 from astropy.io import fits
 
-from coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDSegmentList
-from coadd import abut
-from ullyses_config import RENAME
+from .coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDSegmentList
+from .coadd import abut
+from ullyses_config import RENAME  # TODO: unknown import
 
 DEFAULT_VERSION = 'dr4'
-PROD_DIR = "/astro/ullyses/ULLYSES_HLSP"
+PROD_DIR = "/astro/ullyses/ULLYSES_HLSP"  # TODO: central store ref
 
 '''
 This wrapper goes through each target folder in the ullyses data directory and find
 the data and which gratings are present. This info is then fed into coadd.py.
 '''
+
 
 def main(indir, outdir, version=DEFAULT_VERSION, clobber=False):
     outdir_inplace = False
@@ -134,7 +134,6 @@ def main(indir, outdir, version=DEFAULT_VERSION, clobber=False):
                 products[f'{instrument}/{grating}'] = prod
             products[f'{instrument}/{grating}'] = prod
 
-
         # Create level 3 products- abutted spectra for gratings of the same
         # resolution for each instrument.
         level = 3
@@ -162,7 +161,6 @@ def main(indir, outdir, version=DEFAULT_VERSION, clobber=False):
             filename = create_output_file_name(products['FUSE/FUSE'], version, level=level)
             filename = os.path.join(outdir, filename)
             products['FUSE/FUSE'].write(filename, clobber, level=level, version=version)
-
 
         # Determine which gratings should contribute to the final level 4 SED HLSP.
         # Starting with the bluest product and working redward, find which products,
@@ -260,7 +258,7 @@ def main(indir, outdir, version=DEFAULT_VERSION, clobber=False):
 
 
 def create_output_file_name(prod, version=DEFAULT_VERSION, level=3):
-    instrument = prod.instrument.lower()   # will be either cos, stis, or fuse. If abbuted can be cos-stis or cos-stis-fuse
+    instrument = prod.instrument.lower()   # will be either cos, stis, or fuse. If abutted can be cos-stis or cos-stis-fuse
     grating = prod.grating.lower()
     target = prod.target.lower()
     version = version.lower()
@@ -304,7 +302,7 @@ def create_output_file_name(prod, version=DEFAULT_VERSION, level=3):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--indir", default="/astro/ullyses/all_vetted_data/",
+    parser.add_argument("-i", "--indir", default="/astro/ullyses/all_vetted_data/",  # TODO: central store ref
                         help="Directory(ies) with data to combine")
     parser.add_argument("-o", "--outdir", default=None,
                         help="Directory for output HLSPs")

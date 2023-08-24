@@ -1,43 +1,41 @@
 import datetime
 import shutil
-import numpy as np
 import os
 import glob
 from astropy.io import fits
-import matplotlib
-import matplotlib.pyplot as pl
 from stistools import x1d
 import subprocess
 
-from readwrite_yaml import read_config
-from calibrate_stis_data import wrapper
-from stis_coadd_x1d import coadd_1d_spectra
-from ullyses_config import RENAME
+from .readwrite_yaml import read_config
+from .calibrate_stis_data import wrapper
+from stis_coadd_x1d import coadd_1d_spectra  # TODO: unknown import
+from ullyses_config import RENAME  # TODO: unknown import
 
-TARGS = [# DR2
+TARGS = [  # DR2
         "cvso-104", "cvso-107", "cvso-109", "cvso-146", "cvso-165", "cvso-17",
         "cvso-176", "cvso-36", "cvso-58", "cvso-90", "v-tx-ori", "v505-ori",
         "v510-ori", 
-        #dr3
+        # DR3
         "sz10", "sz45", "sz69", "sz71", "sz72", "sz75", "sz77", "v-in-cha",
         "v-xx-cha", "chx18n", "2massj11432669-7804454", "echa-j0844.2-7833",
         "hn5", "sstc2dj160000.6-422158",
-        #DR4
+        # DR4
         "sz66", "sz76", "sz111", "sz130"]
 
 VERSION = "dr4"
-HLSPDIR = "/astro/ullyses/ULLYSES_HLSP"
+HLSPDIR = "/astro/ullyses/ULLYSES_HLSP"  # TODO: central store ref
 #HLSPDIR = "ULLYSES_HLSP" 
-VETTED_DIR = "/astro/ullyses/all_vetted_data_dr4"
+VETTED_DIR = "/astro/ullyses/all_vetted_data_dr4"  # TODO: central store ref
 #VETTED_DIR = "all_vetted_data_dr4"
-DATADIR = "/astro/ullyses/ULLYSES_DATA"
-CUSTOM_CAL = "/astro/ullyses/custom_cal"
+DATADIR = "/astro/ullyses/ULLYSES_DATA"  # TODO: central store ref
+CUSTOM_CAL = "/astro/ullyses/custom_cal"  # TODO: central store ref
 CONFIG_DIR = "config_files/"
 #CONFIG_DIR = "test_configs/"
 OUTDIR_ROOT = None
 nowdt = datetime.datetime.now()
 if OUTDIR_ROOT is None:
     OUTDIR_ROOT = nowdt.strftime("%Y%m%d_%H%M")
+
 
 def copy_rawfiles():
     for targ in TARGS:
@@ -117,6 +115,7 @@ def coadd_blended_spectra(outdir_root=OUTDIR_ROOT):
             files = [os.path.join(indir, x) for x in files0]
             coadd_1d_spectra(files, targ, outdir=indir)
     print(f"\nMade coadded blended spectra for {d.keys()}, wrote to {CUSTOM_CAL}/*{outdir_root}\n")
+
 
 def copy_rename_yaml():
     yamlfiles0 = glob.glob(os.path.join(CONFIG_DIR, "*yaml"))

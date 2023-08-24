@@ -16,7 +16,8 @@ import os
 import glob
 import argparse
 
-DRDIR = "/astro/ullyses/all_vetted_data_dr4"
+DRDIR = "/astro/ullyses/all_vetted_data_dr4"  # TODO: central store ref
+
 
 def compare_hlsps(oldfile, newfile):
     # First do a fitsdiff
@@ -41,6 +42,7 @@ def compare_hlsps(oldfile, newfile):
         plt.show()
         inp = input("")
         plt.clf()
+
 
 def compare_x1ds(newhlsp):
     # Read in HLSP data and provenance tables
@@ -101,7 +103,7 @@ def compare_tss(newtss, oldtss=None):
     for i in inds:
         newflux = newdata["flux"][0][i]
         newerr = newdata["error"][0][i]
-        fig, axes0 = plt.subplots(2, 1, figsize=(15,10), sharex=True)
+        fig, axes0 = plt.subplots(2, 1, figsize=(15, 10), sharex=True)
         axes = axes0.flatten()
         axes[0].plot(newwl, newflux, "r", alpha=0.8, label="New")
         axes[0].set_title("Flux")
@@ -133,7 +135,7 @@ def check_tss(newhlsp):
     opt_elem = fits.getval(newhlsp, "dispersr")
     newwl = newdata["wavelength"][0]
     l = len(newdata["flux"][0])
-    fig, axes0 = plt.subplots(2, 1, figsize=(15,10), sharex=True)
+    fig, axes0 = plt.subplots(2, 1, figsize=(15, 10), sharex=True)
     for i in range(l):
         newflux = newdata["flux"][0][i]
         newerr = newdata["error"][0][i]
@@ -175,10 +177,10 @@ if __name__ == "__main__":
     oldhlsp = args.oldhlsp
     newhlsp = args.newhlsp
     tss = args.tss
-    assert newhlsp != None, "Must supply at least a new HLSP"
-    if oldhlsp != None and newhlsp != None and tss is False:
+    assert newhlsp is not None, "Must supply at least a new HLSP"
+    if oldhlsp is not None and newhlsp is not None and tss is False:
         compare_hlsps(oldhlsp, newhlsp)
-    if oldhlsp != None and newhlsp != None and tss is True:
+    if oldhlsp is not None and newhlsp is not None and tss is True:
         compare_tss(newhlsp, oldhlsp) 
     elif tss is True:
         check_tss(newhlsp)

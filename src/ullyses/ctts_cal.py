@@ -5,14 +5,14 @@ import os
 import shutil
 import calcos
 
-import splittag_wrapper
-import timeseries
+from .splittag_wrapper import main as splittag_wrapper_main
+from .timeseries import process_files
 
 CODEDIR = os.path.dirname(__file__)
 VERSION = "dr4"
-ALLDATA_DIR = "/astro/ullyses/ULLYSES_DATA"
-VETTED_DIR = "/astro/ullyses/all_vetted_data_dr4"
-CUSTOM_DIR = f"/astro/ullyses/custom_cal/{VERSION}"
+ALLDATA_DIR = "/astro/ullyses/ULLYSES_DATA"  # TODO: central store ref
+VETTED_DIR = "/astro/ullyses/all_vetted_data_dr4"  # TODO: central store ref
+CUSTOM_DIR = f"/astro/ullyses/custom_cal/{VERSION}"  # TODO: central store ref
 
 TARGS = ["v-tw-hya", "v-bp-tau", "v-ru-lup", "v-gm-aur"]
 
@@ -49,11 +49,12 @@ WL_SHIFT = {'le9d1c': os.path.join(CODEDIR, "ctts_recalibration/twhya_shifts.txt
 # 'le9d1cdoq',
 # 'le9d1gw7q']
 
+
 def copy_origdata(targs=TARGS):
     """
     Copy the original raw data, to ensure nothing is mistakenly edited.
-    Data is copied from /astro/ullyses/ULLYSES_DATA/{targ} to
-    /astro/ullyses/custom_cal/{version}/{targ}.
+    Data is copied from /astro/ullyses/ULLYSES_DATA/{targ} to  # TODO: central store ref - is this function useful for
+    /astro/ullyses/custom_cal/{version}/{targ}.                # TODO: external users?
 
     Args:
         targs (list): List of targets for which to copy data.
@@ -73,6 +74,7 @@ def copy_origdata(targs=TARGS):
         for item in files:
             shutil.copy(item, destdir)
         print(f"Copied original files to {destdir}")
+
 
 def calibrate_data(targs=TARGS):
     """
@@ -197,7 +199,7 @@ def create_splittags(targs=TARGS):
                     shutil.copy(sptfile, outdir)
 
             t = BINS[targ][grat]["time"]
-            splittag_wrapper.main(indir, outdir, incr=t, numcores=10)
+            splittag_wrapper_main(indir, outdir, incr=t, numcores=10)
             calcos_out = glob.glob(os.path.join(outdir, "calcosout", "*x1d.fits"))
             for item in calcos_out:
                 shutil.move(item, outdir)
@@ -216,7 +218,8 @@ def correct_vignetting(targs=TARGS):
                     assert os.path.exists(scale_file), f"No scaling file found for {item}"
                     scale = np.loadtxt(scale_file)
                     with fits.open(item, mode="update") as hdulist:
-                        assert len(scale) == len(hdulist[1].data["flux"][1]), f"Shape of FITS and scaling factor do not match for {item}"
+                        assert len(scale) == len(hdulist[1].data["flux"][1]), \
+                            f"Shape of FITS and scaling factor do not match for {item}"
                         hdulist[1].data["flux"][1] /= scale # NUVB is 0th index
 
         print(f'Applied scaling factor to G230L/2950 NUVB data in {os.path.join(CUSTOM_DIR, targ, VERSION, "g230l")}') 
@@ -225,17 +228,17 @@ def correct_vignetting(targs=TARGS):
 def create_timeseries(targs=TARGS):
     for targ in targs:
         for grat in ["g160m", "g230l"]:
-            outdir = f"/astro/ullyses/ULLYSES_HLSP/{targ}/{VERSION.lower()}"
+            outdir = f"/astro/ullyses/ULLYSES_HLSP/{targ}/{VERSION.lower()}"  # TODO: central store ref
             if not os.path.exists(outdir):
                 os.makedirs(outdir)
             indir = os.path.join(CUSTOM_DIR, targ, VERSION, grat, "exp")
             outfile = os.path.join(outdir, f"hlsp_ullyses_hst_cos_{targ}_{grat}_{VERSION.lower()}_tss.fits")
-            timeseries.process_files(grat.upper(), outfile, indir, overwrite=True) 
+            process_files(grat.upper(), outfile, indir, overwrite=True)
             
             indir = os.path.join(CUSTOM_DIR, targ, VERSION, grat, "split")
             outfile = os.path.join(outdir, f"hlsp_ullyses_hst_cos_{targ}_{grat}_{VERSION.lower()}_split-tss.fits")
-            timeseries.process_files(grat.upper(), outfile, indir, 
-                    BINS[targ][grat]["wave"], BINS[targ][grat]["min_exptime"], overwrite=True) 
+            process_files(grat.upper(), outfile, indir,
+                          BINS[targ][grat]["wave"], BINS[targ][grat]["min_exptime"], overwrite=True)
 
 
 def main():
@@ -245,6 +248,7 @@ def main():
     create_splittags()
     correct_vignetting()
     create_timeseries()
+
 
 if __name__ == "__main__":
     main()
