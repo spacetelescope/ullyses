@@ -18,6 +18,7 @@ CAL_VER = 0.1
 RED = "\033[1;31m"
 RESET = "\033[0;0m"
 
+
 class SegmentList:
 
     def __init__(self, grating, path='.'):
@@ -300,27 +301,8 @@ class SegmentList:
         hdul = fits.HDUList([primary, table1, table2])
     
         hdul.writeto(filename, overwrite=overwrite)
-    
-        # from ullyses_jira.parse_csv import parse_name_csv
-        # name_mapping = {}
-        # for ttype in ['lmc', 'smc', 'tts']:
-        #     names_dict = parse_name_csv(ttype)
-        #     name_mapping = {**name_mapping, **names_dict}
-
 
     def obs_footprint(self):
-        # Not using WCS at the moment
-        # This is a placeholder, need to figure out polygon
-#        apertures = list(set([h["aperture"] for h in self.primary_headers]))
-#        ras = list(set([h["ra_targ"] for h in self.primary_headers]))
-#        ra_diff = max(np.abs(ras)) - min(np.abs(ras))
-#        decs = list(set([h["dec_targ"] for h in self.primary_headers]))
-#        dec_diff = max(np.abs(decs)) - min(np.abs(decs))
-#        center_ra = np.average(ras)
-#        center_dec = np.average(decs)
-#        extent_ra = (2.5 / 2 / 3600) + ra_diff
-#        extent_dec = (2.5 / 2 / 3600) + dec_diff
-#        radius = max([extent_ra, extent_dec])
         radius = (2.5 / 2 / 3600)
         center_ra = self.targ_ra
         center_dec = self.targ_dec
@@ -359,8 +341,7 @@ class SegmentList:
         if len(coords) != 0:
             return coords[0][0], coords[0][1]
         else:
-            return avg_ra, avg_dec    
-                                      
+            return avg_ra, avg_dec
                                       
     def combine_keys(self, key, hdrno, method):
         # Allowable methods are min, max, average, sum, multi
@@ -385,12 +366,14 @@ class SegmentList:
         elif method == "sum":
             return np.sum(vals)
 
+
 class STISSegmentList(SegmentList):
 
     def get_gross_counts(self, segment):
        exptime = segment.exptime
        gross = segment.data['gross']
        return np.abs(gross*exptime)
+
 
 class COSSegmentList(SegmentList):
 
@@ -409,6 +392,7 @@ class Segment:
         self.data = None
         self.sdqflags = None
         self.exptime = None
+
 
 def abut(product_short, product_long):
     """Abut the spectra in 2 products.  Assumes the first argument is the shorter
@@ -482,6 +466,7 @@ def abut(product_short, product_long):
     
     product_abutted.targ_ra, product_abutted.targ_dec = product_abutted.ull_coords()
     return product_abutted
+
 
 def find_transition_wavelength(product_short, product_long):
     """Find the wavelength below which we use product_short and above

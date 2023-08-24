@@ -5,11 +5,11 @@ import numpy as np
 
 from astropy.io import fits
 
-from coadd import COSSegmentList, STISSegmentList
-from coadd import abut
+from .coadd import COSSegmentList, STISSegmentList
+from .coadd import abut
 
 default_version = 'dr1'
-PROD_DIR = "/astro/ullyses/ULLYSES_HLSP"
+PROD_DIR = "ULLYSES_HLSP"
 
 '''
 This wrapper goes through each target folder in the ullyses data directory and find
@@ -177,6 +177,7 @@ def create_output_file_name(prod, version=default_version, level=3):
         # Need to add logic for uv-opt here
     name = f"hlsp_ullyses_hst_{instrument}_{target}_{grating}_{version}_{suffix}.fits"
     return name
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
