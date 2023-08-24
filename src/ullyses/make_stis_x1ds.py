@@ -1,17 +1,12 @@
 import datetime
 import shutil
-import numpy as np
 import os
 import glob
 from astropy.io import fits
-import matplotlib
-import matplotlib.pyplot as pl
-from stistools import x1d
-import subprocess
 
 from readwrite_yaml import read_config
-from calibrate_stis_data import wrapper
-from stis_coadd_x1d import coadd_1d_spectra
+from .calibrate_stis_data import wrapper
+from stis_coadd_x1d import coadd_1d_spectra  #TODO: unknown import
 
 TARGS = [# DR2
        "cvso-104", "cvso-107", "cvso-109", "cvso-146", "cvso-165", "cvso-17",
@@ -23,12 +18,12 @@ TARGS = [# DR2
        "hn5", "sstc2dj160000.6-422158"]
 
 VERSION = "dr3"
-HLSPDIR = "/astro/ullyses/ULLYSES_HLSP"
+HLSPDIR = "/astro/ullyses/ULLYSES_HLSP"  #TODO: central store ref
 #HLSPDIR = "ULLYSES_HLSP" 
-VETTED_DIR = "/astro/ullyses/all_vetted_data_dr3"
+VETTED_DIR = "/astro/ullyses/all_vetted_data_dr3"  #TODO: central store ref
 #VETTED_DIR = "all_vetted_data_dr3"
-DATADIR = "/astro/ullyses/ULLYSES_DATA"
-CUSTOM_CAL = "/astro/ullyses/custom_cal"
+DATADIR = "/astro/ullyses/ULLYSES_DATA"  #TODO: central store ref
+CUSTOM_CAL = "/astro/ullyses/custom_cal"  #TODO: central store ref
 CONFIG_DIR = "config_files/"
 #CONFIG_DIR = "test_configs/"
 OUTDIR_ROOT = None

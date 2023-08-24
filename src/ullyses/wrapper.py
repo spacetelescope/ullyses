@@ -3,15 +3,13 @@ from collections import defaultdict
 import argparse
 import os
 import glob
-import numpy as np
-
 from astropy.io import fits
 
-from coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDSegmentList
-from coadd import abut
+from .coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDSegmentList
+from .coadd import abut
 
 DEFAULT_VERSION = 'dr3'
-PROD_DIR = "/astro/ullyses/ULLYSES_HLSP"
+PROD_DIR = "/astro/ullyses/ULLYSES_HLSP"  #TODO: central store ref
 # Some targets have periods in their name and these can break MAST ingest
 # Rename them to remove periods and strip any trailing numbers after periods
 RENAME = {"moa-j010321.3-720538": "moa-j010321-720538",
@@ -25,6 +23,7 @@ RENAME = {"moa-j010321.3-720538": "moa-j010321-720538",
 This wrapper goes through each target folder in the ullyses data directory and find
 the data and which gratings are present. This info is then fed into coadd.py.
 '''
+
 
 def main(indir, outdir, version=DEFAULT_VERSION, clobber=False):
     outdir_inplace = False
@@ -303,7 +302,7 @@ def create_output_file_name(prod, version=DEFAULT_VERSION, level=3):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--indir", default="/astro/ullyses/all_vetted_data/",
+    parser.add_argument("-i", "--indir", default="/astro/ullyses/all_vetted_data/",   #TODO: central store ref
                         help="Directory(ies) with data to combine")
     parser.add_argument("-o", "--outdir", default=None,
                         help="Directory for output HLSPs")

@@ -16,7 +16,8 @@ import os
 import glob
 import argparse
 
-DRDIR = "/astro/ullyses/all_vetted_data_dr3"
+DRDIR = "/astro/ullyses/all_vetted_data_dr3"   #TODO: central store ref
+
 
 def compare_hlsps(oldfile, newfile):
     # First do a fitsdiff
@@ -41,6 +42,7 @@ def compare_hlsps(oldfile, newfile):
         plt.show()
         inp = input("")
         plt.clf()
+
 
 def compare_x1ds(newhlsp):
     # Read in HLSP data and provenance tables
@@ -98,8 +100,8 @@ if __name__ == "__main__":
 
     oldhlsp = args.oldhlsp
     newhlsp = args.newhlsp
-    assert newhlsp != None, "Must supply at least a new HLSP"
-    if oldhlsp != None and newhlsp != None:
+    assert newhlsp is not None, "Must supply at least a new HLSP"
+    if oldhlsp is not None and newhlsp is not None:
         compare_hlsps(oldhlsp, newhlsp)
     else:
         compare_x1ds(newhlsp)

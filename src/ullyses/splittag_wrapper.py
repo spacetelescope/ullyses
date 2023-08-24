@@ -99,6 +99,7 @@ def parseargs():
            args.timelist, starttime, stoptime, increment,\
            args.clobber, args.ncores, args.prefix
 
+
 def clobberfiles(outputfolder):
     """
     Remove old output files
@@ -254,6 +255,7 @@ def main(indir, outdir, tlist=None, start=0, end=1000, incr=30,
     print("\n", "~"*60, "\n", 
           f"Final calibrated products written to {os.path.join(outdir, 'calcosout')}", 
           "\n","~"*60)
+
 
 if __name__ == "__main__":
 

@@ -22,6 +22,7 @@ RESET = "\033[0;0m"
 STIS_NON_CCD_DETECTORS = ['FUV-MAMA', 'NUV-MAMA']
 BAD_SEGMENTS = ['NUVC']
 
+
 class SegmentList:
 
     def __init__(self, grating, path='.'):
@@ -216,7 +217,6 @@ class SegmentList:
         # Clean out NaNs from where flux and net are zero
         good = np.where(~np.isnan(conversion))
         bad = np.where(np.isnan(conversion))
-        lenwl = len(wavelength)
         interpolated_values = np.interp(self.output_wavelength[bad],
                                         self.output_wavelength[good],
                                         conversion[good])
@@ -298,15 +298,15 @@ class SegmentList:
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
         hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
-        hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
-        hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
+        hdr0['TARG_RA'] = (self.targ_ra,  '[deg] Target right ascension')
+        hdr0['TARG_DEC'] = (self.targ_dec,  '[deg] Target declination')
         hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi"), 'Program identifier')
         hdr0.add_blank(after='TARG_DEC')
         hdr0.add_blank('           / PROVENANCE INFORMATION', before='PROPOSID')
         hdr0['CAL_VER'] = (f'ULLYSES Cal {CAL_VER}', 'HLSP processing software version')
         hdr0['HLSPID'] = ('ULLYSES', 'Name ID of this HLSP collection')
         hdr0['HSLPNAME'] = ('Hubble UV Legacy Library of Young Stars as Essential Standards',
-                        'Name ID of this HLSP collection')
+                            'Name ID of this HLSP collection')
         hdr0['HLSPLEAD'] = ('Julia Roman-Duval', 'Full name of HLSP project lead') 
         hdr0['HLSP_VER'] = (version,'HLSP data release version identifier')
         hdr0['HLSP_LVL'] = (level, 'ULLYSES HLSP Level')
@@ -367,20 +367,7 @@ class SegmentList:
         #     names_dict = parse_name_csv(ttype)
         #     name_mapping = {**name_mapping, **names_dict}
 
-
     def obs_footprint(self):
-        # Not using WCS at the moment
-        # This is a placeholder, need to figure out polygon
-#        apertures = list(set([h["aperture"] for h in self.primary_headers]))
-#        ras = list(set([h["ra_targ"] for h in self.primary_headers]))
-#        ra_diff = max(np.abs(ras)) - min(np.abs(ras))
-#        decs = list(set([h["dec_targ"] for h in self.primary_headers]))
-#        dec_diff = max(np.abs(decs)) - min(np.abs(decs))
-#        center_ra = np.average(ras)
-#        center_dec = np.average(decs)
-#        extent_ra = (2.5 / 2 / 3600) + ra_diff
-#        extent_dec = (2.5 / 2 / 3600) + dec_diff
-#        radius = max([extent_ra, extent_dec])
         self.targ_ra, self.targ_dec = self.ull_coords()
         radius = (2.5 / 2 / 3600)
         center_ra = self.targ_ra
@@ -424,43 +411,42 @@ class SegmentList:
             return coords[0][0], coords[0][1]
         else:
             return avg_ra, avg_dec    
-                                      
-                                      
+
     def combine_keys(self, key, method):
-        keymap= {"HST": {"expstart": ("expstart", 1),
-                         "expend": ("expend", 1),
-                         "exptime": ("exptime", 1),
-                         "telescop": ("telescop", 0),
-                         "instrume": ("instrume", 0),
-                         "detector": ("detector", 0),
-                         "opt_elem": ("opt_elem", 0),
-                         "cenwave": ("cenwave", 0),
-                         "aperture": ("aperture", 0),
-                         "obsmode": ("obsmode", 0),
-                         "proposid": ("proposid", 0),
-                         "centrwv": ("centrwv", 0),
-                         "minwave": ("minwave", 0),
-                         "maxwave": ("maxwave", 0),
-                         "filename": ("filename", 0),
-                         "specres": ("specres", 0),
-                         "cal_ver": ("cal_ver", 0)},
-                "FUSE": {"expstart": ("obsstart", 0),
-                         "expend": ("obsend", 0),
-                         "exptime": ("obstime", 0),
-                         "telescop": ("telescop", 0),
-                         "instrume": ("instrume", 0),
-                         "detector": ("detector", 0),
-                         "opt_elem": ("detector", 0),
-                         "cenwave": ("centrwv", 0),
-                         "aperture": ("aperture", 0),
-                         "obsmode": ("instmode", 0),
-                         "proposid": ("prgrm_id", 0),
-                         "centrwv": ("centrwv", 0),
-                         "minwave": ("wavemin", 0),
-                         "maxwave": ("wavemax", 0),
-                         "filename": ("filename", 0),
-                         "specres": ("spec_rp", 1),
-                         "cal_ver": ("cf_vers", 0)}}
+        keymap = {"HST": {"expstart": ("expstart", 1),
+                          "expend": ("expend", 1),
+                          "exptime": ("exptime", 1),
+                          "telescop": ("telescop", 0),
+                          "instrume": ("instrume", 0),
+                          "detector": ("detector", 0),
+                          "opt_elem": ("opt_elem", 0),
+                          "cenwave": ("cenwave", 0),
+                          "aperture": ("aperture", 0),
+                          "obsmode": ("obsmode", 0),
+                          "proposid": ("proposid", 0),
+                          "centrwv": ("centrwv", 0),
+                          "minwave": ("minwave", 0),
+                          "maxwave": ("maxwave", 0),
+                          "filename": ("filename", 0),
+                          "specres": ("specres", 0),
+                          "cal_ver": ("cal_ver", 0)},
+                  "FUSE": {"expstart": ("obsstart", 0),
+                           "expend": ("obsend", 0),
+                           "exptime": ("obstime", 0),
+                           "telescop": ("telescop", 0),
+                           "instrume": ("instrume", 0),
+                           "detector": ("detector", 0),
+                           "opt_elem": ("detector", 0),
+                           "cenwave": ("centrwv", 0),
+                           "aperture": ("aperture", 0),
+                           "obsmode": ("instmode", 0),
+                           "proposid": ("prgrm_id", 0),
+                           "centrwv": ("centrwv", 0),
+                           "minwave": ("wavemin", 0),
+                           "maxwave": ("wavemax", 0),
+                           "filename": ("filename", 0),
+                           "specres": ("spec_rp", 1),
+                           "cal_ver": ("cf_vers", 0)}}
 
         vals = []
         for i in range(len(self.primary_headers)):
@@ -496,11 +482,12 @@ class SegmentList:
 
 # Weight functions for STIS
 weight_function = {
-    'unity':      lambda x, y, z: np.ones(len(x)),
-    'gross':      lambda x, y, z: x,
-    'exptime':    lambda x, y, z: x * y,
+    'unity': lambda x, y, z: np.ones(len(x)),
+    'gross': lambda x, y, z: x,
+    'exptime': lambda x, y, z: x * y,
     'throughput': lambda x, y, z: y * z
 }
+
 
 class STISSegmentList(SegmentList):
 
@@ -535,6 +522,7 @@ class COSSegmentList(SegmentList):
             weight = thru * segment.exptime
 
         return np.abs(weight)
+
 
 class FUSESegmentList(SegmentList):
 
@@ -582,6 +570,7 @@ class FUSESegmentList(SegmentList):
         self.first_good_wavelength = self.output_wavelength[good_dq][0]
         self.last_good_wavelength = self.output_wavelength[good_dq][-1]
         return
+
 
 class CCDSegmentList(SegmentList):
 
@@ -695,6 +684,7 @@ class CCDSegmentList(SegmentList):
         error = segment.data['error']
         inverse_variance = 1.0 / (error*error)
         return inverse_variance
+
 
 class Segment:
 

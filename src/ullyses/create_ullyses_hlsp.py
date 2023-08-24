@@ -9,11 +9,12 @@ import datetime
 from datetime import datetime as dt
 from astropy.time import Time
 
-from ullyses_jira.parse_csv import parse_aliases
+from ullyses_jira.parse_csv import parse_aliases  #TODO: unknown import
 
 VERSION = "dr3"
-CAL_VER = 1.0
+CAL_VER = 1.0  #TODO: mismatch with coadd - should this be 1.1?
 CODEDIR = os.path.dirname(__file__)
+
 
 class Ullyses():
     def __init__(self, files, hlspname, targname, ra, dec, cal_ver, version, 
@@ -23,8 +24,8 @@ class Ullyses():
             assert photfile is not None, "Photometry file must be supplied for LCOGT data"
             self.photfile = photfile
             df = pd.read_csv(self.photfile, 
-                    names=["filename", "mjdstart", "mjdend", "wl", "flux", "err"],
-                    skiprows=[0], delim_whitespace=True)
+                             names=["filename", "mjdstart", "mjdend", "wl", "flux", "err"],
+                             skiprows=[0], delim_whitespace=True)
             df = df.sort_values("mjdstart")
             self.photdf = df
         self.files = files
@@ -66,7 +67,6 @@ class Ullyses():
             self.make_drizzled_prov_ext()
         else:
             print(f"ERROR: HLSP type not '{self.hlsp_type}' recognized. Must be 'spectral', 'imaging', 'drizzled', or 'lcogt'")
-
         
     def write_file(self):
         if self.hlsp_type == "spectral":
@@ -89,7 +89,6 @@ class Ullyses():
             print(f"ERROR: HLSP type not '{self.hlsp_type}' recognized. Must be 'spectral', 'imaging', 'drizzled', or 'lcogt'")
         hdulist.writeto(self.hlspname, overwrite=self.overwrite)
         print(f"Wrote {self.hlspname}")
-
 
     def make_spectral_hdr0(self):
         hdr0 = fits.Header()
@@ -137,8 +136,7 @@ class Ullyses():
         hdr0['MINWAVE'] = (self.combine_keys("minwave", "min"), 'Minimum wavelength in spectrum')                          
         hdr0['MAXWAVE'] = (self.combine_keys("maxwave", "max"), 'Maximum wavelength in spectrum')
     
-        self.hdr0 = hdr0 
-
+        self.hdr0 = hdr0
 
     def make_imaging_hdr0(self):
         hdr0 = fits.Header()
@@ -189,7 +187,6 @@ class Ullyses():
         hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')  
     
         self.hdr0 = hdr0
-    
 
     def make_lcogt_timeseries_hdr0(self):
         hdr0 = fits.Header()
@@ -234,7 +231,6 @@ class Ullyses():
 
         self.hdr0 = hdr0
 
-
     def make_spectral_hdr1(self):
         hdr1 = fits.Header()
         hdr1['EXTNAME'] = ('SCIENCE', 'Spectrum science arrays')
@@ -278,7 +274,6 @@ class Ullyses():
         hdr1['XPOSURE'] = (self.combine_keys("exptime", "sum", "WFC3"), '[s] Sum of exposure durations')
     
         self.hdr1 = hdr1
-    
 
     def make_lcogt_timeseries_data_ext(self):
         hdr1 = fits.Header()
@@ -317,7 +312,7 @@ class Ullyses():
 
         npixels = nrows * ncols
         array_dimensions = '(' + str(ncols) + ', ' + str(nrows) + ')'
-        columns = []
+        columns = list()
         columns.append(fits.Column(name='MJDSTART', format=str(nrows)+'D', unit='Day'))
         columns.append(fits.Column(name='MJDEND', format=str(nrows)+'D', unit='Day'))
         columns.append(fits.Column(name='WAVELENGTH', format=str(ncols)+'E', 
@@ -336,7 +331,6 @@ class Ullyses():
 
         self.data1 = cd
         self.hdu1 = table1
-
 
     def make_drizzled_data_ext(self):
         hdr1 = self.first_headers[0]
@@ -364,8 +358,7 @@ class Ullyses():
         self.hdr1 = hdr1
         self.data1 = data1
         self.hdu1 = fits.ImageHDU(data1, header=hdr1) 
-    
-    
+
     def make_drizzled_wgt_ext(self):
         hdr2 = self.second_headers[0]
         del hdr2["ROOTNAME"]
@@ -379,7 +372,6 @@ class Ullyses():
         self.hdr2 = hdr2
         self.data2 = data2
         self.hdu2 = fits.ImageHDU(data2, header=hdr2) 
-          
 
     def make_spectral_prov_ext(self):
         hdr = fits.Header()
@@ -421,28 +413,27 @@ class Ullyses():
         self.prov_hdr = hdr
         self.prov_data = cd2
         self.prov_hdu = table2
-    
 
     def make_imaging_prov_ext(self):
         hdr = fits.Header()
         hdr['EXTNAME'] = ('PROVENANCE', 'Metadata for contributing observations')
         # set up the table columns
         cfn = fits.Column(name='FILENAME', array=self.combine_keys("filename", "arr"), 
-            format='A40')
+                          format='A40')
         cpid = fits.Column(name='PROPOSID', array=self.combine_keys("proposid", "arr"), 
-            format='A32')
+                           format='A32')
         ctel = fits.Column(name='TELESCOPE', array=self.combine_keys("telescop", "arr"), 
-            format='A32')
+                           format='A32')
         cins = fits.Column(name='INSTRUMENT', array=self.combine_keys("instrume", "arr"), 
-            format='A32')
+                           format='A32')
         cdet = fits.Column(name='DETECTOR', array=self.combine_keys("detector", "arr"), 
-            format='A32')
+                           format='A32')
         cfil = fits.Column(name='FILTER', array=self.combine_keys("filter", "arr"), 
-            format='A32')
+                           format='A32')
         cap = fits.Column(name='APERTURE', array=self.combine_keys("aperture", "arr"), 
-            format='A32')
+                          format='A32')
         ccv = fits.Column(name='CAL_VER', array=self.combine_keys("cal_ver", "arr"), 
-            format='A32')
+                          format='A32')
         mjd_begs = self.combine_keys("expstart", "arr", "WFC3")
         mjd_ends = self.combine_keys("expend", "arr", "WFC3")
         mjd_mids = (mjd_ends + mjd_begs) / 2.
@@ -457,7 +448,6 @@ class Ullyses():
         self.prov_hdr = hdr
         self.prov_data = cd2
         self.prov_hdu = table2
-    
 
     def make_lcogt_timeseries_prov_ext(self):
         hdr = fits.Header()
@@ -465,21 +455,21 @@ class Ullyses():
         # set up the table columns
         files = [os.path.basename(x) for x in self.files]
         cfn = fits.Column(name='FILENAME', array=files,
-            format='A40')
+                          format='A40')
         cpid = fits.Column(name='PROPOSID', array=self.combine_keys("proposid", "arr", "LCOGT"), 
-            format='A32')
+                           format='A32')
         ctel = fits.Column(name='TELESCOPE', array=self.combine_keys("telescop", "arr", "LCOGT"), 
-            format='A32')
+                           format='A32')
         cins = fits.Column(name='INSTRUMENT', array=self.combine_keys("instrume", "arr", "LCOGT"), 
-            format='A32')
+                           format='A32')
         cdet = fits.Column(name='DETECTOR', array=self.combine_keys("detector", "arr", constant="LCOGT"), 
-            format='A32')
+                           format='A32')
         cfil = fits.Column(name='FILTER', array=self.combine_keys("filter", "arr", "LCOGT"), 
-            format='A32')
+                           format='A32')
         cap = fits.Column(name='APERTURE', array=self.combine_keys("aperture", "arr", constant="LCOGT"), 
-            format='A32')
+                          format='A32')
         ccv = fits.Column(name='CAL_VER', array=self.combine_keys("cal_ver", "arr", "LCOGT"), 
-            format='A32')
+                          format='A32')
         
         mjd_begs = self.photdf["mjdstart"].to_numpy()
         mjd_ends = self.photdf["mjdend"].to_numpy()
@@ -496,7 +486,6 @@ class Ullyses():
         self.prov_data = cd2
         self.prov_hdu = table2
 
-
     def make_drizzled_prov_ext(self):
         hdr = fits.Header()
         data = fits.getdata(self.files[0], 4)
@@ -510,21 +499,21 @@ class Ullyses():
         hdr['EXTNAME'] = ('PROVENANCE', 'Metadata for contributing observations')
         # set up the table columns
         cfn = fits.Column(name='FILENAME', array=data["filename"][inds], 
-            format='A40')
+                          format='A40')
         cpid = fits.Column(name='PROPOSID', array=data["proposid"][inds],
-            format='A32')
+                           format='A32')
         ctel = fits.Column(name='TELESCOPE', array=data["telescop"][inds],
-            format='A32')
+                           format='A32')
         cins = fits.Column(name='INSTRUMENT', array=data["instrume"][inds],
-            format='A32')
+                           format='A32')
         cdet = fits.Column(name='DETECTOR', array=data["detector"][inds],
-            format='A32')
+                           format='A32')
         cfil = fits.Column(name='FILTER', array=data["filter"][inds],
-            format='A32')
+                           format='A32')
         cap = fits.Column(name='APERTURE', array=data["aperture"][inds],
-            format='A32')
+                          format='A32')
         ccv = fits.Column(name='CAL_VER', array=data["cal_ver"][inds],
-            format='A32')
+                          format='A32')
         mjd_begs = data["expstart"][inds]
         mjd_ends = data["expend"][inds] 
         mjd_mids = (mjd_ends + mjd_begs) / 2.
@@ -540,64 +529,63 @@ class Ullyses():
         self.prov_data = cd2
         self.prov_hdu = table2
 
-
     def combine_keys(self, key, method, dict_key=None, constant=None):
-        keymap= {"HST": {"expstart": ("expstart", 1),
-                         "expend": ("expend", 1),
-                         "exptime": ("exptime", 1),
-                         "telescop": ("telescop", 0),
-                         "instrume": ("instrume", 0),
-                         "detector": ("detector", 0),
-                         "opt_elem": ("opt_elem", 0),
-                         "filter": ("filter", 0),
-                         "fgslock": ("fgslock", 0),
-                         "gyromode": ("gyromode", 0),
-                         "flashdur": ("flashdur", 0),
-                         "flashcur": ("flashcur", 0),
-                         "flashlvl": ("flashlvl", 0),
-                         "flashsta": ("flashsta", 0),
-                         "cenwave": ("cenwave", 0),
-                         "aperture": ("aperture", 0),
-                         "obsmode": ("obsmode", 0),
-                         "proposid": ("proposid", 0),
-                         "centrwv": ("centrwv", 0),
-                         "minwave": ("minwave", 0),
-                         "maxwave": ("maxwave", 0),
-                         "filename": ("filename", 0),
-                         "specres": ("specres", 0),
-                         "cal_ver": ("cal_ver", 0)},
-                "WFC3": {"expstart": ("expstart", 0),
-                         "expend": ("expend", 0),
-                         "exptime": ("exptime", 0)},
-                "FUSE": {"expstart": ("obsstart", 0),
-                         "expend": ("obsend", 0),
-                         "exptime": ("obstime", 0),
-                         "telescop": ("telescop", 0),
-                         "instrume": ("instrume", 0),
-                         "detector": ("detector", 0),
-                         "opt_elem": ("detector", 0),
-                         "cenwave": ("centrwv", 0),
-                         "aperture": ("aperture", 0),
-                         "obsmode": ("instmode", 0),
-                         "proposid": ("prgrm_id", 0),
-                         "centrwv": ("centrwv", 0),
-                         "minwave": ("wavemin", 0), 
-                         "maxwave": ("wavemax", 0),
-                         "filename": ("filename", 0),
-                         "specres": ("spec_rp", 1),
-                         "cal_ver": ("cf_vers", 0)},
-               "LCOGT": {"expstart": ("date-obs", 1),
-                         "expend": ("exptime", 1),
-                         "exptime": ("exptime", 1),
-                         "telescop": ("telescop", 1),
-                         "instrume": ("instrume", 1),
-                         "detector": ("telescop", 1),
-                         "opt_elem": ("telescop", 1),
-                         "proposid": ("propid", 1),
-                         "filename": ("origname", 1),
-                         "filter": ("filter", 1),
-                         "cal_ver": ("pipever", 1)}
-                         }
+        keymap = {"HST": {"expstart": ("expstart", 1),
+                          "expend": ("expend", 1),
+                          "exptime": ("exptime", 1),
+                          "telescop": ("telescop", 0),
+                          "instrume": ("instrume", 0),
+                          "detector": ("detector", 0),
+                          "opt_elem": ("opt_elem", 0),
+                          "filter": ("filter", 0),
+                          "fgslock": ("fgslock", 0),
+                          "gyromode": ("gyromode", 0),
+                          "flashdur": ("flashdur", 0),
+                          "flashcur": ("flashcur", 0),
+                          "flashlvl": ("flashlvl", 0),
+                          "flashsta": ("flashsta", 0),
+                          "cenwave": ("cenwave", 0),
+                          "aperture": ("aperture", 0),
+                          "obsmode": ("obsmode", 0),
+                          "proposid": ("proposid", 0),
+                          "centrwv": ("centrwv", 0),
+                          "minwave": ("minwave", 0),
+                          "maxwave": ("maxwave", 0),
+                          "filename": ("filename", 0),
+                          "specres": ("specres", 0),
+                          "cal_ver": ("cal_ver", 0)},
+                  "WFC3": {"expstart": ("expstart", 0),
+                           "expend": ("expend", 0),
+                           "exptime": ("exptime", 0)},
+                  "FUSE": {"expstart": ("obsstart", 0),
+                           "expend": ("obsend", 0),
+                           "exptime": ("obstime", 0),
+                           "telescop": ("telescop", 0),
+                           "instrume": ("instrume", 0),
+                           "detector": ("detector", 0),
+                           "opt_elem": ("detector", 0),
+                           "cenwave": ("centrwv", 0),
+                           "aperture": ("aperture", 0),
+                           "obsmode": ("instmode", 0),
+                           "proposid": ("prgrm_id", 0),
+                           "centrwv": ("centrwv", 0),
+                           "minwave": ("wavemin", 0),
+                           "maxwave": ("wavemax", 0),
+                           "filename": ("filename", 0),
+                           "specres": ("spec_rp", 1),
+                           "cal_ver": ("cf_vers", 0)},
+                  "LCOGT": {"expstart": ("date-obs", 1),
+                           "expend": ("exptime", 1),
+                           "exptime": ("exptime", 1),
+                           "telescop": ("telescop", 1),
+                           "instrume": ("instrume", 1),
+                           "detector": ("telescop", 1),
+                           "opt_elem": ("telescop", 1),
+                           "proposid": ("propid", 1),
+                           "filename": ("origname", 1),
+                           "filter": ("filter", 1),
+                           "cal_ver": ("pipever", 1)}
+                           }
 
         if constant is not None:
             vals = [constant for x in self.primary_headers]
@@ -651,26 +639,14 @@ class Ullyses():
     def obs_footprint(self):
         # Not using WCS at the moment
         # This is a placeholder, need to figure out polygon
-#        apertures = list(set([h["aperture"] for h in self.primary_headers]))
-#        ras = list(set([h["ra_targ"] for h in self.primary_headers]))
-#        ra_diff = max(np.abs(ras)) - min(np.abs(ras))
-#        decs = list(set([h["dec_targ"] for h in self.primary_headers]))
-#        dec_diff = max(np.abs(decs)) - min(np.abs(decs))
-#        center_ra = np.average(ras)
-#        center_dec = np.average(decs)
-#        extent_ra = (2.5 / 2 / 3600) + ra_diff
-#        extent_dec = (2.5 / 2 / 3600) + dec_diff
-#        radius = max([extent_ra, extent_dec])
         radius = (2.5 / 2 / 3600)
         center_ra = self.targ_ra
         center_dec = self.targ_dec
-
 
     def filter_to_wl(self, filts):
         conv = {"V": 5500, "ip": 7718.28}
         wl = np.array([conv[x] for x in filts])
         return wl
-
 
     def mag_to_flux(self, mags, filts):
         """
@@ -682,9 +658,10 @@ class Ullyses():
         flux = (10 ** (-mags / 2.5)) * filt_zpts
         return flux
 
+
 def make_imaging_hlsps():
-    datadirs = {"ngc3109-01": "/astro/ullyses/PRE-IMAGING/NGC3109_DATA/drizzled/vis01",
-                "ngc3109-02": "/astro/ullyses/PRE-IMAGING/NGC3109_DATA/drizzled/vis02"}
+    datadirs = {"ngc3109-01": "/astro/ullyses/PRE-IMAGING/NGC3109_DATA/drizzled/vis01",  #TODO: central store ref
+                "ngc3109-02": "/astro/ullyses/PRE-IMAGING/NGC3109_DATA/drizzled/vis02"}  #TODO: central store ref
     
     for targ,datadir in datadirs.items():
         files = glob.glob(os.path.join(datadir, "*drc.fits"))
@@ -693,7 +670,7 @@ def make_imaging_hlsps():
             ra = fits.getval(item, "ra_targ")
             dec = fits.getval(item, "dec_targ")
             hlspname = f"hlsp_ullyses_hst_wfc3_{targ}_{filt.lower()}_{VERSION}_drc.fits"
-            outdir = f"/astro/ullyses/ULLYSES_HLSP/{targ}/{VERSION}"
+            outdir = f"/astro/ullyses/ULLYSES_HLSP/{targ}/{VERSION}"  #TODO: central store ref
             if not os.path.exists(outdir):
                 os.makedirs(outdir)
             outfile = os.path.join(outdir, hlspname)
@@ -728,12 +705,12 @@ def make_lcogt_tss():
                 skiprows=[0], delim_whitespace=True)
         df = df.sort_values("mjdstart")
         filenames = df.filename.tolist()
-        filepaths = [f"/astro/ullyses/lcogt_data/{targ}/{x}" for x in filenames]
+        filepaths = [f"/astro/ullyses/lcogt_data/{targ}/{x}" for x in filenames]  #TODO: central store ref
         hlspname = f"hlsp_ullyses_lcogt_04m_{ull_targname.lower()}_v-iprime_{VERSION}_tss.fits"
-        outdir = f"/astro/ullyses/ULLYSES_HLSP/{ull_targname.lower()}/{VERSION}"
+        outdir = f"/astro/ullyses/ULLYSES_HLSP/{ull_targname.lower()}/{VERSION}"  #TODO: central store ref
         if not os.path.exists(outdir):
             os.makedirs(outdir)
         outfile = os.path.join(outdir, hlspname)
-        U =Ullyses(filepaths, outfile, ull_targname, ra, dec, CAL_VER, VERSION, 5, "lcogt", photfile=photfile)
-        U.make_hdrs_and_prov()
-        U.write_file() 
+        ull = Ullyses(filepaths, outfile, ull_targname, ra, dec, CAL_VER, VERSION, 5, "lcogt", photfile=photfile)
+        ull.make_hdrs_and_prov()
+        ull.write_file()

@@ -1,13 +1,10 @@
 import shutil
-from astropy.io import fits as pf
 import glob
 import os
-import numpy as np
-import matplotlib.pyplot as pl
 
-from fuse_add_dq import add_dq_col
+from .fuse_add_dq import add_dq_col
 
-DRDIR = "/astro/ullyses/all_vetted_data_dr3"
+DRDIR = "/astro/ullyses/all_vetted_data_dr3"   #TODO: central store ref
 
 # DR1 FUSE targets that require custom flagging
 # DQ=1 (Worm)
@@ -182,7 +179,7 @@ def flag_data():
     targstoedit = list(FILESTOEDIT.keys())
     all_targs = FUSE_DR2 + FUSE_DR3
     for targ in all_targs:
-        vofiles0 = glob.glob(os.path.join("/astro/ullyses/fuse_data", targ, "*_vo.fits"))
+        vofiles0 = glob.glob(os.path.join("/astro/ullyses/fuse_data", targ, "*_vo.fits"))  #TODO: central store ref
         vofiles = [x for x in vofiles0 if "dqscreened" not in x]
         if len(vofiles) > 1:
             print(f"more than one VO file for {targ}, exiting")
@@ -190,7 +187,7 @@ def flag_data():
         vofile = vofiles[0]
         vofilename = os.path.basename(vofile)
         outfilename = "dqscreened_"+vofilename
-        outfile = os.path.join("/astro/ullyses/fuse_data", targ, outfilename)
+        outfile = os.path.join("/astro/ullyses/fuse_data", targ, outfilename)  #TODO: central store ref
         # We don't edit FUSE data from DR to DR, so if a product already exists,
         # skip that target. This might change in the future.
         if os.path.exists(outfile):
@@ -206,7 +203,7 @@ def flag_data():
 def copy_data():
     all_targs = FUSE_DR2 + FUSE_DR3
     for targ in all_targs:
-        screened = glob.glob(os.path.join("/astro/ullyses/fuse_data", targ, "dqscreened*_vo.fits"))
+        screened = glob.glob(os.path.join("/astro/ullyses/fuse_data", targ, "dqscreened*_vo.fits"))  #TODO: central store ref
         for item in screened:
             shutil.copy(item, os.path.join(DRDIR, targ.lower()))
     print(f"Copied flagged files to {DRDIR}")

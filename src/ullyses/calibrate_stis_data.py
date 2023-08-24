@@ -5,35 +5,35 @@ import os
 from astropy.io import fits
 import shutil
 import glob
-import itertools
 import numpy as np
 import sys
 import stistools
 from stistools import x1d
 from stistools.ocrreject import ocrreject
-#import stis_cti
-from matplotlib import pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
+from .readwrite_yaml import read_config, write_config
+import plot_stis_data  #TODO: unknown import
 
-from readwrite_yaml import read_config, write_config
-import plot_stis_data
-os.environ["oref"] = "/grp/hst/cdbs/oref/"
+os.environ["oref"] = "/grp/hst/cdbs/oref/"  #TODO: central store ref
 
-OREF_DIR = "/grp/hst/cdbs/oref"
+OREF_DIR = "/grp/hst/cdbs/oref"  #TODO: central store ref
 SYM = "~"
 NCOLS = 72
 SEP = f"\n!{'~'*70}!\n"
 
+
 class Tee():
     def __init__(self, *files):
         self.files = files
+
     def write(self, obj):
         for f in self.files:
             f.write(obj)
             f.flush() # If you want the output to be visible immediately
+
     def flush(self) :
         for f in self.files:
             f.flush()
+
 
 class StisData():
     """
@@ -47,10 +47,7 @@ class StisData():
         rootname (dict): Dictionary where each key is a dictionary- each key
             is the rootname and vals describe dataset properties (detector,
             dither offset, actual file name).
-        _sci_dir (str): 'sci' directory used by stis_cti
-        _dark_dir (str): 'dark' directory used by stis_cti
-        _ref_dir (str): 'ref' directory used by stis_cti
-#!!!        combined (dict): Nested dictionary where keys are the filenames of 
+        combined (dict): Nested dictionary where keys are the filenames of
             the combined FLTs and FLCs; each nested dict listing the
             visit and detector values.
         x1d (list): List of final x1d products. 
@@ -128,7 +125,6 @@ class StisData():
             if change_sci_val:
                 print("Changing large negative values to large positive values...")
                 sci_hdu[1].data[neg] = sci_val
-        
 
     def custom_dq16(self, dq=16, threshold=0.06):
         """
@@ -189,16 +185,12 @@ class StisData():
                     print(f"Made directory: {customdark_dir}")
     
                 # Determine DARKFILE filename.
-                if self.do_perform_cti is True:
-                    darkname = os.path.basename(darkfile0)
-                    darkfile = os.path.join(self._ref_dir, darkname)
+                if "oref" in darkfile0:
+                    darkname = darkfile0.split("$")[1]
+                    darkfile = os.path.join(OREF_DIR, darkname)
                 else:
-                    if "oref" in darkfile0:
-                        darkname = darkfile0.split("$")[1]
-                        darkfile = os.path.join(OREF_DIR, darkname)
-                    else:
-                        darkname = os.path.basename(darkfile0)
-                        darkfile = os.path.join(OREF_DIR, darkname)
+                    darkname = os.path.basename(darkfile0)
+                    darkfile = os.path.join(OREF_DIR, darkname)
 
 
                 # Remove any existing DQ={dq} flags from FLT, since they are
@@ -241,7 +233,6 @@ class StisData():
                         new_dark.append(fits.ImageHDU(dark_dq, dark_hdu[3].header, name=dark_hdu[3].name))
                         new_dark.writeto(new_dark_file)
                     print(f"Wrote new darkfile: {new_dark_file}")
-            
 
     def extract_spectra(self):
         """
@@ -259,7 +250,7 @@ class StisData():
             if "out_drj" not in target_pars:
                 if self.detector == "CCD":
                     infile = self.crj
-                    kwargs = {"ctecorr": "omit" if self.do_perform_cti is True else "perform"}
+                    kwargs = {"ctecorr": "perform"}
                 else:
                     infile = self.flt
             else:
@@ -287,7 +278,6 @@ class StisData():
                 **kwargs)
             print(f"Wrote x1d file: {outfile}")
 
-
     def find_product(self, ext):
         prod = os.path.join(self.basedir, self.rootname+"_"+ext+".fits")
         if not os.path.exists(prod):
@@ -299,16 +289,12 @@ class StisData():
             with fits.open(prod, mode="update") as hdulist:
                 hdr0 = hdulist[0].header
                 darkfile = hdr0["darkfile"]
-                if "ctiref" in darkfile:
-                    darkfile = darkfile.replace("$ctirefs/", self._ref_dir)
-                    hdr0.set("DARKFILE", darkfile)
         return prod
-
 
     def update_header(self):
         nowdt = datetime.datetime.now()
         nowdt_str = nowdt.strftime("%Y%m%d_%H%M")
-        for target,target_pars in self.target_dict.items():
+        for target, target_pars in self.target_dict.items():
             with fits.open(target_pars["out_x1d"], mode="update") as hdulist:
                 hdulist[0].header["HLSP_LVL"] = 0
                 hdulist[0].header["ULL_CAL"] = "COMPLETE"
@@ -320,7 +306,6 @@ class StisData():
                     hdulist[0].header["RA_TARG"] = target_pars["coords"]["ra"]
                     hdulist[0].header["DEC_TARG"] = target_pars["coords"]["dec"]
 
-
     def printintro(self):
         print("\n", f" RUNNING ON {os.path.basename(self.infile)} ".center(NCOLS, SYM), "\n")
         print(f"Filename: {self.infile}")
@@ -329,7 +314,6 @@ class StisData():
         print("Target(s):")
         for target in self.target_dict:
             print(f"\t{target}")
-
 
     def make_plots(self):
         if self.x1d_mast is not None:
@@ -346,10 +330,11 @@ class StisData():
             twod_im = self.crj
         else:
             twod_im = self.flt
-        for target,target_pars in self.target_dict.items():
+        for target, target_pars in self.target_dict.items():
             customx1d = target_pars['out_x1d']
             pdffile = plot_stis_data.plot_all_2d(twod_im, self.acq, customx1d, target, self.outdir)
             self.target_dict[target]["twod_plot"] = pdffile
+
 
 class StisCcd(StisData):
     def __init__(self, infile, yamlfile, dolog=True, logfile=None, outdir=None, 
@@ -369,52 +354,11 @@ class StisCcd(StisData):
             self.crj = infile
     
         self.do_custom_dq16 = True
-        self.do_perform_cti = self.custom_cti_applied = False
         self.cti_proc = 10
         self.needs_crrej = self.do_crrej = self.custom_crrej_applied = False
         self.do_defringe = False
         self.defringe_applied = False
-        
-        self._sci_dir = self.outdir
-        self._dark_dir = "/astro/ullyses/stis_ccd_data/darks"
-        self._ref_dir = "/astro/ullyses/stis_ccd_data/cti_refs"
-        os.environ["ctirefs"] = "/astro/ullyses/stis_ccd_data/cti_refs/"
-        
         self.crsplit = fits.getval(infile, "crsplit")
-   
-    
-    def perform_cti(self):
-        """
-        Run the STIS CTI code on STIS CCD data.
-        """
-        
-        print("\n", f" PERFORMING CTI ".center(NCOLS, SYM), "\n")
-        
-        # These directories need to exist for stis_cti to run. 
-        for direc in [self._dark_dir, self._ref_dir, self._sci_dir]:
-            if not os.path.exists(direc):
-                os.mkdir(direc)
-                print(f"Made directory: {direc}")
-
-        # stis_cti needs raw, epc, spt, asn, and wav files as input.
-        print("Copying CCD datasets to science directory...")
-        allfiles = glob.glob(os.path.join(self.basedir, "*_raw.fits")) + \
-                   glob.glob(os.path.join(self.basedir, "*_epc.fits")) + \
-                   glob.glob(os.path.join(self.basedir, "*_spt.fits")) + \
-                   glob.glob(os.path.join(self.basedir, "*_asn.fits")) + \
-                   glob.glob(os.path.join(self.basedir, "*_wav.fits"))
-        for item in allfiles:
-            try:
-                shutil.copy(item, self._sci_dir)
-            except shutil.SameFileError:
-                pass
-    
-        # Run stis_cti
-        stis_cti.stis_cti(self._sci_dir, self._dark_dir, self._ref_dir, self.cti_proc, verbose=True, clean=True)
-        self.flt = os.path.join(self.outdir, self.rootname+"_flc.fits")
-        self.crj = os.path.join(self.outdir, self.rootname+"_crc.fits")
-#        self.copy_products()
-
 
     def copy_products(self):
         """
@@ -427,13 +371,7 @@ class StisCcd(StisData):
             print("WARNING: Output directory already exists, deleting {0}".format(self.outdir))
             shutil.rmtree(self.outdir)
         os.mkdir(self.outdir)
-    
-        # If stis_cti was not run, define the stis_cti products directories.
-        if not hasattr(self, "_sci_dir"):
-            self._sci_dir = os.path.join(self.basedir, "science")
-            self._dark_dir = os.path.join(self.basedir, "darks")
-            self._ref_dir = os.path.join(self.basedir, "ref")
-       
+
         # For CCD data, copy FLCs. For MAMA data, copy FLTs.
         flc_files = glob.glob(os.path.join(self._sci_dir, "*flc.fits"))
         crc_files = glob.glob(os.path.join(self._sci_dir, "*crc.fits"))
@@ -443,7 +381,6 @@ class StisCcd(StisData):
         print(f"Copied FLC and CRC files to {self.outdir}")
         self.flt = os.path.join(self.outdir, self.rootname+"_flc.fits")
         self.crj = os.path.join(self.outdir, self.rootname+"_crc.fits")
-
 
     def check_crrej(self):
         
@@ -496,7 +433,6 @@ class StisCcd(StisData):
             print("Extraction region rejection rate is above threshold")
             self.needs_crrej = True
 
-    
     def custom_crrej(self):
         """
         Check on CR rejection rate comes from Joleen Carlberg's code: 
@@ -511,10 +447,7 @@ class StisCcd(StisData):
         else:
             return
         
-        if self.do_perform_cti is True:
-            outfile = os.path.join(self.outdir, self.rootname+"_crc.fits")
-        else:
-            outfile = os.path.join(self.outdir, self.rootname+"_crj.fits")
+        outfile = os.path.join(self.outdir, self.rootname+"_crj.fits")
         if os.path.exists(outfile):
             os.remove(outfile)
         
@@ -531,7 +464,6 @@ class StisCcd(StisData):
         print(f"Wrote crj file: {outfile}")
         self.crj = outfile
 
-    
     def defringe(self):
         
         for target,target_pars in self.target_dict.items():
@@ -596,11 +528,8 @@ class StisCcd(StisData):
                 pass
             print(f"Wrote defringed crj file: {outfile_dest}")
 
-
     def run_all(self):
         self.printintro()
-        if self.do_perform_cti is True:
-            self.perform_cti()
         if self.do_flag_negatives is True:
             self.flag_negatives()
         self.check_crrej()
@@ -613,7 +542,6 @@ class StisCcd(StisData):
         self.update_header()
         self.make_plots()
         self.printfinal()
-    
 
     def printfinal(self):
         print("\n", f" RECALIBRATION SUMMARY ".center(NCOLS, SYM), "\n")
@@ -643,10 +571,7 @@ class StisCcd(StisData):
                 print(f"\t{target_pars['twod_plot']}")
 
         print("")
-        if self.do_perform_cti is True:
-            print("* Pixel-based CTI correction performed")
-        else:
-            print("* Default CalSTIS empirical CTI correction performed")
+        print("* Default CalSTIS empirical CTI correction performed")
         if self.custom_dq16_applied is True:
             print("* Custom DQ=16 flagging has been applied")
         else:
@@ -676,7 +601,6 @@ class StisMama(StisData):
         if self.infile_type == "flt":
             self.flt = infile
 
-
     def run_all(self):
         self.printintro()
         if self.do_flag_negatives is True:
@@ -687,7 +611,6 @@ class StisMama(StisData):
         self.update_header()
         self.make_plots()
         self.printfinal()
-    
 
     def printfinal(self):
         print("\n", f" RECALIBRATION SUMMARY ".center(NCOLS, SYM), "\n")

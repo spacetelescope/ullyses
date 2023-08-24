@@ -7,19 +7,20 @@ import pandas as pd
 import datetime
 
 SHIFTS = {"sz10": "cos_shift_files/sz10_shifts.txt"}
-CUSTOM_DIR = "/astro/ullyses/custom_cal"
-VETTED_DIR = "/astro/ullyses/all_vetted_data_dr3"
+CUSTOM_DIR = "/astro/ullyses/custom_cal"  #TODO: central store ref
+VETTED_DIR = "/astro/ullyses/all_vetted_data_dr3"  #TODO: central store ref
 OUTDIR_ROOT = None
 nowdt = datetime.datetime.now()
 if OUTDIR_ROOT is None:
     OUTDIR_ROOT = nowdt.strftime("%Y%m%d_%H%M")
 
+
 def apply_shifts():
-    for targ,shift_file in SHIFTS.items():
+    for targ, shift_file in SHIFTS.items():
         seen = []
         df = pd.read_csv(shift_file, delim_whitespace=True, 
-            names=["rootname", "fppos", "flash", "segment", "shift1"], 
-            header=None)
+                         names=["rootname", "fppos", "flash", "segment", "shift1"],
+                         header=None)
         roots = df["rootname"]
         for root in roots:
             ipppss = root[:6]
@@ -28,7 +29,7 @@ def apply_shifts():
             else:
                 continue
             files = glob.glob(os.path.join(CUSTOM_DIR, targ,  
-                          f"{ipppss}*asn.fits"))
+                              f"{ipppss}*asn.fits"))
             assert len(files) != 0, f"No files found for {targ}"
             outdir = os.path.join(CUSTOM_DIR, targ, OUTDIR_ROOT)
             if not os.path.exists(outdir):
@@ -46,6 +47,7 @@ def apply_shifts():
                 shutil.copy(x1d, copydir)
             print(f"Copied custom x1ds to {copydir}")
     print(f"Copied custom x1ds to {VETTED_DIR}")
+
 
 if __name__ == "__main__":
     apply_shifts()
