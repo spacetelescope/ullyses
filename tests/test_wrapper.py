@@ -6,6 +6,7 @@ import urllib.request
 import tarfile
 import pytest
 
+from astropy.io import fits
 from astropy.io.fits import FITSDiff
 
 from ullyses import wrapper
@@ -31,13 +32,13 @@ COS_TARGETS = {'sk-70d16': {'truth': ['hlsp_ullyses_hst_cos_sk-70d16_g130m-g160m
                                       'hlsp_ullyses_hst_cos_sk-70d16_g130m_dr6_cspec.fits',
                                       'hlsp_ullyses_hst_cos_sk-70d16_g160m_dr6_cspec.fits',
                                       'hlsp_ullyses_hst_cos_sk-70d16_g185m_dr6_cspec.fits'],
-                            'input': ['le9r4cwyq_x1d.fits', 'le9r4cx1q_x1d.fits',
-                                      'le9r4cxeq_x1d.fits', 'le9r4cx7q_x1d.fits',
-                                      'le9r4cx4q_x1d.fits', 'le9r4cxaq_x1d.fits',
-                                      'le9r4cxpq_x1d.fits', 'le9r4cxtq_x1d.fits',
-                                      'le9r4cxxq_x1d.fits', 'le9r4cxzq_x1d.fits',
-                                      'le9r4cxiq_x1d.fits', 'le9r4cxmq_x1d.fits',
-                                      'le9r4cy2q_x1d.fits', 'le9r4cxkq_x1d.fits']},
+                            'input': [('le9r4cwyq_x1d.fits', 'LE9R4C010'), ('le9r4cx1q_x1d.fits', 'LE9R4C010'),
+                                      ('le9r4cxeq_x1d.fits', 'LE9R4C010'), ('le9r4cx7q_x1d.fits', 'LE9R4C010'),
+                                      ('le9r4cx4q_x1d.fits', 'LE9R4C010'), ('le9r4cxaq_x1d.fits', 'LE9R4C010'),
+                                      ('le9r4cxpq_x1d.fits', 'LE9R4C010'), ('le9r4cxtq_x1d.fits', 'LE9R4C010'),
+                                      ('le9r4cxxq_x1d.fits', 'LE9R4C010'), ('le9r4cxzq_x1d.fits', 'LE9R4C010'),
+                                      ('le9r4cxiq_x1d.fits', 'LE9R4C010'), ('le9r4cxmq_x1d.fits', 'LE9R4C010'),
+                                      ('le9r4cy2q_x1d.fits', 'LE9R4C010'), ('le9r4cxkq_x1d.fits', 'LE9R4C010'),]},
                'n11-els-018': {'truth': [],
                                'input': []}}
 
@@ -52,8 +53,8 @@ RELEASE = 'dr6'
 class TestWrapper():
 
     def test_cos_data(self):
-        for target in COS_TARGETS:
-            self.setup_tree(COS_TARGETS[target])
+        for target in COS_TARGETS.keys():
+            self.setup_tree(target, COS_TARGETS[target], RELEASE)
             self.run_wrapper('./')
             report = self.compare_outputs()
             self.cleanup(target)
@@ -89,12 +90,17 @@ class TestWrapper():
             shutil.rmtree(target)
         if os.path.isdir('truth'):
             shutil.rmtree('truth')
+        os.mkdir(target)
+        os.mkdir(target + '/truth')
+        os.mkdir(target + '/input')
         for ufile in targetdict['truth']:
             fullurl = self.construct_ullyses_url(target, ufile, release)
-            print("Retrieving {}".format(fullurl))
-            urllib.request.urlretrieve(fullurl, ufile)
-#        os.mkdir('truth')
-#        os.chdir(target)
+            print(f'Retrieving {fullurl}')
+            urllib.request.urlretrieve(fullurl, target + '/truth/' + ufile)
+        for ufile, asn_id in targetdict['input']:
+            fullurl = self.construct_rawdata_url(ufile, asn_id)
+            print(f'Retrieving {fullurl}')
+            urllib.request.urlretrieve(fullurl, target + '/input/' + ufile)
 #        hlsps = glob.glob('hlsp_ullyses*')
 #        for datafile in hlsps:
 #            os.rename(datafile,'../truth/'+datafile)
@@ -105,8 +111,7 @@ class TestWrapper():
         fullurl = firstpart + target + '%2F' + release + '%2F' + filename
         return fullurl
 
-    def construct_rawdata_url(self, filename):
-        asn_id = fits.getval(filename, 'ASN_ID')
+    def construct_rawdata_url(self, filename, asn_id):
         fullurl = "https://mast.stsci.edu/search/hst/api/v0.1/retrieve_product?product_name=" + asn_id + "%2F" + filename
         return fullurl
 
