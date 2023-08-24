@@ -15,7 +15,7 @@ def add_column(infile, outfile, colext, colname, colformat, colvals,
         colformat (str): Format of new column
         colvals (array): Array of new column values
         colunit (str): Optional, unit of new column 
-        overwite (Bool): If True, overwrite any existing files
+        overwrite (bool): If True, overwrite any existing files
     """
 
     hdr0 = fits.getheader(infile, 0)

@@ -3,26 +3,25 @@ import numpy as np
 import os
 import glob
 from astropy.io import fits as pf
-import matplotlib
 import matplotlib.pyplot as pl
 from stistools import x1d
 import subprocess
 
-from coadd import STISSegmentList
-from calibrate_stis_data import Stisdata
-from fuse_add_dq import add_column
+from .coadd import STISSegmentList
+from .calibrate_stis_data import Stisdata
+from .fuse_add_dq import add_column
 
 tts = ["CVSO-104", "CVSO-107", "CVSO-109", "CVSO-146", "CVSO-165", "CVSO-17",
        "CVSO-176", "CVSO-36", "CVSO-58", "CVSO-90", "V-TX-ORI", "V505-ORI",
        "V510-ORI"]
 
 version = "dr2"
-hlspdir = "/astro/ullyses/ULLYSES_HLSP"
-drdir = "/astro/ullyses/all_vetted_data_dr2"
-datadir = "/astro/ullyses/tts_dr2"
+hlspdir = "/astro/ullyses/ULLYSES_HLSP"  # TODO: central store
+drdir = "/astro/ullyses/all_vetted_data_dr2"  # TODO: central store
+datadir = "/astro/ullyses/tts_dr2"  # TODO: central store
 outdir0 = "v2"
 
-config_dir = "/user/jotaylor/git/ullyses_dp/high_level_science_products/high_level_science_products/config_files"
+config_dir = "/user/jotaylor/git/ullyses_dp/high_level_science_products/high_level_science_products/config_files"  # TODO: central store
 
 bad = []
 
@@ -308,6 +307,7 @@ def copy_files():
         shutil.copy(item, dest)
         print(f"Copied {item} to {dest}")
 
+
 class STIScoadd(STISSegmentList):
     def create_output_wavelength_grid(self):
         min_wavelength = 10000.0
@@ -340,7 +340,6 @@ class STIScoadd(STISSegmentList):
         self.output_exptime = np.zeros(self.nelements)
 
         return wavegrid
-
 
     def coadd(self, ignore_dq_file):
         self.output_dq = np.zeros(self.nelements).astype(int)
@@ -445,12 +444,7 @@ def coadd_1d_spectra():
             new_hdulist.writeto(combined, overwrite=True)
             print(f"Wrote {combined}")
     subprocess.run(["chmod", "-R", "777", datadir])
-#            add_column(combined, combined, 1, "WAVELENGTH", f"{nelements}D", wl_arr, colunit="Angstroms", overwrite=True)
-#            add_column(combined, combined, 1, "FLUX", f"{nelements}E", flux_arr, colunit="erg/s/cm**2/Angstrom", overwrite=True)
-#            add_column(combined, combined, 1, "ERROR", f"{nelements}E", err_arr, colunit="erg/s/cm**2/Angstrom", overwrite=True)
-#            add_column(combined, combined, 1, "NET", f"{nelements}E", net_arr, colunit="Counts/s", overwrite=True)
-#            add_column(combined, combined, 1, "GROSS", f"{nelements}E", gross_arr, colunit="Counts/s", overwrite=True)
-#            add_column(combined, combined, 1, "DQ", f"{nelements}I", dq_arr, overwrite=True)
+
 
 def check_x1d(newfile, oldfile, targ, outdir):
     new = pf.getdata(newfile)
@@ -463,6 +457,7 @@ def check_x1d(newfile, oldfile, targ, outdir):
     overplot(new, newname, old, oldname, targ, outdir)
     plotdiv(new, newname, old, oldname, targ, outdir)
     plotdiff(new, newname, old, oldname, targ, outdir)
+
 
 def compare_dq(new, newname, old, oldname, targ, outdir):
     fig,ax = pl.subplots(figsize=(20,7))
@@ -482,6 +477,7 @@ def compare_dq(new, newname, old, oldname, targ, outdir):
     pl.cla()
     pl.close()
 
+
 def overplot(new, newname, old, oldname, targ, outdir):
     fig,ax = pl.subplots(figsize=(20,7))
     ax.plot(old["wavelength"][0], old["flux"][0], "k", label=oldname)
@@ -496,6 +492,7 @@ def overplot(new, newname, old, oldname, targ, outdir):
     pl.cla()
     pl.close()
 
+
 def plotdiv(new, newname, old, oldname, targ, outdir):
     fig,ax = pl.subplots(figsize=(20,7))
     div = new["flux"][0] / old["flux"][0]
@@ -508,6 +505,7 @@ def plotdiv(new, newname, old, oldname, targ, outdir):
     pl.cla()
     pl.close()
 
+
 def plotdiff(new, newname, old, oldname, targ, outdir):
     fig,ax = pl.subplots(figsize=(20,7))
     diff = new["flux"][0] - old["flux"][0]
@@ -519,6 +517,7 @@ def plotdiff(new, newname, old, oldname, targ, outdir):
     print(f"Wrote {png}")
     pl.cla()
     pl.close()
+
 
 def copy_yamlfiles():
     yamlfiles0 = glob.glob("config_files/*yaml")

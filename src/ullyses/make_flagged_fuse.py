@@ -1,13 +1,10 @@
 import shutil
-from astropy.io import fits as pf
 import glob
 import os
-import numpy as np
-import matplotlib.pyplot as pl
+from .fuse_add_dq import add_dq_col
 
-from fuse_add_dq import add_dq_col
 
-drdir = "/astro/ullyses/all_vetted_data_dr2"
+drdir = "/astro/ullyses/all_vetted_data_dr2"  # TODO: central store
 
 # DR1 FUSE targets that require custom flagging
 filestoedit = {

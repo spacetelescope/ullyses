@@ -12,15 +12,15 @@ import sys
 import stistools
 from stistools import x1d
 from stistools.ocrreject import ocrreject
-import stis_cti
 
-from read_config import read_config, write_config
-os.environ["oref"] = "/grp/hst/cdbs/oref/"
+from .read_config import read_config, write_config
+os.environ["oref"] = "/grp/hst/cdbs/oref/"   # TODO: central store
 
-OREF_DIR = "/grp/hst/cdbs/oref"
+OREF_DIR = "/grp/hst/cdbs/oref"  # TODO: central store
 SYM = "~"
 NCOLS = 72
 SEP = f"\n!{'~'*70}!\n"
+
 
 class Stisdata():
     """
@@ -38,10 +38,7 @@ class Stisdata():
             nested dictionary describes dataset properties (visit, detector,
             XD shift, raw filename, flt filename, shifted flt filename, and
             combined image filename.
-        _sci_dir (str): 'sci' directory used by stis_cti
-        _dark_dir (str): 'dark' directory used by stis_cti
-        _ref_dir (str): 'ref' directory used by stis_cti
-#!!!        combined (dict): Nested dictionary where keys are the filenames of 
+        combined (dict): Nested dictionary where keys are the filenames of
             the combined FLTs and FLCs; each nested dict listing the
             visit and detector values.
         x1d (list): List of final x1d products. 
@@ -71,10 +68,6 @@ class Stisdata():
         self.outdir = outdir
         if not os.path.exists(outdir):
             os.mkdir(outdir)
-        self._sci_dir = self.outdir
-        self._dark_dir = "/astro/ullyses/stis_ccd_data/darks"
-        self._ref_dir = "/astro/ullyses/stis_ccd_data/cti_refs"
-        os.environ["ctirefs"] = "/astro/ullyses/stis_ccd_data/cti_refs/"
         self.rootname = fits.getval(scifile, "rootname")
         self.darkfile = fits.getval(scifile, "darkfile")
         self.nonsci_drj = {}
@@ -88,23 +81,15 @@ class Stisdata():
             self.sx1_mast = prod
         self.visit = self.rootname[4:6]
         self.target = fits.getval(scifile, "targname")
-        if self.doperform_cti is True:
-            self.flc = self.find_product("flc")
-            self.crc = self.find_product("crc") 
-        else: 
-            self.flc = self.find_product("flt")
-            self.crc = self.find_product("crj") 
+        self.flc = self.find_product("flt")
+        self.crc = self.find_product("crj")
         self.sx1 = self.find_product("sx1") 
         self.crsplit = fits.getval(scifile, "crsplit")
         self.opt_elem = opt_elem
         if opt_elem != "G750L":
             self.defringe_c = False
 
-#-----------------------------------------------------------------------------#
-
     def run_all(self):
-        if self.doperform_cti is True:
-            self.perform_cti()
         #self.flag_negatives()
         self.check_crrej()
         self.crrej()
@@ -115,8 +100,6 @@ class Stisdata():
         write_config(self.config, self.yamlfile)
         self.add_id()
         self.help()
-
-#-----------------------------------------------------------------------------#
 
     def flag_negatives(self, change_val=False, dq=4, thresh=-100):
         """
@@ -219,16 +202,12 @@ class Stisdata():
                 print(f"Made directory: {customdark_dir}")
     
             # Determine DARKFILE filename.
-            if self.doperform_cti is True:
-                darkname = os.path.basename(darkfile0)
-                darkfile = os.path.join(self._ref_dir, darkname)
+            if "oref" in darkfile0:
+                darkname = darkfile0.split("$")[1]
+                darkfile = os.path.join(OREF_DIR, darkname)
             else:
-                if "oref" in darkfile0:
-                    darkname = darkfile0.split("$")[1]
-                    darkfile = os.path.join(OREF_DIR, darkname)
-                else:
-                    darkname = os.path.basename(darkfile0)
-                    darkfile = os.path.join(OREF_DIR, darkname)
+                darkname = os.path.basename(darkfile0)
+                darkfile = os.path.join(OREF_DIR, darkname)
 
 
             # Remove any existing DQ={dq} flags from FLT, since DQ={dq} flags are
@@ -273,44 +252,6 @@ class Stisdata():
                 print(f"Wrote new darkfile: {outfile}")
         sci_hdu.close()
             
-                    
-#-----------------------------------------------------------------------------#
-
-    def perform_cti(self):
-        """
-        Run the STIS CTI code on STIS CCD data.
-        """
-        
-        print("\n", f" PERFORMING CTI ".center(NCOLS, SYM), "\n")
-        
-        # These directories need to exist for stis_cti to run. 
-        for direc in [self._dark_dir, self._ref_dir, self._sci_dir]:
-            if not os.path.exists(direc):
-                os.mkdir(direc)
-                print(f"Made directory: {direc}")
-
-        # stis_cti needs raw, epc, spt, asn, and wav files as input.
-        print("Copying CCD datasets to science directory...")
-        allfiles = glob.glob(os.path.join(self.basedir, "*_raw.fits")) + \
-                   glob.glob(os.path.join(self.basedir, "*_epc.fits")) + \
-                   glob.glob(os.path.join(self.basedir, "*_spt.fits")) + \
-                   glob.glob(os.path.join(self.basedir, "*_asn.fits")) + \
-                   glob.glob(os.path.join(self.basedir, "*_wav.fits"))
-        for item in allfiles:
-            try:
-                shutil.copy(item, self._sci_dir)
-            except shutil.SameFileError:
-                pass
-    
-        # Run stis_cti
-        stis_cti.stis_cti(self._sci_dir, self._dark_dir, self._ref_dir, self.cti_proc, verbose=True, clean=True)
-        self.flc = os.path.join(self.outdir, self.rootname+"_flc.fits")
-        self.crc = os.path.join(self.outdir, self.rootname+"_crc.fits")
-        
-#        self.copy_products()
-
-#-----------------------------------------------------------------------------#
-
     def copy_products(self):
         """
         Copy the intermediate products from STIS CTI products to self.outdir, 
@@ -379,7 +320,7 @@ class Stisdata():
                 bk2offst = (pars["b_bkg2"] - pars["yloc"]) if pars["b_bkg2"] is not None else None,
                 bk1size = pars["b_hgt1"],
                 bk2size = pars["b_hgt2"],
-                ctecorr="omit" if self.doperform_cti is True else "perform",
+                ctecorr="perform",
                 verbose=True)
             print(f"Wrote x1d file: {outfile}")
 
@@ -456,10 +397,7 @@ class Stisdata():
             print("Skipping CR rejection")
             return
         
-        if self.doperform_cti is True:
-            outfile = os.path.join(self.outdir, self.rootname+"_crc.fits")
-        else:
-            outfile = os.path.join(self.outdir, self.rootname+"_crj.fits")
+        outfile = os.path.join(self.outdir, self.rootname+"_crj.fits")
         if os.path.exists(outfile):
             os.remove(outfile)
         
@@ -558,9 +496,6 @@ class Stisdata():
             with fits.open(prod, mode="update") as hdulist:
                 hdr0 = hdulist[0].header
                 darkfile = hdr0["darkfile"]
-                if "ctiref" in darkfile:
-                    darkfile.replace("$ctirefs/", self._ref_dir)
-                    hdr0.set("DARKFILE", darkfile)
         return prod
 
 #-----------------------------------------------------------------------------#
@@ -584,10 +519,7 @@ class Stisdata():
             print(f"Non-science X1D(s): {self.nonsci_x1d}")
 
         print("")
-        if self.doperform_cti is True:
-            print("Pixel-based CTI correction performed")
-        else:
-            print("Default CalSTIS empirical CTI correction performed")
+        print("Default CalSTIS empirical CTI correction performed")
         if self.fix_dq16 is True:
             print("Custom DQ=16 flagging has been applied")
         else:

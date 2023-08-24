@@ -3,7 +3,6 @@ from collections import defaultdict
 import argparse
 import os
 import glob
-import numpy as np
 
 from astropy.io import fits
 
@@ -99,7 +98,7 @@ def main(indir, outdir, version=default_version, clobber=False):
                     outdir = os.path.join(PROD_DIR, target, version)
                 if not os.path.exists(outdir):
                     os.makedirs(outdir)
-                if instrument != 'FUSE': # FUSE data is written as level 3 product below
+                if instrument != 'FUSE':  # FUSE data is written as level 3 product below
                     outname = create_output_file_name(prod, version, level=level)
                     outname = os.path.join(outdir, outname)
                     prod.write(outname, clobber, level=level, version=version)
