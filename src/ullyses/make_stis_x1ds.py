@@ -25,6 +25,8 @@ outdir0 = "v2"
 config_dir = "/user/jotaylor/git/ullyses_dp/high_level_science_products/high_level_science_products/config_files"
 
 bad = []
+
+
 def make_ccd_x1ds():
     for targ in tts:
         raws = glob.glob(os.path.join(datadir, targ, "o*_raw.fits"))

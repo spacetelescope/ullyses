@@ -7,16 +7,17 @@ import numpy as np
 
 from astropy.io import fits
 
-from coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDSegmentList
-from coadd import abut
+from .coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDSegmentList
+from .coadd import abut
 
 default_version = 'dr2'
-PROD_DIR = "/astro/ullyses/ULLYSES_HLSP"
+PROD_DIR = "ULLYSES_HLSP"
 
 '''
 This wrapper goes through each target folder in the ullyses data directory and find
 the data and which gratings are present. This info is then fed into coadd.py.
 '''
+
 
 def main(indir, outdir, version=default_version, clobber=False):
     outdir_inplace = False
@@ -230,7 +231,7 @@ def main(indir, outdir, version=default_version, clobber=False):
 
 
 def create_output_file_name(prod, version=default_version, level=3):
-    instrument = prod.instrument.lower()   # will be either cos, stis, or fuse. If abbuted can be cos-stis or cos-stis-fuse
+    instrument = prod.instrument.lower()   # will be either cos, stis, or fuse. If abutted can be cos-stis or cos-stis-fuse
     grating = prod.grating.lower()
     target = prod.target.lower()
     version = version.lower()
