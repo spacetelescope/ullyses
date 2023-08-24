@@ -168,8 +168,10 @@ def compare_spectra(files, use_grating=None, savefig=True, savedir="", tts_regio
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("-d", "--dir", type=str, default='/astro/ullyses/stis_data_checks/',
+    parser.add_argument("-i", "--indir", type=str, default='/astro/ullyses/stis_data_checks/',
                         help="Top level directory to search for files")
+    parser.add_argument("-o", "--outdir", type=str, default='',
+                        help="Directory to save the outputs. Default behavior is to save to the target input directory")
     parser.add_argument("-t", "--target", type=str, default="",
                         help="Use if you are specifying a single target directory")
     parser.add_argument("-g", "--grating", type=str, default = None,
@@ -179,9 +181,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.target != "":
-        targ_dirs = [os.path.join(args.dir, args.target.lower())]
+        targ_dirs = [os.path.join(args.indir, args.target.lower())]
     else:
-        targ_dirs = glob.glob(os.path.join(args.dir, '*'))
+        targ_dirs = glob.glob(os.path.join(args.indir, '*'))
 
     for targ_dir in targ_dirs:
         print(targ_dir)
@@ -191,4 +193,13 @@ if __name__ == "__main__":
 
         files = np.sort(glob.glob(os.path.join(targ_dir, '*x1d*')))
 
-        compare_spectra(files, use_grating=args.grating, savefig=args.no_save, savedir=targ_dir)
+        if args.outdir == '':
+            # if no outdir is specified, save them in the target directory
+            compare_spectra(files, use_grating=args.grating, savefig=args.no_save, savedir=targ_dir)
+        else:
+            # otherwise, save the files to the specified directory
+            if not os.path.exists(args.outdir):
+                # make the directory if it doesn't exist
+                os.mkdir(args.outdir)
+                print(f'Created directory: {args.outdir}')
+            compare_spectra(files, use_grating=args.grating, savefig=args.no_save, savedir=args.outdir)
