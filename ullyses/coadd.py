@@ -191,8 +191,11 @@ class SegmentList:
             weight = flux_weight[goodpixels]
             net_counts = segment.data['net'][goodpixels] * segment.exptime
             if self.instrument == 'COS':
-                variances = segment.data['variance_counts'][goodpixels] + segment.data['variance_bkg'][goodpixels] + segment.data['variance_flat'][goodpixels]
-
+                try:
+                    variances = segment.data['variance_counts'][goodpixels] + segment.data['variance_bkg'][goodpixels] + segment.data['variance_flat'][goodpixels]
+                except KeyError:
+                    print('WARNING: Cant get variance keywords for COS data, using gross counts instead')
+                    variances = gcounts
             flux = segment.data['flux'][goodpixels]
             for i in range(npts):
                 self.sumnetcounts[indices[i]] = self.sumnetcounts[indices[i]] + net_counts[i]
@@ -203,30 +206,35 @@ class SegmentList:
                 if self.instrument == 'COS':
                     self.output_varsum[indices[i]] = self.output_varsum[indices[i]] + variances[i]
         good_dq = np.where(self.output_exptime > 0.)
-        self.first_good_wavelength = self.output_wavelength[good_dq][0]
-        self.last_good_wavelength = self.output_wavelength[good_dq][-1]
-        nonzeros = np.where(self.output_sumweight != 0)
-        if self.instrument == 'COS':
-            # Using the variances (which only COS has) gives spikes in the error when the flux goes negative.
-            self.output_varsum[nonzeros] = np.where(self.output_varsum[nonzeros] < 0.5, 0.5, self.output_varsum[nonzeros])
-            self.output_errors[nonzeros] = np.sqrt(self.output_varsum[nonzeros])
+        if len(good_dq[0]) == 0:
+            self.first_good_wavelength = None
+            self.last_good_wavelength = None
+            print("Warning: No good pixels in product")
         else:
-            # For the moment calculate errors from the gross counts
-            self.output_errors[nonzeros] = np.sqrt(self.output_sumgcounts[nonzeros])
-        self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / self.output_sumweight[nonzeros]
-        # Calculate the conversion from counts to flux units for errors
-        conversion = self.output_flux[nonzeros] / self.sumnetcounts[nonzeros]
-        # Clean out NaNs from where flux and net are zero
-        good = np.where(~np.isnan(conversion))
-        bad = np.where(np.isnan(conversion))
-        lenwl = len(wavelength)
-        interpolated_values = np.interp(self.output_wavelength[bad],
-                                        self.output_wavelength[good],
-                                        conversion[good])
-        conversion[bad] = interpolated_values
-        # Use conversion to calculate error in flux units (erg/cm^2/s/Ang)
-        self.output_errors[nonzeros] = self.output_errors[nonzeros] * conversion
-        self.signal_to_noise[nonzeros] = self.output_flux[nonzeros] / self.output_errors[nonzeros]
+            self.first_good_wavelength = self.output_wavelength[good_dq][0]
+            self.last_good_wavelength = self.output_wavelength[good_dq][-1]
+            nonzeros = np.where(self.output_sumweight != 0)
+            if self.instrument == 'COS':
+                # Using the variances (which only COS has) gives spikes in the error when the flux goes negative.
+                self.output_varsum[nonzeros] = np.where(self.output_varsum[nonzeros] < 0.5, 0.5, self.output_varsum[nonzeros])
+                self.output_errors[nonzeros] = np.sqrt(self.output_varsum[nonzeros])
+            else:
+                # For the moment calculate errors from the gross counts
+                self.output_errors[nonzeros] = np.sqrt(self.output_sumgcounts[nonzeros])
+            self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / self.output_sumweight[nonzeros]
+            # Calculate the conversion from counts to flux units for errors
+            conversion = self.output_flux[nonzeros] / self.sumnetcounts[nonzeros]
+            # Clean out NaNs from where flux and net are zero
+            good = np.where(~np.isnan(conversion))
+            bad = np.where(np.isnan(conversion))
+            lenwl = len(wavelength)
+            interpolated_values = np.interp(self.output_wavelength[bad],
+                                            self.output_wavelength[good],
+                                            conversion[good])
+            conversion[bad] = interpolated_values
+            # Use conversion to calculate error in flux units (erg/cm^2/s/Ang)
+            self.output_errors[nonzeros] = self.output_errors[nonzeros] * conversion
+            self.signal_to_noise[nonzeros] = self.output_flux[nonzeros] / self.output_errors[nonzeros]
         return
 
     def get_targname(self):
@@ -339,8 +347,13 @@ class FUSESegmentList(SegmentList):
         nonzeros = np.where(self.output_errors != 0.0)
         self.signal_to_noise[nonzeros] = self.output_flux[nonzeros] / self.output_errors[nonzeros]
         good_dq = np.where(self.output_exptime > 0.)
-        self.first_good_wavelength = self.output_wavelength[good_dq][0]
-        self.last_good_wavelength = self.output_wavelength[good_dq][-1]
+        if len(good_dq[0]) > 0:
+            self.first_good_wavelength = self.output_wavelength[good_dq][0]
+            self.last_good_wavelength = self.output_wavelength[good_dq][-1]
+        else:
+            self.first_good_wavelength = None
+            self.last_good_wavelength = None
+            print('No good data in product')
         return
 
 class CCDSegmentList(SegmentList):
@@ -395,7 +408,7 @@ class CCDSegmentList(SegmentList):
 
             self.delta_wavelength = max_delta_wavelength
 
-            wavegrid = np.arange(self.min_wavelength, self.max_wavelength, self.delta_wavelength)
+            wavegrid = np.arange(self.min_wavelength, self.max_wavelength+self.delta_wavelength, self.delta_wavelength)
 
             self.output_wavelength = wavegrid
 
@@ -425,8 +438,13 @@ class CCDSegmentList(SegmentList):
             nonzeros = np.where(self.output_errors != 0.0)
             self.signal_to_noise[nonzeros] = self.output_flux[nonzeros] / self.output_errors[nonzeros]
             good_dq = np.where(self.output_exptime > 0.)
-            self.first_good_wavelength = self.output_wavelength[good_dq][0]
-            self.last_good_wavelength = self.output_wavelength[good_dq][-1]
+            if len(good_dq[0]) > 0:
+                self.first_good_wavelength = self.output_wavelength[good_dq][0]
+                self.last_good_wavelength = self.output_wavelength[good_dq][-1]
+            else:
+                self.first_good_wavelength = None
+                self.last_good_wavelength = None
+                print('No good data in product')
         else:
             nelements = len(self.output_wavelength)
             self.output_sumsqerrors = np.zeros(nelements)
@@ -444,8 +462,13 @@ class CCDSegmentList(SegmentList):
                     self.output_sumsqerrors[indices[i]] = self.output_sumsqerrors[indices[i]] + (err[i] * weight[i])**2
                     self.output_exptime[indices[i]] = self.output_exptime[indices[i]] + segment.exptime
             good_dq = np.where(self.output_exptime > 0.)
-            self.first_good_wavelength = self.output_wavelength[good_dq][0]
-            self.last_good_wavelength = self.output_wavelength[good_dq][-1]
+            if len(good_dq[0]) > 0:
+                self.first_good_wavelength = self.output_wavelength[good_dq][0]
+                self.last_good_wavelength = self.output_wavelength[good_dq][-1]
+            else:
+                self.first_good_wavelength = None
+                self.last_good_wavelength = None
+                print('No good data in product')
             nonzeros = np.where(self.output_sumweight != 0)
             self.output_flux[nonzeros] = self.output_sumflux[nonzeros] / self.output_sumweight[nonzeros]
             self.output_errors[nonzeros] = np.sqrt(self.output_sumsqerrors[nonzeros]) / self.output_sumweight[nonzeros]
