@@ -200,8 +200,8 @@ class Ullyses_SegmentList(SegmentList):
         return s_region
 
     def get_targname(self):
-        aliases_file = ullyses_utils.__path__[0] + '/data/target_metadata/pd_all_aliases.json'
-        aliases = pd.read_json(aliases_file, orient="split")
+        aliases_file = ullyses_utils.__path__[0] + '/data/target_metadata/ullyses_aliases.csv'
+        aliases = pd.read_csv(aliases_file)
         # These are just preliminary target names, in case we can't find a match
         if len(self.targnames) == 1:
             ull_targname = self.targnames[0]
