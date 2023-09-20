@@ -157,7 +157,7 @@ class SegmentList:
 
         self.delta_wavelength = max_delta_wavelength
 
-        wavegrid = np.arange(self.min_wavelength, self.max_wavelength, self.delta_wavelength)
+        wavegrid = np.arange(self.min_wavelength, self.max_wavelength + self.delta_wavelength, self.delta_wavelength)
 
         self.output_wavelength = wavegrid
         self.nelements = len(wavegrid)
