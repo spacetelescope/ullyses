@@ -35,7 +35,7 @@ class Ullyses_SegmentList(SegmentList):
     # For ULLYSES this is G230L/2635/NUVC and G230L/2950/NUVC
 #    self.bad_segments = {2635: 'NUVC', 2950: 'NUVC'}
     SegmentList.bad_segments = {2635: 'NUVC', 2950: 'NUVC'}
-    
+
 
     def write(self, filename, overwrite=False, level="", version=""):
 
@@ -493,22 +493,22 @@ def main(indir, outdir, version=VERSION, clobber=False):
             if df.loc[lowind, "gratings"] in ["E140M", "E140H"]:
                 if "G130M" in gratings and "G160M" in gratings:
                     g130mind = df.loc[df["gratings"] == "G130M"].index.values
-                    used = used.append(df.loc[g130mind])
+                    used = pd.concat([used, df.loc[g130mind]])
                     shortestwl = df.loc[g130mind[0], "minwls"]
                     df = df.drop(index=g130mind)
                     g160mind = df.loc[df["gratings"] == "G160M"].index.values
-                    used = used.append(df.loc[g160mind])
+                    used = pd.concat([used, df.loc[g160mind]])
                     maxwl = df.loc[g160mind[0], "maxwls"]
                     df = df.drop(index=g160mind)
                     df = df.drop(index=lowind)
                 else:
                     shortestwl = df.loc[lowind, "minwls"]
-                    used = used.append(df.loc[lowind])
+                    used = pd.concat([used, df.loc[lowind]])
                     maxwl = df.loc[lowind, "maxwls"]
                     df = df.drop(lowind)
             else:
                 shortestwl = df.loc[lowind, "minwls"]
-                used = used.append(df.loc[lowind])
+                used = pd.concat([used, df.loc[lowind]])
                 maxwl = df.loc[lowind, "maxwls"]
                 df = df.drop(lowind)
             while len(df) > 0:
@@ -519,7 +519,7 @@ def main(indir, outdir, version=VERSION, clobber=False):
                 if "G130M" in used.gratings.values and "G160M" in gratings and "G160M" not in used.gratings.values:
                     lowind = df.loc[df["gratings"] == "G160M"].index.values
                     maxwl = df.loc[lowind[0], "maxwls"]
-                    used = used.append(df.loc[lowind])
+                    used = pd.concat([used, df.loc[lowind]])
                     df = df.drop(index=lowind)
                 # Handle case where more than one grating overlaps with bluer data.
                 elif len(lowind) > 1:
@@ -528,19 +528,19 @@ def main(indir, outdir, version=VERSION, clobber=False):
                     biggest = ranges.idxmax()
                     match_grating = df2.loc[biggest, "gratings"]
                     match_ind = df.loc[df["gratings"] == match_grating].index.values
-                    used = used.append(df.loc[match_ind])
+                    used = pd.concat([used, df.loc[match_ind]])
                     maxwl = df.loc[match_ind, "maxwls"].values[0]
                     df = df.drop(index=lowind)
                 # If none overlap, abut with the next closest product.
                 elif len(lowind) == 0:
                     lowind = df["minwls"].idxmin()
-                    used = used.append(df.loc[lowind])
+                    used = pd.concat([used, df.loc[lowind]])
                     maxwl = df.loc[lowind, "maxwls"]
                     df = df.drop(lowind)
                 # This is the easy case- only one mode overlaps with the bluer data.
                 else:
                     maxwl = df.loc[lowind[0], "maxwls"]
-                    used = used.append(df.loc[lowind])
+                    used = pd.concat([used, df.loc[lowind]])
                     df = df.drop(index=lowind)
                 # Check every time if there are any modes that overlap completely
                 # with what has been abutted so far.
