@@ -47,7 +47,7 @@ def flag_file(vofile, outdir, ull_targname=None, overwrite=False):
         aliases = parse_aliases()
         alias_mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(fuse_targname.upper())).any(), axis=1)
         if set(alias_mask) != {False}:
-            ull_targname = aliases[alias_mask]["ULL_MAST_name"].values[0]
+            ull_targname = aliases[alias_mask]["target_name_hlsp"].values[0]
         else:
             raise KeyError(f"FUSE target {fuse_targname} not found in ULLYSES alias list")
 

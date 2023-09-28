@@ -35,7 +35,7 @@ class Ullyses_SegmentList(SegmentList):
     # For ULLYSES this is G230L/2635/NUVC and G230L/2950/NUVC
 #    self.bad_segments = {2635: 'NUVC', 2950: 'NUVC'}
     SegmentList.bad_segments = {2635: 'NUVC', 2950: 'NUVC'}
-    
+
 
     def write(self, filename, overwrite=False, level="", version=""):
 
@@ -200,8 +200,8 @@ class Ullyses_SegmentList(SegmentList):
         return s_region
 
     def get_targname(self):
-        aliases_file = ullyses_utils.__path__[0] + '/data/target_metadata/pd_all_aliases.json'
-        aliases = pd.read_json(aliases_file, orient="split")
+        aliases_file = ullyses_utils.__path__[0] + '/data/target_metadata/ullyses_aliases.csv'
+        aliases = pd.read_csv(aliases_file)
         # These are just preliminary target names, in case we can't find a match
         if len(self.targnames) == 1:
             ull_targname = self.targnames[0]
@@ -214,7 +214,7 @@ class Ullyses_SegmentList(SegmentList):
             mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ_upper)).any(), axis=1)
             if set(mask) != {False}:
                 targ_matched = True
-                ull_targname = aliases[mask]["ULL_MAST_name"].values[0]
+                ull_targname = aliases[mask]["target_name_hlsp"].values[0]
                 break
         if targ_matched is False:
             print(f"{RED}WARNING: Could not match target name {ull_targname} to ULLYSES alias list{RESET}")
@@ -228,9 +228,9 @@ class Ullyses_SegmentList(SegmentList):
         if self.target == "":
             return avg_ra, avg_dec
         targetinfo_file = ullyses_utils.__path__[0] + '/data/target_metadata/pd_targetinfo.json'
-        master_list = pd.read_json(targetinfo_file, orient="split")
-        master_list = master_list.apply(lambda x: x.astype(str).str.upper())
-        coords = master_list.loc[master_list["mast_targname"] == self.target][["ra", "dec"]].values
+        targetinfo = pd.read_json(targetinfo_file, orient="split")
+        targetinfo['mast_targname'] = targetinfo['mast_targname'].str.upper()
+        coords = targetinfo.loc[targetinfo["mast_targname"] == self.target][["ra", "dec"]].values
         if len(coords) != 0:
             return coords[0][0], coords[0][1]
         else:
@@ -493,22 +493,38 @@ def main(indir, outdir, version=VERSION, clobber=False):
             if df.loc[lowind, "gratings"] in ["E140M", "E140H"]:
                 if "G130M" in gratings and "G160M" in gratings:
                     g130mind = df.loc[df["gratings"] == "G130M"].index.values
-                    used = used.append(df.loc[g130mind])
+                    if isinstance(g130mind, int):
+                        locind = [g130mind]
+                    else:
+                        locind = g130mind
+                    used = pd.concat([used, df.loc[locind]])
                     shortestwl = df.loc[g130mind[0], "minwls"]
                     df = df.drop(index=g130mind)
                     g160mind = df.loc[df["gratings"] == "G160M"].index.values
-                    used = used.append(df.loc[g160mind])
+                    if isinstance(g160mind, int):
+                        locind = [g160mind]
+                    else:
+                        locind = g160mind
+                    used = pd.concat([used, df.loc[locind]])
                     maxwl = df.loc[g160mind[0], "maxwls"]
                     df = df.drop(index=g160mind)
                     df = df.drop(index=lowind)
                 else:
                     shortestwl = df.loc[lowind, "minwls"]
-                    used = used.append(df.loc[lowind])
+                    if isinstance(lowind, int):
+                        locind = [lowind]
+                    else:
+                        locind = lowind
+                    used = pd.concat([used, df.loc[locind]])
                     maxwl = df.loc[lowind, "maxwls"]
                     df = df.drop(lowind)
             else:
                 shortestwl = df.loc[lowind, "minwls"]
-                used = used.append(df.loc[lowind])
+                if isinstance(lowind, int):
+                    locind = [lowind]
+                else:
+                    locind = lowind
+                used = pd.concat([used, df.loc[locind]])
                 maxwl = df.loc[lowind, "maxwls"]
                 df = df.drop(lowind)
             while len(df) > 0:
@@ -519,7 +535,11 @@ def main(indir, outdir, version=VERSION, clobber=False):
                 if "G130M" in used.gratings.values and "G160M" in gratings and "G160M" not in used.gratings.values:
                     lowind = df.loc[df["gratings"] == "G160M"].index.values
                     maxwl = df.loc[lowind[0], "maxwls"]
-                    used = used.append(df.loc[lowind])
+                    if isinstance(lowind, int):
+                        locind = [lowind]
+                    else:
+                        locind = lowind
+                    used = pd.concat([used, df.loc[locind]])
                     df = df.drop(index=lowind)
                 # Handle case where more than one grating overlaps with bluer data.
                 elif len(lowind) > 1:
@@ -528,19 +548,31 @@ def main(indir, outdir, version=VERSION, clobber=False):
                     biggest = ranges.idxmax()
                     match_grating = df2.loc[biggest, "gratings"]
                     match_ind = df.loc[df["gratings"] == match_grating].index.values
-                    used = used.append(df.loc[match_ind])
+                    if isinstance(match_ind, int):
+                        locind = [match_ind]
+                    else:
+                        locind = match_ind
+                    used = pd.concat([used, df.loc[locind]])
                     maxwl = df.loc[match_ind, "maxwls"].values[0]
                     df = df.drop(index=lowind)
                 # If none overlap, abut with the next closest product.
                 elif len(lowind) == 0:
                     lowind = df["minwls"].idxmin()
-                    used = used.append(df.loc[lowind])
+                    if isinstance(lowind, int):
+                        locind = [lowind]
+                    else:
+                        locind = lowind
+                    used = pd.concat([used, df.loc[locind]])
                     maxwl = df.loc[lowind, "maxwls"]
                     df = df.drop(lowind)
                 # This is the easy case- only one mode overlaps with the bluer data.
                 else:
                     maxwl = df.loc[lowind[0], "maxwls"]
-                    used = used.append(df.loc[lowind])
+                    if isinstance(lowind, int):
+                        locind = [lowind]
+                    else:
+                        locind = lowind
+                    used = pd.concat([used, df.loc[locind]])
                     df = df.drop(index=lowind)
                 # Check every time if there are any modes that overlap completely
                 # with what has been abutted so far.
