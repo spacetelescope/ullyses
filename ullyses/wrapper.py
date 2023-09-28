@@ -228,9 +228,9 @@ class Ullyses_SegmentList(SegmentList):
         if self.target == "":
             return avg_ra, avg_dec
         targetinfo_file = ullyses_utils.__path__[0] + '/data/target_metadata/pd_targetinfo.json'
-        master_list = pd.read_json(targetinfo_file, orient="split")
-        master_list = master_list.apply(lambda x: x.astype(str).str.upper())
-        coords = master_list.loc[master_list["mast_targname"] == self.target][["ra", "dec"]].values
+        targetinfo = pd.read_json(targetinfo_file, orient="split")
+        targetinfo['mast_targname'] = targetinfo['mast_targname'].str.upper()
+        coords = targetinfo.loc[targetinfo["mast_targname"] == self.target][["ra", "dec"]].values
         if len(coords) != 0:
             return coords[0][0], coords[0][1]
         else:
