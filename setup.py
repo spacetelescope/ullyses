@@ -26,12 +26,13 @@ setup(
                         "astropy>=5.0.4",
                         "ullyses_utils",
                         "stistools>=1.4.2",
-                        "pandas",
+                        "pandas>2.0",
                         "calcos>=3.4.0",
                         "costools",
                         "matplotlib",
                         "pyyaml",
-                        "plotly"
+                        "plotly",
+                        "pytest"
                         ],
     # If you need something from github, any of the below formats work:
 #    dependency_links = ["git+ssh://git@github.com/npirzkal/GRISMCONF.git#egg=GRISMCONF-0.1"],
