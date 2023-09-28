@@ -11,14 +11,14 @@ from ullyses import wrapper
 from ullyses_utils.ullyses_config import VERSION
 
 
-AV456 = {'name': 'av456',
-         'url': 'https://stsci.box.com/shared/static/7khk2b23ep9esqmz5t25ymno5yhh9xh1.gz'}
-AV321 = {'name': 'av321',
-         'url': 'https://stsci.box.com/shared/static/ltbnbue3diwb6m1h4gh6t5uiwjt2xi73.gz'}
+AV456 = {'name': 'av-456',
+         'url': 'https://stsci.box.com/shared/static/ztdzutldcl2phgh39rx9alj4tisnhoce.gz'}
+AV321 = {'name': 'av-321',
+         'url': 'https://stsci.box.com/shared/static/6mn1a77yqrpv1fr4agk8yie2vc3qdsvh.gz'}
 HD104237E = {'name': 'hd-104237e',
-             'url': 'https://stsci.box.com/shared/static/irelgbjs7zhdiljksao4su2c6tfhyntx.gz'}
+             'url': 'https://stsci.box.com/shared/static/lxme0920d2z0lswgcclgave0jpzzy239.gz'}
 V_HK_ORI = {'name': 'v-hk-ori',
-            'url': 'https://stsci.box.com/shared/static/az3ytnwohj0t4wnc4m8oqbw9ziozwqx1.gz'}
+            'url': 'https://stsci.box.com/shared/static/dzw9gt283sz6rnekhtq88jxgcl2tq376.gz'}
 
 RELEASE = 'dr6'
 
