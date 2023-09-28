@@ -5,12 +5,88 @@ import numpy as np
 import plotly.graph_objects as go
 import astropy.units as u
 from plotly.subplots import make_subplots
+from itertools import repeat
 
 from astropy.io import fits
 from specutils import Spectrum1D, SpectralRegion
 from specutils.manipulation import extract_region
 
 from ullyses_utils.match_aliases import match_aliases
+
+#-------------------------------------------------------------------------------
+
+def create_visibility(trace_lengths, visible_list):
+    '''Create visibility lists for plotly buttons. trace_lengths and visible_list
+    must be in the correct order.
+
+    Inputs:
+    -------
+    - trace_lengths : list
+        List of the number of traces in each "button set".
+    - visible_list : list
+        Visibility setting for each button set (either True or False).
+
+    Outputs:
+    --------
+    - visibility : list
+        an updated list of the visibility for each added trace
+    '''
+
+    visibility = []  # Total visibility. Length should match the total number of traces in the figure.
+    for visible, trace_length in zip(visible_list, trace_lengths):
+        visibility += list(repeat(visible, trace_length))  # Set each trace per button.
+
+    return visibility
+
+#-------------------------------------------------------------------------------
+
+def make_buttons(fig, all_vis, n_all_traces, button_names):
+    '''Create buttons for plotly figures, being careful to count all of the
+    number of traces being added.
+
+    Inputs:
+    -------
+    - fig : plotly figure
+        the figure with all traces added
+    - all_vis : list
+        A list of the trace visibilities for which traces should shown up
+        when a button is selected
+    - n_all_traces : int
+        A count of the number of added traces
+    - button_names : list
+        What should be read on the buttons
+
+    Outputs:
+    --------
+    - fig : plotly figure
+        the figure returned with updated buttons
+    '''
+
+    # Create a dictionary of the visibility parameters based on the number of traces
+    # all of the traces that are drawn per subplot plus what we want to show by defualt
+    # vis will look like [True, False, False], [False, True, False], etc
+    all_vis = [create_visibility(n_all_traces, vis) for vis in all_vis]
+
+    buttons = [dict(label=str(label),
+                    method='relayout',
+                    args=[{'visible': visibility,
+                           'yaxis.type' : scale_type,
+                           'yaxis2.type' : scale_type,
+                           },])
+               for label, visibility, scale_type in zip(button_names, all_vis, ['linear', 'log'])]
+
+    # Update remaining layout properties
+    fig.update_layout(updatemenus=[dict(type="buttons",
+                                        direction="right",
+                                        x=0.98,
+                                        y=1.05,
+                                        showactive=True,
+                                        buttons=buttons,
+                                        font=dict(color='black',
+                                                  size=16),
+                                    )])
+
+    return fig
 
 #-------------------------------------------------------------------------------
 
@@ -44,7 +120,7 @@ def add_tts_regions(fig, detector):
         regions = [(4860, 4864), # Hβ 4862
                    (6561, 6565), # Hα 6563
                    (5874, 5878), # He I 5876
-                   (7771, 7775), #O I 7773
+                   (7771, 7775), # O I 7773
                    ]
     else:
         print(f'Unrecognized Detector: {detector}')
@@ -99,29 +175,31 @@ def get_max_flux(wave, flux, dlam=10., echelle=False):
 
 #-------------------------------------------------------------------------------
 
-def add_spectral_trace(fig, wave, flux, lbl, row, legendgroup, showlegend=True, dash=None):
+def add_spectral_trace(fig, wave, flux, lbl, row, legendgroup, showlegend=True, dash=None, visible=True):
 
-    fig.add_trace(go.Scatter(x=wave,
-                             y=flux,
-                             mode='lines',
-                             line=dict(dash=dash,
-                                       color=COLORS[i],
-                                       width=4),
-                             opacity=0.8,
-                             name=lbl,
-                             showlegend=showlegend,
-                             legendgroup=legendgroup,
-                             hovertemplate = '%{text}<br>(%{x}, %{y})<extra></extra>',
-                             text = [f"<b>{'/'.join(lbl.split(' '))}</b>"]*len(wave),
-                             ), row=row, col=1)
+    fig.add_trace(go.Scattergl(x=wave,
+                               y=flux,
+                               mode='lines',
+                               line=dict(dash=dash,
+                                         color=COLORS[i],
+                                         width=4),
+                               opacity=0.8,
+                               name=lbl,
+                               showlegend=showlegend,
+                               legendgroup=legendgroup,
+                               visible=visible,
+                               hovertemplate = '%{text}<br>(%{x}, %{y})<extra></extra>',
+                               text = [f"<b>{'/'.join(lbl.split(' '))}</b>"]*len(wave),
+                               ), row=row, col=1)
 
     return fig
 
 #-------------------------------------------------------------------------------
 
-def open_files_and_plot(fig, cspec_file, row, flux_maxes, legendgroup, dash=None):
+def open_files_and_plot(fig, cspec_file, row, flux_maxes, legendgroup, visible=True, dash=None):
 
     print(cspec_file)
+    trace_count = 0
     with fits.open(cspec_file) as hdu:
         detector = hdu[0].header['DETECTOR']
         echelle = any([g.startswith('E') for g in hdu[2].data['DISPERSER']])
@@ -139,17 +217,21 @@ def open_files_and_plot(fig, cspec_file, row, flux_maxes, legendgroup, dash=None
 
             flux_maxes.append(get_max_flux(wave, flux, echelle=echelle))
 
-            fig = add_spectral_trace(fig, wave, flux, lbl, row, legendgroup, showlegend=showlegend, dash=dash)
+            fig = add_spectral_trace(fig, wave, flux, lbl, row, legendgroup,
+                                     showlegend=showlegend, dash=dash, visible=visible)
+            trace_count += 1
 
-    return fig, flux_maxes, detector
+    return fig, flux_maxes, detector, trace_count
 
 #-------------------------------------------------------------------------------
 
-def plot_preview(fig, targ_dir):
+def plot_preview(fig, targ_dir, visible=True):
+
+    ntraces = 0
 
     prev = glob.glob(os.path.join(targ_dir, '*_preview-spec.fits'))
     if len(prev) == 0:
-        return fig
+        return fig, ntraces
 
     with fits.open(prev[0]) as hdu:
         wave = hdu[1].data["WAVELENGTH"].ravel()
@@ -170,11 +252,13 @@ def plot_preview(fig, targ_dir):
                                  name='All Abutted Spectra<br>(Level 4 HLSP)',
                                  legendgroup='preview',
                                  showlegend=showlegend,
-                                 #visible='legendonly',
+                                 visible=visible,
                                  hovertemplate = '<b>All Abutted</b><br>(%{x}, %{y})<extra></extra>',
                                  ), row=row, col=1)
 
-    return fig
+        ntraces += 1
+
+    return fig, ntraces
 
 #-------------------------------------------------------------------------------
 
@@ -197,14 +281,14 @@ def update_plot_layouts(fig, ymax_arr):
                              'tickfont' : {'size' : 20},
                              },
                       yaxis2={'showexponent': 'all',
-                             'exponentformat': 'E',
-                             'autorange' : False,
-                             'rangemode': 'tozero',
-                             'range' : [-0.1*np.max(ymax_arr), 1.10*np.max(ymax_arr)],
-                             'title': {'text' : 'Flux (erg/s/cm<sup>2</sup>/&#8491;)',
-                                       'font' : {'size' : 25}, },
-                             'tickfont' : {'size' : 20},
-                             },
+                              'exponentformat': 'E',
+                              'autorange' : False,
+                              'rangemode': 'tozero',
+                              'range' : [-0.1*np.max(ymax_arr), 1.10*np.max(ymax_arr)],
+                              'title': {'text' : 'Flux (erg/s/cm<sup>2</sup>/&#8491;)',
+                                        'font' : {'size' : 25}, },
+                              'tickfont' : {'size' : 20},
+                              },
                       xaxis2={'title': {'text' : 'Wavelength (&#8491;)',
                                         'font' : {'size' : 25}, },
                               'tickfont' : {'size' : 20},
@@ -238,7 +322,7 @@ if __name__ == "__main__":
     # v-cv-cha
     # hd-104237e
     # av-456
-    targ_dir = "/astro/ullyses/ULLYSES_HLSP/v-cv-cha/dr6/"
+    targ_dir = "/astro/ullyses/ULLYSES_HLSP/av-456/dr6/"
     all_cspec_files = glob.glob(os.path.join(targ_dir, '*_cspec.fits'))
 
     ## sort out the different types of cspec files
@@ -268,26 +352,50 @@ if __name__ == "__main__":
 
     target = fits.getval(grating_cspec[0], 'TARGNAME')
 
-    ## row 1; grating only files
-    grating_ymaxes = []
-    detectors = []
-    for i, cspec_file in enumerate(np.sort(grating_cspec)):
-        fig, grating_ymaxes, d = open_files_and_plot(fig, cspec_file, 1, grating_ymaxes, f'{i}grating')
-        detectors.append(d)
+    buttons = ['Linear Scale', 'Log Scale']
+    n_all_traces = []
+    all_vis = []
 
-    ## row 2; abutted files
-    combined_maxes = []
-    for i, cspec_file in enumerate(np.sort(combined_cspec)):
-        fig, combined_maxes, d = open_files_and_plot(fig, cspec_file, 2, combined_maxes, f'{i}combined', dash='dot')
+    # looping through the traces to make my buttons. Visible by default for linear
+    #   first. Not visible for log scale
+    for i, (buttonname, vis) in enumerate(zip(buttons, [True, False])):
+        # initializing a False array except for the button that will be visible
+        #    will be adjusted to account for the number of traces per plot later
+        current_plot_visibility = [False] * len(buttons)
+        current_plot_visibility[i] = True
+        all_vis.append(current_plot_visibility)
 
-    # for d in np.unique(detectors):
-    #     fig = add_tts_regions(fig, d)
+        temp_trace_count = 0
 
-    ## plot the preview spec over both of them
-    fig = plot_preview(fig, targ_dir)
+        ## row 1; grating only files
+        grating_ymaxes = []
+        detectors = []
+        for i, cspec_file in enumerate(np.sort(grating_cspec)):
+            fig, grating_ymaxes, d, tc = open_files_and_plot(fig, cspec_file, 1, grating_ymaxes, f'{i}grating', visible=vis)
+            detectors.append(d)
+            temp_trace_count += tc
+
+        ## row 2; abutted files
+        combined_maxes = []
+        for i, cspec_file in enumerate(np.sort(combined_cspec)):
+            fig, combined_maxes, d, tc = open_files_and_plot(fig, cspec_file, 2, combined_maxes, f'{i}combined', dash='dot', visible=vis)
+            temp_trace_count += tc
+
+        # for d in np.unique(detectors):
+        #     fig = add_tts_regions(fig, d)
+
+        ## plot the preview spec over both of them
+        fig, ntraces = plot_preview(fig, targ_dir, visible=vis)
+        temp_trace_count += ntraces # preview added to each row
+
+        n_all_traces.append(temp_trace_count) # counting the total number of traces for the buttons
+
 
     ## formatting
     fig = update_plot_layouts(fig, grating_ymaxes)
 
+    fig = make_buttons(fig, all_vis, n_all_traces, buttons)
+
+
     fig.show()
-    fig.write_html(f'/Users/rplesha/Desktop/{target}_preview_v3.html')
+    fig.write_html(f'/Users/rplesha/Desktop/{target}_preview_v4.html')
