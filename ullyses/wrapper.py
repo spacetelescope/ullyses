@@ -578,15 +578,17 @@ def create_output_file_name(prod, version=VERSION, level=3):
     if level == 1:
         suffix = "mspec"
         tel = 'hst'
-    elif level == 3 or level == 2:
+    elif level == 2:
+        tel= 'hst'
+        suffix = "cspec"
+    elif level == 3:
         if instrument == 'fuse':
             tel = 'fuse'
             instrument = 'fuv'   # "fuv" is the "instrument" equivalent for fuse
             grating = aperture   # the grating for fuse data is set to "fuse" to change to use aperture
-            suffix = 'cspec'
         else:
             tel= 'hst'
-            suffix = "cspec"
+        suffix = 'aspec'
     elif level == 4:
         suffix = "preview-spec"
         if "G430L" in prod.grating or "G750L" in prod.grating:
