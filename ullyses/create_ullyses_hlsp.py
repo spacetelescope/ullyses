@@ -44,7 +44,7 @@ def make_lcogt_tss(indir, outdir, targ, hlspname=None, photfile=None):
     aliases = parse_aliases()
     alias_mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ.upper())).any(), axis=1)
     if set(alias_mask) != {False}:
-        ull_targname = aliases[alias_mask]["ULL_MAST_name"].values[0]
+        ull_targname = aliases[alias_mask]["target_name_hlsp"].values[0]
         targetinfo_file = os.path.join(UTILS_DIR, "data", "target_metadata", "pd_targetinfo.json")
         master_list = pd.read_json(targetinfo_file, orient="split")
         master_list = master_list.apply(lambda x: x.astype(str).str.upper())
