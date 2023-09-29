@@ -12,6 +12,7 @@ from specutils import Spectrum1D, SpectralRegion
 from specutils.manipulation import extract_region
 
 from ullyses_utils.match_aliases import match_aliases
+from ullyses_utils.parse_csv import parse_database_csv
 
 #-------------------------------------------------------------------------------
 
@@ -198,7 +199,7 @@ def add_spectral_trace(fig, wave, flux, lbl, row, legendgroup, showlegend=True, 
 
 def open_files_and_plot(fig, cspec_file, row, flux_maxes, legendgroup, visible=True, dash=None):
 
-    print(cspec_file)
+    #print(cspec_file)
     trace_count = 0
     with fits.open(cspec_file) as hdu:
         detector = hdu[0].header['DETECTOR']
@@ -302,6 +303,21 @@ def update_plot_layouts(fig, ymax_arr):
 
 #-------------------------------------------------------------------------------
 
+def high_and_low_df():
+
+    high_csv, highmass_df = parse_database_csv('lmc')
+    low_csv, lowmass_df = parse_database_csv('tts')
+
+    for df in [highmass_df[0], lowmass_df[0]]:
+        temp_list = []
+        for t in df['target_name_ullyses']:
+            temp_list.append(match_aliases(t))
+        df['target_name_hlsp'] = temp_list
+
+    return highmass_df[0], lowmass_df[0]
+
+#-------------------------------------------------------------------------------
+
 if __name__ == "__main__":
 
     # open all of the non-combined(?) cspec files for a specific target
@@ -319,83 +335,100 @@ if __name__ == "__main__":
               "#fdbf6f", "#ffe44b", "#b15928", "#cab2d6", "#b2df8a", "#749688", "#7a7a7a",
               "#911cff", "#a6cee3"]
 
+    highmass_df, lowmass_df = high_and_low_df()
+
     # v-cv-cha
     # hd-104237e
     # av-456
-    targ_dir = "/astro/ullyses/ULLYSES_HLSP/av-456/dr6/"
-    all_cspec_files = glob.glob(os.path.join(targ_dir, '*_cspec.fits'))
+    for targ_dir in glob.glob("/astro/ullyses/ULLYSES_HLSP/*"):
 
-    ## sort out the different types of cspec files
-    grating_cspec = []
-    combined_cspec = []
-    for f in all_cspec_files:
-        temp_grating = fits.getval(f, 'HLSP_LVL')
-        if temp_grating == 3:
-            # grating combined spectra
-            combined_cspec.append(f)
+        targ_dir = os.path.join(targ_dir, "dr6")
+        all_cspec_files = glob.glob(os.path.join(targ_dir, '*_cspec.fits'))
+
+        if not len(all_cspec_files):
+            print(f'No Files for: {targ_dir}')
+            continue
+
+        ## sort out the different types of cspec files
+        grating_cspec = []
+        combined_cspec = []
+        for f in all_cspec_files:
+            temp_grating = fits.getval(f, 'HLSP_LVL')
+            if temp_grating == 3:
+                # grating combined spectra
+                combined_cspec.append(f)
+            else:
+                # potentially cenwave combined, but only 1 grating
+                grating_cspec.append(f)
+
+        # initialize a file
+
+        fig = make_subplots(rows=2,
+                            cols=1,
+                            shared_xaxes=True,
+                            #shared_yaxes=True, # this only shares across columns...
+                            subplot_titles=('Single Grating Coaddition',
+                                            'Single Instrument, Multiple Grating<sup>*</sup> Abutment'),
+                            row_titles=('<a href="https://ullyses.stsci.edu/ullyses-data-description.html#productDescrip">Level 2 HLSP</a>',
+                                        '<a href="https://ullyses.stsci.edu/ullyses-data-description.html#productDescrip">Level 3 HLSP</a>'),
+                            vertical_spacing=0.05)
+
+        target = match_aliases(fits.getval(grating_cspec[0], 'TARGNAME'))
+
+        buttons = ['Linear Scale', 'Log Scale']
+        n_all_traces = []
+        all_vis = []
+
+        # looping through the traces to make my buttons. Visible by default for linear
+        #   first. Not visible for log scale
+        for i, (buttonname, vis) in enumerate(zip(buttons, [True, False])):
+            # initializing a False array except for the button that will be visible
+            #    will be adjusted to account for the number of traces per plot later
+            current_plot_visibility = [False] * len(buttons)
+            current_plot_visibility[i] = True
+            all_vis.append(current_plot_visibility)
+
+            temp_trace_count = 0
+
+            ## row 1; grating only files
+            grating_ymaxes = []
+            detectors = []
+            for i, cspec_file in enumerate(np.sort(grating_cspec)):
+                fig, grating_ymaxes, d, tc = open_files_and_plot(fig, cspec_file, 1, grating_ymaxes, f'{i}grating', visible=vis)
+                detectors.append(d)
+                temp_trace_count += tc
+
+            ## row 2; abutted files
+            combined_maxes = []
+            for i, cspec_file in enumerate(np.sort(combined_cspec)):
+                fig, combined_maxes, d, tc = open_files_and_plot(fig, cspec_file, 2, combined_maxes, f'{i}combined', dash='dot', visible=vis)
+                temp_trace_count += tc
+
+            # for d in np.unique(detectors):
+            #     fig = add_tts_regions(fig, d)
+
+            ## plot the preview spec over both of them
+            fig, ntraces = plot_preview(fig, targ_dir, visible=vis)
+            temp_trace_count += ntraces # preview added to each row
+
+            n_all_traces.append(temp_trace_count) # counting the total number of traces for the buttons
+
+
+        ## formatting
+        fig = update_plot_layouts(fig, grating_ymaxes)
+
+        fig = make_buttons(fig, all_vis, n_all_traces, buttons)
+
+        if target in list(highmass_df['target_name_hlsp']):
+            fig_outname = f'/astro/ullyses/preview_plots/highmass/{target}_preview_dr6.html'
+        elif target in list(lowmass_df['target_name_hlsp']):
+            fig_outname = f'/astro/ullyses/preview_plots/lowmass/{target}_preview_dr6.html'
         else:
-            # potentially cenwave combined, but only 1 grating
-            grating_cspec.append(f)
-
-    # initialize a file
-
-    #fig = go.Figure()
-    fig = make_subplots(rows=2,
-                        cols=1,
-                        shared_xaxes=True,
-                        #shared_yaxes=True, # this only shares across columns...
-                        subplot_titles=('Single Grating Coaddition',
-                                        'Single Instrument, Multiple Grating<sup>*</sup> Abutment'),
-                        row_titles=('<a href="https://ullyses.stsci.edu/ullyses-data-description.html#productDescrip">Level 2 HLSP</a>',
-                                    '<a href="https://ullyses.stsci.edu/ullyses-data-description.html#productDescrip">Level 3 HLSP</a>'),
-                        vertical_spacing=0.05)
-
-    target = fits.getval(grating_cspec[0], 'TARGNAME')
-
-    buttons = ['Linear Scale', 'Log Scale']
-    n_all_traces = []
-    all_vis = []
-
-    # looping through the traces to make my buttons. Visible by default for linear
-    #   first. Not visible for log scale
-    for i, (buttonname, vis) in enumerate(zip(buttons, [True, False])):
-        # initializing a False array except for the button that will be visible
-        #    will be adjusted to account for the number of traces per plot later
-        current_plot_visibility = [False] * len(buttons)
-        current_plot_visibility[i] = True
-        all_vis.append(current_plot_visibility)
-
-        temp_trace_count = 0
-
-        ## row 1; grating only files
-        grating_ymaxes = []
-        detectors = []
-        for i, cspec_file in enumerate(np.sort(grating_cspec)):
-            fig, grating_ymaxes, d, tc = open_files_and_plot(fig, cspec_file, 1, grating_ymaxes, f'{i}grating', visible=vis)
-            detectors.append(d)
-            temp_trace_count += tc
-
-        ## row 2; abutted files
-        combined_maxes = []
-        for i, cspec_file in enumerate(np.sort(combined_cspec)):
-            fig, combined_maxes, d, tc = open_files_and_plot(fig, cspec_file, 2, combined_maxes, f'{i}combined', dash='dot', visible=vis)
-            temp_trace_count += tc
-
-        # for d in np.unique(detectors):
-        #     fig = add_tts_regions(fig, d)
-
-        ## plot the preview spec over both of them
-        fig, ntraces = plot_preview(fig, targ_dir, visible=vis)
-        temp_trace_count += ntraces # preview added to each row
-
-        n_all_traces.append(temp_trace_count) # counting the total number of traces for the buttons
+            print(f'{target} not recognized')
+            fig_outname = f'/astro/ullyses/preview_plots/highmass/{target}_preview_dr6.html'
 
 
-    ## formatting
-    fig = update_plot_layouts(fig, grating_ymaxes)
+        #fig.show()
 
-    fig = make_buttons(fig, all_vis, n_all_traces, buttons)
-
-
-    fig.show()
-    fig.write_html(f'/Users/rplesha/Desktop/{target}_preview_v4.html')
+        fig.write_html(fig_outname)
+        print(f'Saved: {fig_outname}')
