@@ -72,7 +72,7 @@ class Ullyses():
             self.make_xsu_data_ext()
             self.make_xsu_prov_ext()
         else:
-            print(f"ERROR: HLSP type not '{self.hlsp_type}' recognized. Must be 'spectral', 'imaging', 'drizzled', or 'lcogt'")
+            print(f"ERROR: HLSP type not '{self.hlsp_type}' recognized. Must be 'spectral', 'imaging', 'drizzled', 'lcogt', or 'xsu'")
 
         
     def write_file(self):
@@ -97,6 +97,11 @@ class Ullyses():
         hdulist.writeto(self.hlspname, overwrite=self.overwrite)
         print(f"Wrote {self.hlspname}")
 
+
+    def split_xsu(self):
+        uvb = self.files[0].replace(".fits", "_uvb.fits")
+        vis = self.files[0].replace(".fits", "vis.fits")
+         
 
     def make_spectral_hdr0(self):
         hdr0 = fits.Header()
@@ -244,6 +249,7 @@ class Ullyses():
     
     def make_xsu_hdr0(self):
 # define nextend
+# define arm
         hdr0['NEXTEND'] = nextend
         hdr0['FITS_SW'] = (f'astropy.io.fits v {astropy.__version__}', 'FITS file creation software')
         hdr0['ORIGIN'] =  ("XSHOOTING-ULLYSES", 'FITS file originator')
@@ -255,22 +261,29 @@ class Ullyses():
         hdr0.add_blank('              / SCIENCE INSTRUMENT CONFIGURATION', before='INSTRUME')
         hdr0['DETECTOR'] = (self.combine_keys("detector", "multi"), 'Detector or channel used to acquire data')
         hdr0['DISPERSR'] = (self.combine_keys("opt_elem", "multi"), 'Identifier of disperser')
-        hdr0['CENWAVE'] = ("UNKNOWN", 'Central wavelength setting for disperser')
-        hdr0['APERTURE'] = ('UNKNOWN', 'Identifier of entrance aperture')
-        hdr0['S_REGION'] = ('UNKNOWN', 'Region footprint')
-        hdr0['OBSMODE'] = ("ACCUM", "multi"), 'Instrument operating mode (ACCUM | TIME-TAG)')
+# Define this like FUSE, just measure the central wavelength
+        if arm == "uvb":
+            minwave = 3000
+            maxwave = 5551
+            cenwave = 4276
+            hdr0['CENWAVE'] = (cenwave, 'Central wavelength setting for disperser')
+            hdr0['APERTURE'] = (self.combine_keys("aperture_uvb"), 'Identifier of entrance aperture')
+        elif arm == "vis":
+            minwave = 5451
+            maxwave = 10202
+            cenwave = 7827
+            hdr0['CENWAVE'] = (cenwave, 'Central wavelength setting for disperser')
+            hdr0['APERTURE'] = (self.combine_keys("aperture_vis"), 'Identifier of entrance aperture')
+        hdr0['S_REGION'] = (self.obs_footprint(), 'Region footprint')
+        hdr0['OBSMODE'] = ("ACCUM", 'Instrument operating mode (ACCUM | TIME-TAG)')
         hdr0['TARGNAME'] = (self.targname, 'Target Name')
         hdr0.add_blank(after='OBSMODE')
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
         hdr0['EQUINOX'] = (self.combine_keys("equinox", "multi"), )
-        # Below should use combine_keys
-        hdr0['RADESYS'] = (hdr1['RADECSYS'],'World coordinate reference frame')
-        # Below should use ULLYSES coords                                                                        
-        hdr0['TARG_RA'] =  ("ULLYSES RA",  '[deg] Target right ascension')                                       
-        # Below should use ULLYSES coords                                                                        
-        hdr0['TARG_DEC'] =  ("ULLYSES DEC",  '[deg] Target declination')                                         
-        # Below should use combine_keys                                                                          
-        hdr0['PROPOSID'] = (hdr1['HIERARCH ESO OBS PROG ID'], 'Program identifier')                              
+        hdr0['RADESYS'] = (self.combine_keys("RADECSYS"), 'World coordinate reference frame')
+        hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
+        hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
+        hdr0['PROPOSID'] = (self.combine_keys('HIERARCH ESO OBS PROG ID'), 'Program identifier')                              
         hdr0.add_blank(after='TARG_DEC')                                                                         
         hdr0.add_blank('           / XSHOOTU PROVENANCE INFORMATION', before='PROPOSID')                         
         hdr0['CREATOR'] = ('XSHOOTING-ULLYSES Team', 'Creator of FITS file')                                     
@@ -286,14 +299,11 @@ class Ullyses():
         hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')                                         
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')                  
         hdr0['ULL_REF'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')       
-        # Below should use combine_keys                                                                          
-        hdr0['CENTRWV'] = ('UNKNOWN', 'Central wavelength of the data')                                          
+        hdr0['CENTRWV'] = (cenwave, 'Central wavelength of the data')                                          
         hdr0.add_blank(after='ULL_REF')                                                                          
         hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')                                 
-        # Below should use combine_keys                                                                          
-        hdr0['MINWAVE'] = ('UNKNOWN', 'Minimum wavelength in spectrum')                                          
-        # Below should use combine_keys                                                                          
-        hdr0['MAXWAVE'] = ('UNKNOWN', 'Maximum wavelength in spectrum')                                          
+        hdr0['MINWAVE'] = (minwave, 'Minimum wavelength in spectrum')                                          
+        hdr0['MAXWAVE'] = (maxwave, 'Maximum wavelength in spectrum')                                          
         primary = fits.PrimaryHDU(header=hdr0)                                                                   
 
 
@@ -432,7 +442,7 @@ class Ullyses():
         hdr1 = fits.Header()
         hdr1['EXTNAME'] = ('SCIENCE', 'Spectrum science arrays')
         hdr1['TIMESYS'] = ('UTC', 'Time system in use')
-        hdr1['TIMEUNIT'] = ('s', 'Time unit for durations')
+        hdrax'TIMEUNIT'] = ('s', 'Time unit for durations')
         hdr1['TREFPOS'] = ('GEOCENTER', 'Time reference position')
 
         mjd_beg = self.combine_keys("expstart", "min")
@@ -628,7 +638,7 @@ class Ullyses():
         
     def make_xsu_prov_ext():
 
-    def combine_keys(self, key, method, dict_key=None, constant=None):
+    def combine_keys(self, key, method="multi", dict_key=None, constant=None):
         keymap= {"HST": {"expstart": ("expstart", 1),
                          "expend": ("expend", 1),
                          "exptime": ("exptime", 1),
@@ -691,7 +701,8 @@ class Ullyses():
                          "instrume": ("instrume", 1),
                          "detector": ("hierarch eso det name", 1),
                          "opt_elem": ("seqarm", 1),
-                         "aperture": ("hierarch eso ins opti3 name", 1), # opti3 is for UVB and opti4 for VIS
+                         "aperture_uvb": ("hierarch eso ins opti3 name", 1), # opti3 is for UVB and opti4 for VIS
+                         "aperture_vis": ("hierarch eso ins opti4 name", 1), # opti3 is for UVB and opti4 for VIS
                          "s_region": ("hierarch eso ada posang", 1), # calculate this from position angle
                          "equinox": ("equinox", 1),
                          "radesys": ("radecsys", 1),
