@@ -34,6 +34,7 @@ def get_goodbad_exposures(tss_params):
             values are the parameter values, e.g. files to use. This has been
             updated to explicitly list bad IPPPSS and IPPPSSOOT separately.
     """
+    assert "good_files" in tss_params, "Good files must be specified for all config files!"
     for filetype in ["bad", "good"]:
         filetype_files = tss_params[f"{filetype}_files"]
         filetype_ipppss = []
@@ -100,7 +101,6 @@ def replace_utils_dir(shift_file, utils_dir=UTILS_DIR):
 
 def copy_serendipitous_origdata(datadir, orig_datadir, tss_params):
     """
-    NOT CURRENTLY IN USE.
     For serendipitous stars.
     Copy the original raw data, to ensure nothing is mistakenly edited.
     Data is copied from orig_datadir to datadir.
@@ -115,20 +115,19 @@ def copy_serendipitous_origdata(datadir, orig_datadir, tss_params):
             directory is created on the fly. 
     """
 
-    # Covers both STIS & 
-    files = glob.glob(os.path.join(orig_datadir, "*corrtag*fits"))
-    files += glob.glob(os.path.join(orig_datadir, "*rawtag*.fits"))
-    files += glob.glob(os.path.join(orig_datadir, "*spt*.fits"))
-    files += glob.glob(os.path.join(orig_datadir, "*asn*.fits"))
-    files += glob.glob(os.path.join(orig_datadir, "*x1d.fits"))
-    files += glob.glob(os.path.join(orig_datadir, "*raw.fits"))
-    files += glob.glob(os.path.join(orig_datadir, "*sx1.fits"))
+    # Covers both STIS & COS 
+    allfiles = glob.glob(os.path.join(orig_datadir, "*x1d.fits"))
+    allfiles += glob.glob(os.path.join(orig_datadir, "*sx1.fits"))
+    allfiles += glob.glob(os.path.join(orig_datadir, "*x1f.fits"))
     if not os.path.exists(datadir):
         os.makedirs(datadir)
-    for item in files:
+    for item in allfiles:
         basen = os.path.basename(item)
         ipppssoot = basen[:9]
         ipppss = basen[:6]
+        if ipppss not in tss_params["good_ipppss"]:
+            if ipppssoot not in tss_params["good_ipppssoot"]:
+                continue
         if ipppss in tss_params["bad_ipppss"] or ipppssoot in tss_params["bad_ipppssoot"]:
             continue
         shutil.copy(item, datadir)
@@ -155,8 +154,8 @@ def copy_monitoring_origdata(datadir, orig_datadir, tss_params):
 
     raws = glob.glob(os.path.join(orig_datadir, "l*rawtag*.fits"))
 
-    good_ipppss = []
-    good_ipppssoot = []
+    do_copy = []
+    do_copy_ipppss = []
 
     if not os.path.exists(datadir):
         os.makedirs(datadir)
@@ -164,6 +163,9 @@ def copy_monitoring_origdata(datadir, orig_datadir, tss_params):
         basen = os.path.basename(item)
         ipppssoot = basen[:9]
         ipppss = basen[:6]
+        if ipppss not in tss_params["good_ipppss"]:
+            if ipppssoot not in tss_params["good_ipppssoot"]:
+                continue
         if ipppss in tss_params["bad_ipppss"] or ipppssoot in tss_params["bad_ipppssoot"]:
             continue
         ins = fits.getval(item, "instrume")
@@ -172,22 +174,22 @@ def copy_monitoring_origdata(datadir, orig_datadir, tss_params):
         grating = fits.getval(item, "opt_elem")
         if grating.lower() not in tss_params["gratings"]:
             continue
-        good_ipppss.append(ipppss)
-        good_ipppssoot += glob.glob(os.path.join(orig_datadir, f"{ipppssoot}*rawtag*.fits"))
-        good_ipppssoot += glob.glob(os.path.join(orig_datadir, f"{ipppssoot}*corrtag*.fits"))
-        good_ipppssoot += glob.glob(os.path.join(orig_datadir, f"{ipppssoot}*spt*.fits"))
-        good_ipppssoot += glob.glob(os.path.join(orig_datadir, f"{ipppssoot}*x1d*.fits"))
+        do_copy_ipppss.append(ipppss)
+        do_copy += glob.glob(os.path.join(orig_datadir, f"{ipppssoot}*rawtag*.fits"))
+        do_copy += glob.glob(os.path.join(orig_datadir, f"{ipppssoot}*corrtag*.fits"))
+        do_copy += glob.glob(os.path.join(orig_datadir, f"{ipppssoot}*spt*.fits"))
+        do_copy += glob.glob(os.path.join(orig_datadir, f"{ipppssoot}*x1d*.fits"))
 
-    good_ipppssoot = list(set(good_ipppssoot))
-    good_ipppss = list(set(good_ipppss))
+    do_copy = list(set(do_copy))
+    do_copy_ipppss = list(set(do_copy_ipppss))
 
-    for item in good_ipppssoot:
+    for item in do_copy:
         shutil.copy(item, datadir)
     asns = glob.glob(os.path.join(orig_datadir, "l*asn*.fits"))
     for item in asns:
         basen = os.path.basename(item)
         ipppss = basen[:6]
-        if ipppss in good_ipppss:
+        if ipppss in do_copy_ipppss:
             shutil.copy(item, datadir)
 
     print(f"\nCopied original files to {datadir}")
@@ -498,14 +500,13 @@ def move_output_epoch_data(datadir, tss_params):
     print(f"\nMoved x1ds to a single directory to be made into TSS")
 
 
-def serendipitous_star(datadir, tss_outdir, targ, yamlfile=None, custom_caldir=None,
+def serendipitous_star(datadir, orig_datadir, tss_outdir, targ, yamlfile=None, custom_caldir=None,
                        min_exptime=1):
     if not os.path.exists(tss_outdir):
         os.makedirs(tss_outdir)
     tss_params = read_tss_yaml(targ, yamlfile)
     tss_params = get_goodbad_exposures(tss_params)
-    # Not yet implemented because it's not needed so far.
-    #copy_serendipitous_origdata(datadir, orig_datadir, tss_params)
+    copy_serendipitous_origdata(datadir, orig_datadir, tss_params)
     #calibrate_cos_data(datadir, tss_params, custom_caldir)
     #copy_monitoring_caldata(datadir, tss_params, custom_caldir)
     create_serendipitous_timeseries(datadir, tss_outdir, targ, tss_params, min_exptime)
