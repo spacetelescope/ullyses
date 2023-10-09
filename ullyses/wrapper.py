@@ -16,6 +16,7 @@ from ullyses.coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDS
 from ullyses.coadd import abut, SegmentList
 import ullyses_utils
 from ullyses_utils.ullyses_config import RENAME, VERSION, CAL_VER
+from hasp.grating_priority import create_level4_products
 
 RED = "\033[1;31m"
 RESET = "\033[0;0m"
@@ -303,6 +304,15 @@ class Ullyses_SegmentList(SegmentList):
         elif method == "arr":
             return np.array(vals)
 
+    def add_hasp_attributes(self):
+        self.disambiguated_grating = self.grating.lower()
+        self.gratinglist = [self.grating]
+        self.aperturelist = []
+        self.instrumentlist = []
+        self.propid = ''
+        self.rootname = ''
+        self.num_exp = 1
+
 class Ullyses_COSSegmentList(COSSegmentList, Ullyses_SegmentList):
     pass
 
@@ -369,6 +379,8 @@ def main(indir, outdir, version=VERSION, clobber=False):
 
         # Create dictionary of all products, with each set to None by default
         products = defaultdict(lambda: None)
+        productlist = []
+        productdict = {}
 
         level = 2
         for instrument, grating, detector in uniqmodes:
@@ -413,6 +425,7 @@ def main(indir, outdir, version=VERSION, clobber=False):
                     prod.write(outname, clobber, level=level, version=version)
                     print(f"   Wrote {outname}")
                 products[f'{instrument}/{grating}'] = prod
+                productlist.append(prod)
             else:
                 print(f"No valid data for grating {grating}")
             if prod.level0 is True:
@@ -434,7 +447,10 @@ def main(indir, outdir, version=VERSION, clobber=False):
                 prod.write(outname, clobber, level=0, version=version)
                 print(f"   Wrote {outname}")
                 products[f'{instrument}/{grating}'] = prod
+                productlist.append(prod)
             products[f'{instrument}/{grating}'] = prod
+            productdict[f'{instrument}/{grating}'] = prod
+            prod.add_hasp_attributes()
 
 
         # Create level 3 products- abutted spectra for gratings of the same
@@ -472,6 +488,8 @@ def main(indir, outdir, version=VERSION, clobber=False):
         # the one that extends further. If none overlap, still abut them- there
         # will just be a region of flux=0 in between.
         level = 4
+        abutted_product = create_level4_products(productlist, productdict)
+        abutted_product.write('test.fits')
         gratings = []
         minwls = []
         maxwls = []
