@@ -20,6 +20,8 @@ from ullyses_utils.ullyses_config import VERSION
 from ullyses_utils.readwrite_yaml import read_config
 
 UTILS_DIR = ullyses_utils.__path__[0]
+RED = "\033[1;31m"
+RESET = "\033[0;0m"
 
 
 def get_goodbad_exposures(tss_params):
@@ -115,12 +117,14 @@ def copy_serendipitous_origdata(datadir, orig_datadir, tss_params):
             directory is created on the fly. 
     """
 
+    should_be_copied = tss_params["good_ipppssoot"] + tss_params["good_ipppss"]
     # Covers both STIS & COS 
     allfiles = glob.glob(os.path.join(orig_datadir, "*x1d.fits"))
     allfiles += glob.glob(os.path.join(orig_datadir, "*sx1.fits"))
     allfiles += glob.glob(os.path.join(orig_datadir, "*x1f.fits"))
     if not os.path.exists(datadir):
         os.makedirs(datadir)
+
     for item in allfiles:
         basen = os.path.basename(item)
         ipppssoot = basen[:9]
@@ -130,8 +134,15 @@ def copy_serendipitous_origdata(datadir, orig_datadir, tss_params):
                 continue
         if ipppss in tss_params["bad_ipppss"] or ipppssoot in tss_params["bad_ipppssoot"]:
             continue
+        for identifier in [ipppss, ipppssoot]:
+            try:
+                should_be_copied.remove(identifier)
+            except:
+                pass
         shutil.copy(item, datadir)
     print(f"\nCopied original files to {datadir}")
+    if len(should_be_copied) != 0:
+        print(f"{RED}WARNING: Not all good files were found copied! Missing files: {should_be_copied}{RESET}")
 
     return datadir
 
@@ -156,6 +167,7 @@ def copy_monitoring_origdata(datadir, orig_datadir, tss_params):
 
     do_copy = []
     do_copy_ipppss = []
+    should_be_copied = tss_params["good_ipppssoot"] + tss_params["good_ipppss"]
 
     if not os.path.exists(datadir):
         os.makedirs(datadir)
@@ -179,6 +191,11 @@ def copy_monitoring_origdata(datadir, orig_datadir, tss_params):
         do_copy += glob.glob(os.path.join(orig_datadir, f"{ipppssoot}*corrtag*.fits"))
         do_copy += glob.glob(os.path.join(orig_datadir, f"{ipppssoot}*spt*.fits"))
         do_copy += glob.glob(os.path.join(orig_datadir, f"{ipppssoot}*x1d*.fits"))
+        for identifier in [ipppss, ipppssoot]:
+            try:
+                should_be_copied.remove(identifier)
+            except:
+                pass
 
     do_copy = list(set(do_copy))
     do_copy_ipppss = list(set(do_copy_ipppss))
@@ -193,6 +210,8 @@ def copy_monitoring_origdata(datadir, orig_datadir, tss_params):
             shutil.copy(item, datadir)
 
     print(f"\nCopied original files to {datadir}")
+    if len(should_be_copied) != 0:
+        print(f"{RED}WARNING: Not all good files were found copied! Missing files: {should_be_copied}{RESET}")
 
     return datadir
 
