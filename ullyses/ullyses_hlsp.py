@@ -8,6 +8,7 @@ import numpy as np
 import datetime
 from datetime import datetime as dt
 from astropy.time import Time
+import sys
 
 from ullyses_utils.parse_csv import parse_aliases
 from ullyses_utils.ullyses_config import VERSION, CAL_VER
@@ -20,7 +21,14 @@ class Ullyses():
     def __init__(self, files, hlspname, targname, ra, dec, level,
                  cal_ver=CAL_VER, version=VERSION, hlsp_type="spectral", 
                  overwrite=True, photfile=None):
+        
         self.hlsp_type = hlsp_type
+        accepted_types = ["spectral", "imaging", "drizzled", "lcogt", "xsu"]
+        if self.hlsp_type not in accepted_types: 
+            print(f"ERROR: HLSP type not '{self.hlsp_type}' recognized. Must be one of {accepted_types}") 
+            sys.exit()
+        
+        self.files = files
         if hlsp_type == "lcogt":
             assert photfile is not None, "Photometry file must be supplied for LCOGT data"
             self.photfile = photfile
@@ -29,15 +37,34 @@ class Ullyses():
                     skiprows=[0], delim_whitespace=True)
             df = df.sort_values("mjdstart")
             self.photdf = df
-        self.files = files
+        if hlsp_type == "xsu":
+            assert len(self.files) == 1, f"{len(self.files)} XSU products provided, can only handle 1"
+        if hlsp_type == "drizzled":
+            assert len(self.files) == 1, f"{len(self.files)} DRC files provided, can only handle 1"
+
         self.primary_headers = []
         self.first_headers = []
         self.second_headers = []
         for item in self.files:
-            self.primary_headers.append(fits.getheader(item))
-            self.first_headers.append(fits.getheader(item, 1))
-            if hlsp_type == "drizzled":
-                self.second_headers.append(fits.getheader(item, 2))
+            with fits.open(item) as hdulist:
+                self.nextend = len(hdulist)
+                if self.hlsp_type != "xsu":
+                    self.primary_headers.append(hdulist[0].header)
+                    self.first_headers.append(hdulist[1].header)
+                    if hlsp_type == "drizzled": # Get the WGT headers
+                        self.second_headers.append(hdulist[2].header)
+                elif self.hlsp_type == "xsu":
+        # We call each of the data extensions in an original XSU product a 
+        # "first extension" since each is really a separate exposure 
+                    for i in range(1, self.nextend):
+                        self.primary_headers.append(hdulist[0].header)
+                        hdr = hdulist[i].header
+                        # add a new "key" that is just the VLT arm in use
+                        if "UVB" in hdr["extname"]:
+                            hdr["arm"] = "UVB"
+                        else:
+                            hdr["arm"] = "VIS"
+                        self.first_headers.append(hdulist[i].header) 
         self.targname = targname
         self.targ_ra = ra
         self.targ_dec = dec
@@ -46,6 +73,18 @@ class Ullyses():
         self.version = version
         self.level = level
         self.overwrite = overwrite
+        
+        match self.hlsp_type:
+            case "lcogt":
+                self.telescope = "LCOGT"
+            case "xsu":
+                self.telescope = "VLT"
+            case "drizzled":
+                self.telescope = "HST"
+            case other:
+                tel = self.primary_headers[0]["telescop"]
+                self.telescope = tel
+
 
 
     def make_hdrs_and_prov(self):
@@ -62,17 +101,16 @@ class Ullyses():
             self.make_lcogt_timeseries_data_ext()
             self.make_lcogt_timeseries_prov_ext()
         elif self.hlsp_type == "drizzled":
-            assert len(self.files) == 1, f"{len(self.files)} provided, can only handle 1"
             self.make_imaging_hdr0()
             self.make_drizzled_data_ext()
             self.make_drizzled_wgt_ext()
             self.make_drizzled_prov_ext()
-        elif self.hlsp_type == "xshootu":
+        elif self.hlsp_type == "xsu":
             self.make_xsu_hdr0()
-            self.make_xsu_data_ext()
+            self.hdutables = []
+            for i in range(1, self.nextend):
+                self.hdutables.append(self.make_xsu_data_ext(i))
             self.make_xsu_prov_ext()
-        else:
-            print(f"ERROR: HLSP type not '{self.hlsp_type}' recognized. Must be 'spectral', 'imaging', 'drizzled', 'lcogt', or 'xsu'")
 
         
     def write_file(self):
@@ -86,22 +124,18 @@ class Ullyses():
             prov = self.prov_hdu
             hdulist = fits.HDUList([primary, ext1, prov])
         elif self.hlsp_type == "drizzled":
-            assert len(self.files) == 1, f"{len(self.files)} provided, can only handle 1"
             primary = fits.PrimaryHDU(header=self.hdr0)
             ext1 =  self.hdu1
             ext2 = self.hdu2
             prov = self.prov_hdu
             hdulist = fits.HDUList([primary, ext1, ext2, prov])
-        else:
-            print(f"ERROR: HLSP type not '{self.hlsp_type}' recognized. Must be 'spectral', 'imaging', 'drizzled', or 'lcogt'")
+        elif self.hlsp_type == "xsu":
+            primary = fits.PrimaryHDU(header=self.hdr0)
+            prov = self.prov_hdu
+            hdulist = fits.HDUList([primary] + self.hdutables + [prov])
         hdulist.writeto(self.hlspname, overwrite=self.overwrite)
         print(f"Wrote {self.hlspname}")
 
-
-    def split_xsu(self):
-        uvb = self.files[0].replace(".fits", "_uvb.fits")
-        vis = self.files[0].replace(".fits", "vis.fits")
-         
 
     def make_spectral_hdr0(self):
         hdr0 = fits.Header()
@@ -248,53 +282,48 @@ class Ullyses():
     
     
     def make_xsu_hdr0(self):
-# define nextend
-# define arm
-        hdr0['NEXTEND'] = nextend
+        hdr0 = fits.Header()
+        hdr0['NEXTEND'] = self.nextend
         hdr0['FITS_SW'] = (f'astropy.io.fits v {astropy.__version__}', 'FITS file creation software')
         hdr0['ORIGIN'] =  ("XSHOOTING-ULLYSES", 'FITS file originator')
         hdr0['DATE'] = (f'{str(datetime.date.today())}', 'Date this file was written')
-        hdr0['FILENAME'] = (os.path.basename(filename), 'Name of this file')
+        hdr0['FILENAME'] = (os.path.basename(self.hlspname), 'Name of this file')
         hdr0['TELESCOP'] = (self.combine_keys("telescop", "multi"), 'Telescope used to acquire data')
         hdr0['INSTRUME'] = (self.combine_keys("instrume", "multi") , 'Instrument used to acquire data')
         hdr0.add_blank('', after='TELESCOP')
         hdr0.add_blank('              / SCIENCE INSTRUMENT CONFIGURATION', before='INSTRUME')
         hdr0['DETECTOR'] = (self.combine_keys("detector", "multi"), 'Detector or channel used to acquire data')
         hdr0['DISPERSR'] = (self.combine_keys("opt_elem", "multi"), 'Identifier of disperser')
-# Define this like FUSE, just measure the central wavelength
-        if arm == "uvb":
-            minwave = 3000
-            maxwave = 5551
-            cenwave = 4276
-            hdr0['CENWAVE'] = (cenwave, 'Central wavelength setting for disperser')
-            hdr0['APERTURE'] = (self.combine_keys("aperture_uvb"), 'Identifier of entrance aperture')
-        elif arm == "vis":
-            minwave = 5451
-            maxwave = 10202
-            cenwave = 7827
-            hdr0['CENWAVE'] = (cenwave, 'Central wavelength setting for disperser')
-            hdr0['APERTURE'] = (self.combine_keys("aperture_vis"), 'Identifier of entrance aperture')
+        minwave = 3000
+        maxwave = 10202
+        cenwave = 6601
+        hdr0['CENWAVE'] = (cenwave, 'Central wavelength setting for disperser')
+        hdr0['APERTURE'] = (self.combine_keys("aperture"), 'Identifier of entrance aperture')
         hdr0['S_REGION'] = (self.obs_footprint(), 'Region footprint')
         hdr0['OBSMODE'] = ("ACCUM", 'Instrument operating mode (ACCUM | TIME-TAG)')
         hdr0['TARGNAME'] = (self.targname, 'Target Name')
         hdr0.add_blank(after='OBSMODE')
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
         hdr0['EQUINOX'] = (self.combine_keys("equinox", "multi"), )
-        hdr0['RADESYS'] = (self.combine_keys("RADECSYS"), 'World coordinate reference frame')
+        hdr0['RADESYS'] = (self.combine_keys("radesys", "multi"), 'World coordinate reference frame')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
-        hdr0['PROPOSID'] = (self.combine_keys('HIERARCH ESO OBS PROG ID'), 'Program identifier')                              
+        hdr0['PROPOSID'] = (self.combine_keys("proposid"), 'Program identifier')                              
         hdr0.add_blank(after='TARG_DEC')                                                                         
         hdr0.add_blank('           / XSHOOTU PROVENANCE INFORMATION', before='PROPOSID')                         
-        hdr0['CREATOR'] = ('XSHOOTING-ULLYSES Team', 'Creator of FITS file')                                     
+        hdr0['CREATOR'] = ('XSHOOTING-ULLYSES Team', 'Creator of FITS file')
+        hdr0['XSU_VER'] = (self.combine_keys("dr_num"), 'XSHOOTING-ULLYSES data release identifier')
+        hdr0['XSU_DATE'] = (self.combine_keys("dr_date"), 'XSHOOTING-ULLYSES data release date')
+# need to define this
+        xsu_ref = "PAPER!"
         hdr0['XSU_REF'] = (xsu_ref, 'Bibliographic ID of primary paper')                                         
-        hdr0['CAL_VER'] = (f'ULLYSES Cal v1.1', 'ULLYSES HLSP processing software version')                      
+        hdr0['CAL_VER'] = (f'ULLYSES Cal {self.cal_ver}', 'HLSP processing software version')
         hdr0.add_blank(after='XSU_REF')                                                                          
         hdr0.add_blank('           / ULLYSES PROVENANCE INFORMATION', before='CAL_VER')                          
         hdr0['HLSPID'] = ('ULLYSES', 'Name ID of STScI HLSP collection')                                         
         hdr0['HSLPNAME'] = ('Hubble UV Legacy Library of Young Stars as Essential Standards', 'Name ID of STScI HLSP collection')
         hdr0['HLSPLEAD'] = ('Julia Roman-Duval', 'Full name of ULLYSES HLSP project lead')                       
-        hdr0['HLSP_VER'] = ("DR6", 'ULLYSES HLSP data release version identifier')                               
+        hdr0['HLSP_VER'] = (self.version, 'ULLYSES HLSP data release version identifier')                               
         hdr0['HLSP_LVL'] = (0, 'ULLYSES HLSP Level')                                                             
         hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')                                         
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')                  
@@ -303,8 +332,9 @@ class Ullyses():
         hdr0.add_blank(after='ULL_REF')                                                                          
         hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')                                 
         hdr0['MINWAVE'] = (minwave, 'Minimum wavelength in spectrum')                                          
-        hdr0['MAXWAVE'] = (maxwave, 'Maximum wavelength in spectrum')                                          
-        primary = fits.PrimaryHDU(header=hdr0)                                                                   
+        hdr0['MAXWAVE'] = (maxwave, 'Maximum wavelength in spectrum')
+    
+        self.hdr0 = hdr0
 
 
     def make_spectral_hdr1(self):
@@ -438,28 +468,35 @@ class Ullyses():
         self.hdu1 = fits.ImageHDU(data1, header=hdr1) 
     
 
-    def make_xsu_data_ext():
-        hdr1 = fits.Header()
-        hdr1['EXTNAME'] = ('SCIENCE', 'Spectrum science arrays')
-        hdr1['TIMESYS'] = ('UTC', 'Time system in use')
-        hdrax'TIMEUNIT'] = ('s', 'Time unit for durations')
-        hdr1['TREFPOS'] = ('GEOCENTER', 'Time reference position')
-
+    def make_xsu_data_ext(self, ext):
+        with fits.open(self.files[0]) as hdulist:
+            hdr = hdulist[ext].header
+            data = hdulist[ext].data
+            extname = hdulist[ext].name
+        
+        for item in hdr.keys():
+            pass
+        lastkey = item
+        hdr['EXTNAME'] = (extname, 'Spectrum science arrays')
+        hdr['TIMESYS'] = ('UTC', 'Time system in use')
+        hdr.add_blank(after=lastkey)
+        hdr.add_blank('              / FITS TIME COORDINATE KEYWORDS', before='TIMESYS')
+        hdr['TIMEUNIT'] = ('s', 'Time unit for durations')
+        hdr['TREFPOS'] = ('GEOCENTER', 'Time reference position')
         mjd_beg = self.combine_keys("expstart", "min")
         mjd_end = self.combine_keys("expend", "max")
         dt_beg = Time(mjd_beg, format="mjd").datetime
         dt_end = Time(mjd_end, format="mjd").datetime
-        hdr1['DATE-BEG'] = (dt.strftime(dt_beg, "%Y-%m-%dT%H:%M:%S%.f"), 'Date-time of first observation start')
-        hdr1.add_blank('', after='TREFPOS')
-        hdr1.add_blank('              / FITS TIME COORDINATE KEYWORDS', before='DATE-BEG')
+        hdr['DATE-BEG'] = (dt.strftime(dt_beg, "%Y-%m-%dT%H:%M:%S"), 'Date-time of first observation start')
+        hdr['DATE-END'] = (dt.strftime(dt_end, "%Y-%m-%dT%H:%M:%S"), 'Date-time of last observation end')
+        hdr['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
+        hdr['MJD-END'] = (mjd_end, 'MJD of last exposure end')
+        hdr['XPOSURE'] = (self.combine_keys("exptime", "sum"), '[s] Sum of exposure durations')
+        hdr.add_blank(after='XPOSURE')
+        
+        table = fits.BinTableHDU(data, header=hdr)
+        return table
 
-        hdr1['DATE-END'] = (dt.strftime(dt_end, "%Y-%m-%dT%H:%M:%S"), 'Date-time of last observation end')
-        hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
-        hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
-        hdr1['XPOSURE'] = (self.combine_keys("exptime", "sum"), '[s] Sum of exposure durations')
-    
-        self.hdr1 = hdr1
-    
     
     def make_drizzled_wgt_ext(self):
         hdr2 = self.second_headers[0]
@@ -636,7 +673,47 @@ class Ullyses():
         self.prov_hdu = table2
 
         
-    def make_xsu_prov_ext():
+    def make_xsu_prov_ext(self):
+        hdr = fits.Header()
+        hdr['EXTNAME'] = ('PROVENANCE', 'Metadata for contributing observations')
+        # set up the table columns
+        cfn = fits.Column(name='FILENAME', array=self.combine_keys("filename", "arr"), 
+            format='A40')
+        cpid = fits.Column(name='PROPOSID', array=self.combine_keys("proposid", "arr"), 
+            format='A32')
+        ctel = fits.Column(name='TELESCOPE', array=self.combine_keys("telescop", "arr"), 
+            format='A32')
+        cins = fits.Column(name='INSTRUMENT', array=self.combine_keys("instrume", "arr"), 
+            format='A32')
+        cdet = fits.Column(name='DETECTOR', array=self.combine_keys("detector", "arr"), 
+            format='A32')
+        cdis = fits.Column(name='DISPERSER', array=self.combine_keys("opt_elem", "arr"), 
+            format='A32')
+        ccen = fits.Column(name='CENWAVE', array=self.combine_keys("cenwave", "arr"), 
+            format='A32')
+        cap = fits.Column(name='APERTURE', array=self.combine_keys("aperture", "arr"), 
+            format='A32')
+        csr = fits.Column(name='SPECRES', array=self.combine_keys("specres", "arr"), 
+            format='F8.1')
+        ccv = fits.Column(name='CAL_VER', array=self.combine_keys("cal_ver", "arr"), 
+            format='A32')
+        mjd_begs = self.combine_keys("expstart", "arr")
+        mjd_ends = self.combine_keys("expend", "arr")
+        mjd_mids = (mjd_ends + mjd_begs) / 2.
+        cdb = fits.Column(name='MJD_BEG', array=mjd_begs, format='F15.9', unit='d')
+        cdm = fits.Column(name='MJD_MID', array=mjd_mids, format='F15.9', unit='d')
+        cde = fits.Column(name='MJD_END', array=mjd_ends, format='F15.9', unit='d')
+        cexp = fits.Column(name='XPOSURE', array=self.combine_keys("exptime", "arr"), format='F15.9', unit='s')
+        cmin = fits.Column(name='MINWAVE', array=self.combine_keys("minwave", "arr"), format='F9.4', unit='Angstrom')
+        cmax = fits.Column(name='MAXWAVE', array=self.combine_keys("maxwave", "arr"), format='F9.4', unit='Angstrom')
+
+        cdp = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv, cdb, cdm, cde, cexp, cmin ,cmax])
+        provtable = fits.BinTableHDU.from_columns(cdp, header=hdr)
+
+        self.prov_hdr = hdr
+        self.prov_data = cdp
+        self.prov_hdu = provtable
+
 
     def combine_keys(self, key, method="multi", dict_key=None, constant=None):
         keymap= {"HST": {"expstart": ("expstart", 1),
@@ -694,55 +771,81 @@ class Ullyses():
                          "filename": ("origname", 1),
                          "filter": ("filter", 1),
                          "cal_ver": ("pipever", 1)},
-                 "VLT": {"expstart": ("hierarch eso obs start", 1),
-                         "expend": ("UNKNOWN", 1), # calculate on the fly
+                 "VLT": {"expstart": ("mjd-obs", 1),
+                         "expend": ("exptime", 1), 
                          "exptime": ("exptime", 1),
                          "telescop": ("telescop", 1),
                          "instrume": ("instrume", 1),
                          "detector": ("hierarch eso det name", 1),
                          "opt_elem": ("seqarm", 1),
-                         "aperture_uvb": ("hierarch eso ins opti3 name", 1), # opti3 is for UVB and opti4 for VIS
-                         "aperture_vis": ("hierarch eso ins opti4 name", 1), # opti3 is for UVB and opti4 for VIS
                          "s_region": ("hierarch eso ada posang", 1), # calculate this from position angle
                          "equinox": ("equinox", 1),
                          "radesys": ("radecsys", 1),
                          "proposid": ("hierarch eso obs prog id", 1),
-                         "centrwv": ("UNKNOWN", 0), # can get these from data if need be
-                         "minwave": ("UNKNOWN", 0), # can get these from data if need be
-                         "maxwave": ("UNKNWON", 0), # can get these from data if need be
-                         "cal_ver": ("hierarch eso pro rec1 pipe id", 1)}}
-
-                        
+                         "centrwv": ("arm", 1), 
+                         "minwave": ("arm", 1), 
+                         "maxwave": ("arm", 1), 
+                         "filename": ("extname", 1),
+                         "dr_num": ("dr_num", 0),
+                         "dr_date": ("dr_date", 0),
+                         "specres": ("special", 1),
+                         "cal_ver": ("hierarch eso pro rec1 pipe id", 1)}
                          }
 
         if constant is not None:
-            vals = [constant for x in self.primary_headers]
+            vals = [constant for x in self.first_headers]
         else:
             vals = []
-            for i in range(len(self.primary_headers)):
+            for i in range(len(self.first_headers)):
                 if dict_key is None:
-                    tel = self.primary_headers[i]["telescop"]
+                    tel = self.telescope
                 else:
                     tel = dict_key
-                actual_key = keymap[tel][key][0]
-                hdrno = keymap[tel][key][1]
-                if hdrno == 0:
-                    val = self.primary_headers[i][actual_key]
-                else:
-                    val = self.first_headers[i][actual_key]
-                if tel == "FUSE" and key == "filename":
-                    val = val.replace(".fit", "_vo.fits")
-                if tel == "LCOGT":
-                    dto = dt.strptime(self.first_headers[i]["date-obs"], "%Y-%m-%dT%H:%M:%S.%f")
-                    t = Time(dto, format="datetime")
-                    mjdstart = t.mjd
-                    if key == "expstart":
-                        val = mjdstart
-                    if key == "expend":
+                
+                match [tel, key]:
+                    # Handle some special cases
+                    case ["FUSE", "filename"]:
+                        val = val.replace(".fit", "_vo.fits")
+                    case ["LCOGT", "telescop"]:
+                        telescop = self.first_headers[i]["telescop"] 
+                        val = f"LCOGT-{telescop}"
+                    case ["LCOGT", "expstart" | "expend" as k]:
+                        dto = dt.strptime(self.first_headers[i]["date-obs"], "%Y-%m-%dT%H:%M:%S.%f")
+                        t = Time(dto, format="datetime")
+                        mjdstart = t.mjd
+                        if k == "expstart":
+                            val = mjdstart
+                        if k == "expend":
+                            exptime = self.first_headers[i]["exptime"]
+                            val = mjdstart + (exptime/86400) # seconds in a day
+                    case ["VLT", "expend"]:
+                        mjdstart = self.first_headers[i]["mjd-obs"]
                         exptime = self.first_headers[i]["exptime"]
                         val = mjdstart + (exptime/86400) # seconds in a day
-                    elif key == "telescop":
-                        val = f"LCOGT-{val}"
+                    case ["VLT", "minwave" | "maxwave" | "cenwave" as k]:
+                        if self.first_headers[i]["arm"] == "UVB":
+                            wave_vals = {"minwave": 3000, "maxwave": 5551, "cenwave": 4276}
+                        else:
+                            wave_vals = {"minwave": 5451, "maxwave": 10202, "cenwave": 7827}
+                        val = wave_vals[k]
+                    case ["VLT", "aperture"]:
+                        if self.first_headers[i]["arm"] == "UVB":
+                            val = self.first_headers[i]["hierarch eso ins opti3 name"]
+                        else:
+                            val = self.first_headers[i]["hierarch eso ins opti4 name"]
+                    case ["VLT", "specres"]:
+                        if self.first_headers[i]["arm"] == "UVB":
+                            val = 6700
+                        else:
+                            val = 11400
+                    # For normal cases
+                    case other:
+                        actual_key = keymap[tel][key][0]
+                        hdrno = keymap[tel][key][1]
+                        if hdrno == 0:
+                            val = self.primary_headers[i][actual_key]
+                        else:
+                            val = self.first_headers[i][actual_key]
 
                 vals.append(val)
 
