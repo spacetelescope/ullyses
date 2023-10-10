@@ -13,6 +13,7 @@ import sys
 from ullyses_utils.parse_csv import parse_aliases
 from ullyses_utils.ullyses_config import VERSION, CAL_VER
 
+SECONDS_PER_DAY = 86400.
 CODEDIR = os.path.dirname(__file__)
 RED = "\033[1;31m"
 RESET = "\033[0;0m"
@@ -817,11 +818,11 @@ class Ullyses():
                             val = mjdstart
                         if k == "expend":
                             exptime = self.first_headers[i]["exptime"]
-                            val = mjdstart + (exptime/86400) # seconds in a day
+                            val = mjdstart + (exptime / SECONDS_PER_DAY) 
                     case ["VLT", "expend"]:
                         mjdstart = self.first_headers[i]["mjd-obs"]
                         exptime = self.first_headers[i]["exptime"]
-                        val = mjdstart + (exptime/86400) # seconds in a day
+                        val = mjdstart + (exptime / SECONDS_PER_DAY) 
                     case ["VLT", "minwave" | "maxwave" | "cenwave" as k]:
                         if self.first_headers[i]["arm"] == "UVB":
                             wave_vals = {"minwave": 3000, "maxwave": 5551, "cenwave": 4276}
