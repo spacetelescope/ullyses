@@ -6,7 +6,12 @@ A full description of the data products produced by the ULLYSES team can be foun
 
 ## Installation
 
-The `ullyses` package can be installed into a virtualenv or conda environment via `pip`. We recommend that for each installation you start by creating a fresh environment that only has Python installed and then install the `ullyses` package and its dependencies into that bare environment. If using conda environments, first make sure you have a recent version of [Anaconda](https://www.anaconda.com/) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html) installed.
+The `ullyses` package can be installed into a virtualenv or conda environment via `pip`.
+We recommend that for each installation you start by creating a fresh environment that only has
+Python installed and then install the `ullyses` package and its dependencies into that bare
+environment. If using conda environments, first make sure you have a recent version of
+[Anaconda](https://www.anaconda.com/) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html)
+installed.
 
 The first two steps are to create and activate an environment:
 
@@ -14,6 +19,12 @@ The first two steps are to create and activate an environment:
     conda activate <env_name>
    
 Python version 3.8 or greater is required for some dependencies, including `calcos`, the COS data calibration pipeline used in these scripts.
+
+Then install `ullyses` from PyPI:
+
+    pip install ullyses
+
+### Installing from github fork
 
 To install your own copy of the code into that environment, you first need to fork and clone the `ullyses` repo:
 
@@ -23,7 +34,7 @@ To install your own copy of the code into that environment, you first need to fo
 
 Install from your local checked-out copy:
 
-    python setup.py install
+    pip install -e .
 
 All package dependencies will be installed simultaneously, including `ullyses-utils`, which can be found at https://github.com/spacetelescope/ullyses-utils.
 
