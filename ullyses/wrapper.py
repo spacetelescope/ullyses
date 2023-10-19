@@ -21,6 +21,30 @@ from hasp.grating_priority import create_level4_products
 RED = "\033[1;31m"
 RESET = "\033[0;0m"
 
+ULLYSES_GRATING_PRIORITIES = {'COS/G130M': {'minwave': 900, 'maxwave': 1470, 'priority': 1},
+                              'FUSE/FUSE': {'minwave': 916, 'maxwave': 1179.9, 'priority': 2},
+                              'STIS/E140M': {'minwave': 1141.6, 'maxwave': 1727.2, 'priority': 3},
+                              'COS/G160M': {'minwave': 1342, 'maxwave': 1800, 'priority': 4},
+                              'STIS/E140H': {'minwave': 1141.1, 'maxwave': 1687.9, 'priority': 5},
+                              'STIS/G140M': {'minwave': 1145.1, 'maxwave': 1741.9, 'priority': 6},
+                              'STIS/E230M': {'minwave': 1606.7, 'maxwave': 3119.2, 'priority': 7},
+                              'STIS/E230H': {'minwave': 1629.0, 'maxwave': 3156.0, 'priority': 8},
+                              'STIS/G230M': {'minwave': 1641.8, 'maxwave': 3098.2, 'priority': 9},
+                              'COS/G140L': {'minwave': 901, 'maxwave': 2150, 'priority': 10},
+                              'STIS/G230MB': {'minwave': 1635.0, 'maxwave': 3184.5, 'priority': 11},
+                              'COS/G185M': {'minwave': 1664, 'maxwave': 2134, 'priority': 12},
+                              'COS/G225M': {'minwave': 2069, 'maxwave': 2526, 'priority': 13},
+                              'COS/G285M': {'minwave': 2474, 'maxwave': 3221, 'priority': 14},
+                              'STIS/G140L': {'minwave': 1138.4, 'maxwave': 1716.4, 'priority': 15},
+                              'STIS/G430M': {'minwave': 3021.9, 'maxwave': 5610.1, 'priority': 16},
+                              'STIS/G230L': {'minwave': 1582.0, 'maxwave': 3158.7, 'priority': 17},
+                              'STIS/G230LB': {'minwave': 1667.1, 'maxwave': 3071.6, 'priority': 18},
+                              'COS/G230L': {'minwave': 1650, 'maxwave': 3200, 'priority': 19},
+                              'STIS/G750M': {'minwave': 5464.6, 'maxwave': 10645.1, 'priority': 20},
+                              'STIS/G430L': {'minwave': 2895.9, 'maxwave': 5704.4, 'priority': 21},
+                              'STIS/G750L': {'minwave': 5261.3, 'maxwave': 10252.3, 'priority': 22},
+                      }
+
 '''
 This wrapper goes through each target folder in the ullyses data directory and find
 the data and which gratings are present. This info is then fed into coadd.py.
@@ -488,127 +512,13 @@ def main(indir, outdir, version=VERSION, clobber=False):
         # the one that extends further. If none overlap, still abut them- there
         # will just be a region of flux=0 in between.
         level = 4
-        abutted_product = create_level4_products(productlist, productdict)
-        abutted_product.write('test.fits')
-        gratings = []
-        minwls = []
-        maxwls = []
-        ins = []
-        for instrument, grating, detector in uniqmodes:
-            ins.append(instrument)
-            gratings.append(grating)
-            minwls.append(products[instrument+"/"+grating].first_good_wavelength)
-            maxwls.append(products[instrument+"/"+grating].last_good_wavelength)
-        # Only go through this exercise if there is data for more than one instrument
-        if len(set(ins)) != 1:
-            df = pd.DataFrame({"gratings": gratings, "ins": ins, "minwls": minwls, "maxwls": maxwls})
-            used = pd.DataFrame()
-            # Start with the bluest product, and remove rows from the dataframe
-            # until no rows remain. The only exception is if the bluest product is
-            # STIS/echelle *and* G130M+G160M combo exists. Then use G130M+G160M as bluest
-            # and ignore STIS/echelle
-            lowind = df["minwls"].idxmin()
-            if df.loc[lowind, "gratings"] in ["E140M", "E140H"]:
-                if "G130M" in gratings and "G160M" in gratings:
-                    g130mind = df.loc[df["gratings"] == "G130M"].index.values
-                    if isinstance(g130mind, int):
-                        locind = [g130mind]
-                    else:
-                        locind = g130mind
-                    used = pd.concat([used, df.loc[locind]])
-                    shortestwl = df.loc[g130mind[0], "minwls"]
-                    df = df.drop(index=g130mind)
-                    g160mind = df.loc[df["gratings"] == "G160M"].index.values
-                    if isinstance(g160mind, int):
-                        locind = [g160mind]
-                    else:
-                        locind = g160mind
-                    used = pd.concat([used, df.loc[locind]])
-                    maxwl = df.loc[g160mind[0], "maxwls"]
-                    df = df.drop(index=g160mind)
-                    df = df.drop(index=lowind)
-                else:
-                    shortestwl = df.loc[lowind, "minwls"]
-                    if isinstance(lowind, int):
-                        locind = [lowind]
-                    else:
-                        locind = lowind
-                    used = pd.concat([used, df.loc[locind]])
-                    maxwl = df.loc[lowind, "maxwls"]
-                    df = df.drop(lowind)
-            else:
-                shortestwl = df.loc[lowind, "minwls"]
-                if isinstance(lowind, int):
-                    locind = [lowind]
-                else:
-                    locind = lowind
-                used = pd.concat([used, df.loc[locind]])
-                maxwl = df.loc[lowind, "maxwls"]
-                df = df.drop(lowind)
-            while len(df) > 0:
-                lowind = df.loc[(df["minwls"] < maxwl) & (df["maxwls"] > maxwl)].index.values
-                # If G130M and G160M both exist for a given target, *always*
-                # abut them together regardless of other available gratings.
-                # This captures the case where there is FUSE bluer than COS/FUV.
-                if "G130M" in used.gratings.values and "G160M" in gratings and "G160M" not in used.gratings.values:
-                    lowind = df.loc[df["gratings"] == "G160M"].index.values
-                    maxwl = df.loc[lowind[0], "maxwls"]
-                    if isinstance(lowind, int):
-                        locind = [lowind]
-                    else:
-                        locind = lowind
-                    used = pd.concat([used, df.loc[locind]])
-                    df = df.drop(index=lowind)
-                # Handle case where more than one grating overlaps with bluer data.
-                elif len(lowind) > 1:
-                    df2 = df.loc[lowind]
-                    ranges = df2.maxwls - df2.minwls
-                    biggest = ranges.idxmax()
-                    match_grating = df2.loc[biggest, "gratings"]
-                    match_ind = df.loc[df["gratings"] == match_grating].index.values
-                    if isinstance(match_ind, int):
-                        locind = [match_ind]
-                    else:
-                        locind = match_ind
-                    used = pd.concat([used, df.loc[locind]])
-                    maxwl = df.loc[match_ind, "maxwls"].values[0]
-                    df = df.drop(index=lowind)
-                # If none overlap, abut with the next closest product.
-                elif len(lowind) == 0:
-                    lowind = df["minwls"].idxmin()
-                    if isinstance(lowind, int):
-                        locind = [lowind]
-                    else:
-                        locind = lowind
-                    used = pd.concat([used, df.loc[locind]])
-                    maxwl = df.loc[lowind, "maxwls"]
-                    df = df.drop(lowind)
-                # This is the easy case- only one mode overlaps with the bluer data.
-                else:
-                    maxwl = df.loc[lowind[0], "maxwls"]
-                    if isinstance(lowind, int):
-                        locind = [lowind]
-                    else:
-                        locind = lowind
-                    used = pd.concat([used, df.loc[locind]])
-                    df = df.drop(index=lowind)
-                # Check every time if there are any modes that overlap completely
-                # with what has been abutted so far.
-                badinds = df.loc[(df["minwls"] > shortestwl) & (df["maxwls"] < maxwl)].index.values
-                if len(badinds) > 0:
-                    df = df.drop(index=badinds)
-            # If more than one instrument was selected for abutting,
-            # create level 4 product.
-            if len(set(used["ins"].values)) > 1:
-                abut_gr = used.iloc[0]["ins"] + "/" + used.iloc[0]["gratings"]
-                abutted = products[abut_gr]
-                for i in range(1, len(used)):
-                    abut_gr = used.iloc[i]["ins"] + "/" + used.iloc[i]["gratings"]
-                    abutted = abut(abutted, products[abut_gr])
-                filename = create_output_file_name(abutted, version, level=level)
-                filename = os.path.join(outdir, filename)
-                abutted.write(filename, clobber, level=level, version=version)
-                print(f"   Wrote {filename}")
+
+        abutted_product = create_level4_products(productlist, productdict,
+                                                 grating_table=ULLYSES_GRATING_PRIORITIES)
+        filename = create_output_file_name(abutted_product, version, level=level)
+        filename = os.path.join(outdir, filename)
+        abutted_product.write(filename, clobber, level=level, version=version)
+        print(f"   Wrote {filename}")
 
 
 def create_output_file_name(prod, version=VERSION, level=3):
@@ -617,7 +527,6 @@ def create_output_file_name(prod, version=VERSION, level=3):
     target = prod.target.lower()
     version = version.lower()
     aperture = prod.aperture.lower()
-
     # Target names can't have a period in them or it breaks MAST
     if target in RENAME:
         target = RENAME[target]
