@@ -26,7 +26,7 @@ dependencies = [
     "numpy",
     "cython",
     "astropy>=5.0.4",
-    "ullyses_utils>=3.0.0",
+    "ullyses_utils>=2.1.2",
     "pandas",
     "calcos>=3.4.0",
     "costools",
