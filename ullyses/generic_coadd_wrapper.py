@@ -49,6 +49,8 @@ def coadd_files(infiles, outdir, outfile=None, clobber=False):
         if len(prod.members) > 0:
             if outdir is None:
                 outdir = indir
+            if not os.path.exists(outdir):
+                os.makedirs(outdir)
             if outfile is None:
                 outfile = f"{instrument.lower()}_{grating.lower()}_coadd.fits"
                 outfile = os.path.join(outdir, outfile)
@@ -58,7 +60,3 @@ def coadd_files(infiles, outdir, outfile=None, clobber=False):
             prod.targ_ra, prod.targ_dec = prod.get_coords()
             prod.write(outfile, clobber)
             print(f"Wrote {outfile}")
-
-files = ["/astro/ullyses/all_vetted_data_dr6/av-456/lbp507rtq_x1d.fits", "/astro/ullyses/all_vetted_data_dr6/av-456/lbp507rtq_x1d.fits", "/astro/ullyses/all_vetted_data_dr6/av-456/lbp507rtq_x1d.fits"]
-
-coadd_files(files, "test_out_coaddfiles", clobber=True)
