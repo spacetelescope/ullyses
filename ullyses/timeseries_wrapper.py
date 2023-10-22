@@ -412,8 +412,14 @@ def create_serendipitous_timeseries(datadir, tss_outdir, targ, tss_params, min_e
     for grat in tss_params["gratings"]: 
         # Create the exposure level time-series spectra
         outfile = os.path.join(tss_outdir, f"hlsp_ullyses_hst_{ins}_{targ}_{grat}_{VERSION.lower()}_tss.fits")
-        timeseries.process_files(grat.upper(), outfile, datadir, overwrite=True, 
-                                 ins=ins.upper(), min_exptime=min_exptime) 
+        try:
+            timeseries.process_files(grat.upper(), outfile, datadir, overwrite=True, 
+                                 ins=ins.upper(), min_exptime=min_exptime)
+        except:
+            without = glob.glob(os.path.join(datadir, "*without*fits"))
+            for newname in without:
+                origname = newname.replace("_without.fits", "_x1d.fits")
+                os.rename(newname, origname)
         
     return tss_outdir
 
@@ -444,11 +450,23 @@ def create_monitoring_timeseries(datadir, tss_outdir, targ, tss_params):
         # First create the exposure level time-series spectra
         indir = os.path.join(datadir, grat, "exp")
         outfile = os.path.join(tss_outdir, f"hlsp_ullyses_hst_cos_{targ}_{grat}_{VERSION.lower()}_tss.fits")
-        timeseries.process_files(grat.upper(), outfile, indir, overwrite=True) 
+        try:
+            timeseries.process_files(grat.upper(), outfile, indir, overwrite=True) 
+        except:
+            without = glob.glob(os.path.join(datadir, "*without*fits"))
+            for newname in without:
+                origname = newname.replace("_without.fits", "_x1d.fits")
+                os.rename(newname, origname)
         
         indir = os.path.join(datadir, grat, "split")
         outfile = os.path.join(tss_outdir, f"hlsp_ullyses_hst_cos_{targ}_{grat}_{VERSION.lower()}_split-tss.fits")
-        timeseries.process_files(grating=grat.upper(), outfile=outfile, indir=indir, 
+        try:
+            timeseries.process_files(grating=grat.upper(), outfile=outfile, indir=indir, 
+        except:
+            without = glob.glob(os.path.join(datadir, "*without*fits"))
+            for newname in without:
+                origname = newname.replace("_without.fits", "_x1d.fits")
+                os.rename(newname, origname)
                                  wavelength_binning=wl_bin, min_exptime=min_exptime, 
                                  overwrite=True)
 
