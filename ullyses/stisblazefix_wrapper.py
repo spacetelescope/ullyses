@@ -9,10 +9,13 @@ import shutil
 import ullyses_utils
 
 
-def apply_sbf(infile, outfile=None, pdfname='/dev/null', verbose=True):
+def apply_sbf(infile, outdir=None, pdfname='/dev/null', verbose=True):
     fluxfix([infile], pdfname=pdfname)
     newfile = infile.replace("x1d.fits", "x1f.fits")
-    if outfile is not None:
+    if outdir is not None:
+        if not os.path.exists(outdir):
+            os.makedirs(outdir)
+        newfile = os.path.join(outdir, os.path.basename(newfile))
         shutil.move(newfile, outfile)
     else:
         outfile = newfile
