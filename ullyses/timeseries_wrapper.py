@@ -462,13 +462,13 @@ def create_monitoring_timeseries(datadir, tss_outdir, targ, tss_params):
         outfile = os.path.join(tss_outdir, f"hlsp_ullyses_hst_cos_{targ}_{grat}_{VERSION.lower()}_split-tss.fits")
         try:
             timeseries.process_files(grating=grat.upper(), outfile=outfile, indir=indir, 
+                                 wavelength_binning=wl_bin, min_exptime=min_exptime, 
+                                 overwrite=True)
         except:
             without = glob.glob(os.path.join(datadir, "*without*fits"))
             for newname in without:
                 origname = newname.replace("_without.fits", "_x1d.fits")
                 os.rename(newname, origname)
-                                 wavelength_binning=wl_bin, min_exptime=min_exptime, 
-                                 overwrite=True)
 
     return tss_outdir
 
@@ -539,6 +539,14 @@ def move_output_epoch_data(datadir, tss_params):
 
 def serendipitous_star(datadir, orig_datadir, tss_outdir, targ, yamlfile=None, custom_caldir=None,
                        min_exptime=1):
+    """
+    Args:
+        datadir (str): The path the original data will be copied to.
+        orig_datadir (str): Path to the original raw data
+        tss_outdir (str): Path to time series data product output directory
+        targ (str): Name of target. Must be the ULLYSES DP target name!!!
+        custom_caldir (str): Path to directory with custom calcos outputs
+    """
     if not os.path.exists(tss_outdir):
         os.makedirs(tss_outdir)
     tss_params = read_tss_yaml(targ, yamlfile)
