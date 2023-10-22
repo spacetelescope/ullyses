@@ -24,5 +24,6 @@ def apply_sbf(infile, outdir=None, pdfname='/dev/null', verbose=True):
         hdulist[0].header["HLSP_LVL"] = 0
     if verbose is True:
         print(f"Wrote {outfile}")
+    return outfile
 
 
