@@ -23,15 +23,14 @@ def unflag_2048(filename):
         return
     cenwave = fits.getval(filename, "cenwave")
     if cenwave not in orders:
-        print(f"Filename {filename} is not in affected cenwaves (1425, 2415, 2707), skipping")
+        print(f"Filename {filename} is not in affected cenwaves {tuple(orders.keys())}, skipping")
         return
     order = orders[cenwave]
     with fits.open(filename, mode="update") as hdulist:
         for i in range(len(hdulist)):
             if hdulist[i].name == "SCI":
                 ind = np.where(hdulist[i].data["sporder"] == order)
-                hdulist[i].data["DQ"][ind[0][0]] -= 2048
+                hdulist[i].data["DQ"][ind[0][0]] -= np.bitwise_and(hdulist[i].data["DQ"][ind[0][0]], 2048)
         # Since custom processing was performed, mark these as level0
         hdulist[0].header["HLSP_LVL"] = 0
     print(f"Subtracted DQ=2048 flag from {opt_elem}/{cenwave} order={order} for {filename}")
-
