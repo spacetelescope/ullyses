@@ -22,7 +22,7 @@ RED = "\033[1;31m"
 RESET = "\033[0;0m"
 
 ULLYSES_GRATING_PRIORITIES = {'COS/G130M': {'minwave': 900, 'maxwave': 1470, 'priority': 1},
-                              'FUSE/FUSE': {'minwave': 916, 'maxwave': 1179.9, 'priority': 2},
+                              'FUSE/FUSE': {'minwave': 912, 'maxwave': 1179.9, 'priority': 2},
                               'STIS/E140M': {'minwave': 1141.6, 'maxwave': 1727.2, 'priority': 3},
                               'COS/G160M': {'minwave': 1342, 'maxwave': 1800, 'priority': 4},
                               'STIS/E140H': {'minwave': 1141.1, 'maxwave': 1687.9, 'priority': 5},
