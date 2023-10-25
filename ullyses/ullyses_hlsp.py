@@ -74,17 +74,28 @@ class Ullyses():
         self.version = version
         self.level = level
         self.overwrite = overwrite
-        
-        match self.hlsp_type:
-            case "lcogt":
-                self.telescope = "LCOGT"
-            case "xsu":
-                self.telescope = "VLT"
-            case "drizzled":
-                self.telescope = "HST"
-            case other:
-                tel = self.primary_headers[0]["telescop"]
-                self.telescope = tel
+
+# Python 3.9 compliant if/else version of match case
+        if self.hlsp_type == "lcogt":
+            self.telescope = "LCOGT"
+        elif self.hlsp_type == "xsu":
+            self.telescope = "VLT"
+        elif self.hlsp_type == "drizzled":
+            self.telescope = "HST"
+        else:
+            tel = self.primary_headers[0]["telescop"]
+            self.telescope = tel
+
+#        match self.hlsp_type:
+#            case "lcogt":
+#                self.telescope = "LCOGT"
+#            case "xsu":
+#                self.telescope = "VLT"
+#            case "drizzled":
+#                self.telescope = "HST"
+#            case other:
+#                tel = self.primary_headers[0]["telescop"]
+#                self.telescope = tel
 
 
 
@@ -803,50 +814,93 @@ class Ullyses():
                 else:
                     tel = dict_key
                 
-                match [tel, key]:
-                    # Handle some special cases
-                    case ["FUSE", "filename"]:
-                        val = val.replace(".fit", "_vo.fits")
-                    case ["LCOGT", "telescop"]:
-                        telescop = self.first_headers[i]["telescop"] 
-                        val = f"LCOGT-{telescop}"
-                    case ["LCOGT", "expstart" | "expend" as k]:
-                        dto = dt.strptime(self.first_headers[i]["date-obs"], "%Y-%m-%dT%H:%M:%S.%f")
-                        t = Time(dto, format="datetime")
-                        mjdstart = t.mjd
-                        if k == "expstart":
-                            val = mjdstart
-                        if k == "expend":
-                            exptime = self.first_headers[i]["exptime"]
-                            val = mjdstart + (exptime / SECONDS_PER_DAY) 
-                    case ["VLT", "expend"]:
-                        mjdstart = self.first_headers[i]["mjd-obs"]
+# Python 3.9 compliant if/else version of match case
+                if tel == "FUSE" and key == "filename":
+                    val = val.replace(".fit", "_vo.fits")
+                elif tel == "LCOGT" and key == "telescop":
+                    telescop = self.first_headers[i]["telescop"]
+                    val = f"LCOGT-{telescop}"
+                elif tel == "LCOGT" and (key == "expstart" or key == "expend"):
+                    dto = dt.strptime(self.first_headers[i]["date-obs"], "%Y-%m-%dT%H:%M:%S.%f")
+                    t = Time(dto, format="datetime")
+                    mjdstart = t.mjd
+                    if key == "expstart":
+                        val = mjdstart
+                    elif key == "expend":
                         exptime = self.first_headers[i]["exptime"]
                         val = mjdstart + (exptime / SECONDS_PER_DAY) 
-                    case ["VLT", "minwave" | "maxwave" | "cenwave" as k]:
-                        if self.first_headers[i]["arm"] == "UVB":
-                            wave_vals = {"minwave": 3000, "maxwave": 5551, "cenwave": 4276}
-                        else:
-                            wave_vals = {"minwave": 5451, "maxwave": 10202, "cenwave": 7827}
-                        val = wave_vals[k]
-                    case ["VLT", "aperture"]:
-                        if self.first_headers[i]["arm"] == "UVB":
-                            val = self.first_headers[i]["hierarch eso ins opti3 name"]
-                        else:
-                            val = self.first_headers[i]["hierarch eso ins opti4 name"]
-                    case ["VLT", "specres"]:
-                        if self.first_headers[i]["arm"] == "UVB":
-                            val = 6700
-                        else:
-                            val = 11400
-                    # For normal cases
-                    case other:
-                        actual_key = keymap[tel][key][0]
+                elif tel == "VLT" and key == "expend":
+                    mjdstart = self.first_headers[i]["mjd-obs"]
+                    exptime = self.first_headers[i]["exptime"]
+                    val = mjdstart + (exptime / SECONDS_PER_DAY)
+                elif tel == "VLT" and (key == "minwave" or key == "maxwave" or key == "cenwave"):
+                    if self.first_headers[i]["arm"] == "UVB": 
+                        wave_vals = {"minwave": 3000, "maxwave": 5551, "cenwave": 4276}
+                    else:
+                        wave_vals = {"minwave": 5451, "maxwave": 10202, "cenwave": 7827}
+                    val = wave_vals[key]
+                elif tel == "VLT" and key == "aperture":
+                    if self.first_headers[i]["arm"] == "UVB":   
+                        val = self.first_headers[i]["hierarch eso ins opti3 name"] 
+                    else:
+                        val = self.first_headers[i]["hierarch eso ins opti4 name"]  
+                elif tel == "VLT" and key == "specres":
+                    if self.first_headers[i]["arm"] == "UVB": 
+                        val = 6700 
+                    else:
+                        val = 11400
+                else:
+                    actual_key = keymap[tel][key][0]  
                         hdrno = keymap[tel][key][1]
                         if hdrno == 0:
                             val = self.primary_headers[i][actual_key]
                         else:
                             val = self.first_headers[i][actual_key]
+
+#                match [tel, key]:
+#                    # Handle some special cases
+#                    case ["FUSE", "filename"]:
+#                        val = val.replace(".fit", "_vo.fits")
+#                    case ["LCOGT", "telescop"]:
+#                        telescop = self.first_headers[i]["telescop"] 
+#                        val = f"LCOGT-{telescop}"
+#                    case ["LCOGT", "expstart" | "expend" as k]:
+#                        dto = dt.strptime(self.first_headers[i]["date-obs"], "%Y-%m-%dT%H:%M:%S.%f")
+#                        t = Time(dto, format="datetime")
+#                        mjdstart = t.mjd
+#                        if k == "expstart":
+#                            val = mjdstart
+#                        if k == "expend":
+#                            exptime = self.first_headers[i]["exptime"]
+#                            val = mjdstart + (exptime / SECONDS_PER_DAY) 
+#                    case ["VLT", "expend"]:
+#                        mjdstart = self.first_headers[i]["mjd-obs"]
+#                        exptime = self.first_headers[i]["exptime"]
+#                        val = mjdstart + (exptime / SECONDS_PER_DAY) 
+#                    case ["VLT", "minwave" | "maxwave" | "cenwave" as k]:
+#                        if self.first_headers[i]["arm"] == "UVB":
+#                            wave_vals = {"minwave": 3000, "maxwave": 5551, "cenwave": 4276}
+#                        else:
+#                            wave_vals = {"minwave": 5451, "maxwave": 10202, "cenwave": 7827}
+#                        val = wave_vals[k]
+#                    case ["VLT", "aperture"]:
+#                        if self.first_headers[i]["arm"] == "UVB":
+#                            val = self.first_headers[i]["hierarch eso ins opti3 name"]
+#                        else:
+#                            val = self.first_headers[i]["hierarch eso ins opti4 name"]
+#                    case ["VLT", "specres"]:
+#                        if self.first_headers[i]["arm"] == "UVB":
+#                            val = 6700
+#                        else:
+#                            val = 11400
+#                    # For normal cases
+#                    case other:
+#                        actual_key = keymap[tel][key][0]
+#                        hdrno = keymap[tel][key][1]
+#                        if hdrno == 0:
+#                            val = self.primary_headers[i][actual_key]
+#                        else:
+#                            val = self.first_headers[i][actual_key]
 
                 vals.append(val)
 
