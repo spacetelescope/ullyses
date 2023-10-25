@@ -55,6 +55,8 @@ def flag_file(vofile, outdir, ull_targname=None, overwrite=False):
         os.makedirs(outdir)
     vofilename = os.path.basename(vofile)
     outfilename = "dqscreened_" + vofilename
+    if outfilename.endswith(".fit"):
+        outfilename = outfilename.replace(".fit", ".fits")
     outfile = os.path.join(outdir, outfilename)
     if os.path.exists(outfile) and overwrite is True:
         os.remove(outfile)

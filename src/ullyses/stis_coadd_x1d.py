@@ -5,7 +5,7 @@ import os
 import numpy as np
 from astropy.io import fits
 
-from ullyses.coadd import STISSegmentList
+from ullyses.wrapper import Ullyses_STISSegmentList
 from ullyses.fuse_add_dq import add_column
 
 """
@@ -19,7 +19,7 @@ Arguments:
 """
 
 
-class STIScoadd(STISSegmentList):
+class STIScoadd(Ullyses_STISSegmentList):
     """
     A class to perform coadditions of STIS x1ds.
     """
@@ -135,8 +135,8 @@ def coadd_1d_spectra(files, targ, outdir):
         os.remove(combined)
         print(f"Removed {combined}")
     prod = STIScoadd(grating, path=coadd_dir, weighting_method='unity')
-    prod.target = prod.ull_targname()
-    prod.targ_ra, prod.targ_dec = prod.ull_coords()
+    prod.target = prod.get_targname()
+    prod.targ_ra, prod.targ_dec = prod.get_coords()
     prod.create_output_wavelength_grid()
     ignore_file = os.path.basename(files[1])
     prod.coadd(ignore_dq_file=ignore_file)

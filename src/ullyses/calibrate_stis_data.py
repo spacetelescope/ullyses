@@ -1,4 +1,5 @@
 #! /usr/bin/env python
+import platform
 import datetime
 import argparse
 import os
@@ -16,9 +17,26 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 from ullyses_utils.readwrite_yaml import read_config, write_config
 from ullyses import plot_stis_data
-os.environ["oref"] = "/grp/hst/cdbs/oref/"
 
-OREF_DIR = "/grp/hst/cdbs/oref"
+# There are known issues with OSX Monterey and central store.
+# The snippet below addresses them for applicable users.
+system = platform.system()
+if system == "Darwin":
+    osx_full = platform.release()
+    osx = float(osx_full[:2])
+    tester = glob.glob("/grp/hst/cdbs/*")
+    if osx >= 21 and len(tester) == 0:
+        monterey = True
+        os.environ["oref"] = "/Volumes/cdbs/oref/"
+        OREF_DIR = "/Volumes/cdbs/oref"
+    else:
+        monterey = False
+else:
+    monterey = False
+
+if monterey is False:
+    os.environ["oref"] = "/grp/hst/cdbs/oref/"
+    OREF_DIR = "/grp/hst/cdbs/oref"
 SYM = "~"
 NCOLS = 72
 SEP = f"\n!{'~'*70}!\n"
@@ -524,7 +542,7 @@ class StisCcd(StisData):
         # Calculate the rejection fraction and the rate of rejected pixels per sec
         n_pix_rej = np.sum(np.array(n_rej))
         frac_rej = n_pix_rej/float(n_tot)
-        rej_rate = n_pix_rej * 1024.0**2 / (t_exp * n_tot)
+        #rej_rate = n_pix_rej * 1024.0**2 / (t_exp * n_tot)
 
         # Calculate the expected rejection fraction rate given the rate in header
         # This is the rej_rate * ratio of number of pixels in full CCD vs extract region (n_tot /CRSPLIT)
@@ -807,7 +825,7 @@ def calibrate_stis_data(indir, yamlfile, dolog=True, logfile=None, outdir=None,
     for item in infiles:
         infile = os.path.join(indir, item)
         if not os.path.exists(infile):
-            raise FileNotFoundError(f"Input file defined in YAML, {infile_name}, cannot be found in direcotry {indir}")
+            raise FileNotFoundError(f"Input file defined in YAML, {infile}, cannot be found in direcotry {indir}")
         detector = fits.getval(infile, "detector")
         opt_elem = fits.getval(infile, "opt_elem")
         if detector == "CCD" and opt_elem !="MIRVIS":

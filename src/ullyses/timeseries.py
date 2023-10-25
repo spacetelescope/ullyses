@@ -12,89 +12,90 @@ import glob
 import os
 
 from ullyses import coadd, wrapper
-from ullyses_utils.ullyses_config import VERSION
+from ullyses_utils.ullyses_config import VERSION, CAL_VER
 
 SECONDS_PER_DAY = 86400.0
 
 """
     Timeseries product creation code.
-    
+
     This code should be run from a directory that contains only files from 1
     grating, and either split or full files (but not both).  A suitable set of
     directories to run this from are:
-    
+
     base_directory/G160M/full/
     base_directory/G160M/split/
     base_directory/G230L/full/
     base_directory/G230L/split/
-    
+
     Put the x1d files that you want to contribute to the product into the appropriate
     directories.  If you want to exclude files, leave them out from the directory.
-    
+
     You will need to install this code using python setup.py install
-    
+
     To create a timeseries product, go to the selected directory
-    
+
     Start python/ipython
-    
+
 >>> from high_level_science_products import timeseries
 >>> timeseries.process_files('G160M', 'timeseries_product.fits', wavelength_binning=3, min_exptime=20.)
-    
+
     That's all that should be necessary to create the timeseries product named
     'timeseries_product.fits' from the x1d files in the current directory with the
     specified grating and with exposure times greater than specified in the call
-    
+
 """
 
-def sort_split_x1ds(grating, indir=".", min_exptime=20.0):
+def sort_split_x1ds(ins, grating, indir=".", min_exptime=20.0):
     """Sort the split x1d files.    Select all files that match the
     pattern 'split_*_without.fits' and that match the grating and whose
     exposure time is greated than min_exptime, and sort them by expstart
-    
+
     Parameters:
     -----------
-    
+
     grating: str
         Grating that must be present in OPT_ELEM keyword of primary
         header of each file
-        
+
     min_exptime: float, default=20.0
         Minimum exposure time to be included
-        
+
     Returns:
         list of tuples (filename, expstart), sorted by expstart
-        
+
     """
     x1dfiles = glob.glob(os.path.join(indir, 'split*_without.fits'))
     good_list = []
     for file in x1dfiles:
         f1 = fits.open(file)
         this_grating = f1[0].header['OPT_ELEM']
-        if this_grating == grating:
+        this_ins = f1[0].header["INSTRUME"]
+        if this_grating == grating and this_ins == ins:
             good_list.append(file)
         f1.close()
     sorted_x1dlist = sort_x1dfiles(good_list, min_exptime=min_exptime)
     return sorted_x1dlist
-    
-def sort_full_x1ds(grating, indir=".", min_exptime=20.0):
+
+def sort_full_x1ds(ins, grating, indir=".", min_exptime=20.0):
     """Sort the full x1d files.    Select all files that match the
     pattern '*_without.fits' and don't start with 'split', and that match
     the grating and whose exposure time is greated than min_exptime, and
     sort them by expstart
-    
+
     Parameters:
     -----------
-    
+
     grating: str
         Grating that must be present in OPT_ELEM keyword of primary
         header of each file
-        
+
     min_exptime: float, default=20.0
         Minimum exposure time to be included
-        
+
     Returns:
         list of tuples (filename, expstart), sorted by expstart
-        
+
     """
     x1dfiles = glob.glob(os.path.join(indir, '*_without.fits'))
     good_list = []
@@ -103,38 +104,40 @@ def sort_full_x1ds(grating, indir=".", min_exptime=20.0):
             continue
         f1 = fits.open(file)
         this_grating = f1[0].header['OPT_ELEM']
-        if this_grating == grating:
+        this_ins = f1[0].header["INSTRUME"]
+        if this_grating == grating and this_ins == ins:
             good_list.append(file)
         f1.close()
     sorted_x1dlist = sort_x1dfiles(good_list, min_exptime=min_exptime)
     return sorted_x1dlist
 
-def sort_x1ds(grating, indir=".", min_exptime=20.0):
+def sort_x1ds(ins, grating, indir=".", min_exptime=20.0):
     """Sort the x1d files.    Select all files that match the
     pattern '*_without.fits' and that match
     the grating and whose exposure time is greater than min_exptime, and
     sort them by expstart
-    
+
     Parameters:
     -----------
-    
+
     grating: str
         Grating that must be present in OPT_ELEM keyword of primary
         header of each file
-        
+
     min_exptime: float, default=20.0
         Minimum exposure time to be included
-        
+
     Returns:
         list of tuples (filename, expstart), sorted by expstart
-        
+
     """
     x1dfiles = glob.glob(os.path.join(indir, '*_without.fits'))
     good_list = []
     for file in x1dfiles:
         f1 = fits.open(file)
         this_grating = f1[0].header['OPT_ELEM']
-        if this_grating == grating:
+        this_ins = f1[0].header["INSTRUME"]
+        if this_grating == grating and this_ins == ins:
             good_list.append(file)
         f1.close()
     sorted_x1dlist = sort_x1dfiles(good_list, min_exptime=min_exptime)
@@ -143,19 +146,19 @@ def sort_x1ds(grating, indir=".", min_exptime=20.0):
 
 def sort_x1dfiles(x1dfiles, min_exptime=20.0):
     """Sort a list of files in order of expstart
-    
+
     Parameters:
     -----------
-    
+
     x1dfiles: list
         List of filenames to be sorted
-        
+
     min_exptime: float, default=20.0
         Minimum exposure time to be included in sorted output
-        
+
     Returns:
         List of (filename, exptime) tuples
-        
+
     """
     x1dlist = []
     for file in x1dfiles:
@@ -170,29 +173,32 @@ def sort_x1dfiles(x1dfiles, min_exptime=20.0):
     return sorted_x1dlist
 
 def create_ensemble_segmentlist(grating, indir=".", wavelength_binning=1.0, ins="COS"):
-    """Create the ensemble COSSegmentList whose wavelength and array
+    """Create the ensemble Ullyses_COSSegmentList whose wavelength and array
     sizing parameters are to be used to create the output product.
     Should be created from full exposures (not splits), so make sure
     all split exposures are renamed from ending with _x1d.fits so they
-    don't add to the COSSegmentList
-    
+    don't add to the Ullyses_COSSegmentList
+
     Parameters:
     -----------
-    
+
     grating: str
         Grating to be used to create the timeseries product
-        
+
     wavelength_binning: float, default=1.0
         Wavelength binning for output product in pixels.  Can be non-integer
-        
+
     Returns:
-        COSSegmentList:
-        
+        Ullyses_COSSegmentList:
+
     """
     if ins == "COS":
-        a = coadd.COSSegmentList(grating, path=indir)
+        a = wrapper.Ullyses_COSSegmentList(grating, path=indir)
     elif ins == "STIS":
-        a = coadd.STISSegmentList(grating, path=indir)
+        if grating in ["G230LB", "G230M", "G230LB", "G230MB", "G430L", "G430M", "G750L", "G750M"]:
+            a = wrapper.Ullyses_CCDSegmentList(grating, path=indir)
+        else:
+            a = wrapper.Ullyses_STISSegmentList(grating, path=indir)
     a.create_output_wavelength_grid()
     if wavelength_binning != 1:
         a.delta_wavelength = a.delta_wavelength * wavelength_binning
@@ -208,24 +214,24 @@ def create_ensemble_segmentlist(grating, indir=".", wavelength_binning=1.0, ins=
         a.sumnetcounts = np.zeros(nelements)
         a.output_exptime = np.zeros(nelements)
     # sort the headers in order of expstart
-    
+
     return a
 
 def rename_all_split_x1ds(indir="."):
     """Rename all split exposures (that start with 'split') from
     ending with '_x1d.fits' to ending with '_without.fits'.  This stops
-    the files from getting added to COSSegmentLists
-    
+    the files from getting added to Ullyses_COSSegmentLists
+
     Parameters:
     -----------
-    
+
     None
-    
+
     Returns:
     --------
-    
+
     None
-    
+
     """
     x1dfiles = glob.glob(os.path.join(indir, 'split*_x1d.fits')) + glob.glob(os.path.join(indir, 'split*_sx1.fits'))
     for oldfile in x1dfiles:
@@ -239,18 +245,18 @@ def rename_all_split_x1ds(indir="."):
 def rename_all_x1ds(indir="."):
     """Rename all exposures from
     ending with '_x1d.fits' to ending with '_without.fits'.  This stops
-    the files from getting added to COSSegmentLists
-    
+    the files from getting added to Ullyses_COSSegmentLists
+
     Parameters:
     -----------
-    
+
     None
-    
+
     Returns:
     --------
-    
+
     None
-    
+
     """
     x1dfiles = glob.glob(os.path.join(indir, '*_x1d.fits')) + glob.glob(os.path.join(indir, '*_sx1.fits'))
     renaming_old = {}
@@ -268,18 +274,18 @@ def rename_all_x1ds(indir="."):
 def rename_all_full_x1ds(indir="."):
     """Rename all full exposures (that don't start with 'split') from
     ending with '_x1d.fits' to ending with '_without.fits'.  This stops
-    the files from getting added to COSSegmentLists
-    
+    the files from getting added to Ullyses_COSSegmentLists
+
     Parameters:
     -----------
-    
+
     None
-    
+
     Returns:
     --------
-    
+
     None
-    
+
     """
     x1dfiles = glob.glob(os.path.join(indir, '*_x1d.fits')) + glob.glob(os.path.join(indir, '*_sx1.fits'))
     for file in x1dfiles:
@@ -295,23 +301,23 @@ def rename_all_full_x1ds(indir="."):
 
 def transfer_from_ensemble(ensemble, segmentlist):
     """Transfer the wavelength and array size information from the ensemble
-    COSSegmentList to the target COSSegmentList
-    
+    Ullyses_COSSegmentList to the target Ullyses_COSSegmentList
+
     Parameters:
     -----------
-    
-    ensemble: COSSegmentList
-        COSSegmentList containing the wavelength and array sizing parameters to be used
-        in the target COSSegmentList
-        
-    segmentlist: COSSegmentList
-        Target COSSegmentList to be changed by transferring parameters from ensemble
-        
+
+    ensemble: Ullyses_COSSegmentList
+        Ullyses_COSSegmentList containing the wavelength and array sizing parameters to be used
+        in the target Ullyses_COSSegmentList
+
+    segmentlist: Ullyses_COSSegmentList
+        Target Ullyses_COSSegmentList to be changed by transferring parameters from ensemble
+
     Returns:
     --------
-    
+
     None
-    
+
     """
     segmentlist.delta_wavelength = ensemble.delta_wavelength
     segmentlist.min_wavelength = ensemble.min_wavelength
@@ -331,71 +337,77 @@ def transfer_from_ensemble(ensemble, segmentlist):
 
 def process_files(grating, outfile, indir=".", wavelength_binning=1, min_exptime=20,
                   overwrite=False, ins="COS"):
-    """Process all x1d files in the current directory with the selected grating.  
-    
+    """Process all x1d files in the current directory with the selected grating.
+
     Parameters:
     -----------
-    
+
     grating: str
         The grating to be processed.  This should be the same as the OPT_ELEM keyword in
         the primary header of the files to be processed
-        
+
     outfile: str
         The name of the output file for the timeseries product made from the x1d exposures
-        
+
     wavelength_binning: float, default = 1.0
         The wavelength binning in pixels, can be a non-integer
-        
+
     min_exptime: float, default=20.0
         The minimum exposure time for the splittag exposures.  Some of the splittag files
         from the end of an exposure don't have the full exposure time and are very noisy.
         This parameter excludes all files with exposure times that are below the specified
         threshold
-        
+
     """
-    # Create a COSSegmentList from all files that end with _x1d.fits and
+    # Create a Ullyses_COSSegmentList from all files that end with _x1d.fits and
     # have the appropriate grating. The ensemble
     # is used to determine the start, stop and delta wavelength of the product
-    # and to contain the headers used to create the provenance table    
+    # and to contain the headers used to create the provenance table
+    # Ullyses_COSSegmentLists have the Ullyses-specific get_target() and get_coords()
+    # methods
     ensemble = create_ensemble_segmentlist(grating, indir, wavelength_binning, ins=ins)
+    # If there's only 1 matching file for hte specified grating, exit 
+    if len(ensemble.datasets) == 1:
+        print(f"SKIPPING: only one matching dataset for grating {grating}")
+        return
     # Rename all the x1d.fits files to remove the _x1d.fits ending so that
-    # subsequent COSSegmentLists can be created one at a time
+    # subsequent Ullyses_COSSegmentLists can be created one at a time
     renaming_old, renaming_new = rename_all_x1ds(indir)
     # create a list of split files sorted by expstart
-    sorted_files = sort_x1ds(grating, indir, min_exptime=min_exptime)
+    sorted_files = sort_x1ds(ins, grating, indir, min_exptime=min_exptime)
     # process this list of files one at a time to each write a single row
     # to the output flux and error arrays.  Write the output file when complete
     process_sorted_filelist(sorted_files, grating, ensemble, outfile, renaming_new, indir,
                             overwrite, ins=ins)
     # Rename the files back from _without.fits to _x1d.fits
     rename_files_back(renaming_new)
-    
-def process_sorted_filelist(sorted_list, grating, ensemble, outfile, renaming_new, indir=".", 
+
+def process_sorted_filelist(sorted_list, grating, ensemble, outfile, renaming_new, indir=".",
                             overwrite=False, ins="COS"):
     """Create a timeseries product from a sorted list of (input file, expstart) tuples.
-    
+
     Parameters:
     -----------
-    
+
     sorted_list: list of tuples
         List of (filename, expstart) tuples sorted by expstart.
-        
+
     grating: str
         Grating to be processed.  All the input files SHOULD have the same grating,
         but just in case this allows rejection of exposures that don't match
-    
-    ensemble: COSSegmentList
-        COSSegmentList made from exposures that are used to define the output wavelength
+
+    ensemble: Ullyses_COSSegmentList
+        Ullyses_COSSegmentList made from exposures that are used to define the output wavelength
         grid.  The start wavelength, stop wavelength and wavelength increment are used to
         initialize and size output arrays
-    
+
     outfile: str
         Name of output FITS file to write the product to
-    
+
     Returns:
-    
+
     None
-    
+
     """
     nrows = len(sorted_list)
     ncols = len(ensemble.output_wavelength)
@@ -408,16 +420,20 @@ def process_sorted_filelist(sorted_list, grating, ensemble, outfile, renaming_ne
     ensemble.primary_headers = []
     ensemble.first_headers = []
     if ins == "COS":
-        segmentlist = coadd.COSSegmentList
+        segmentlist = wrapper.Ullyses_COSSegmentList
     elif ins == "STIS":
-        segmentlist = coadd.STISSegmentList
+        if grating in ["G230LB", "G230M", "G230LB", "G230MB", "G430L", "G430M", "G750L", "G750M"]:
+            segmentlist = wrapper.Ullyses_CCDSegmentList
+        else:
+            segmentlist = wrapper.Ullyses_STISSegmentList
     for newfile, expstart in sorted_list:
         oldfile = renaming_new[newfile]
         os.rename(newfile, oldfile)
         # Make sure this file uses the required grating
         f1 = fits.open(oldfile)
         this_grating = f1[0].header['OPT_ELEM']
-        if this_grating != grating:
+        this_ins = f1[0].header["INSTRUME"]
+        if this_grating != grating and this_ins != ins:
             print(f"Skipping file {newfile} as it doesn't have the required grating")
             f1.close()
             continue
@@ -432,28 +448,28 @@ def process_sorted_filelist(sorted_list, grating, ensemble, outfile, renaming_ne
         print(f'finished row {row}')
         row = row + 1
         # Rename the file back to _without.fits so that it won't appear in subsequent
-        # COSSegmentLists
+        # Ullyses_COSSegmentLists
         os.rename(oldfile, newfile)
         ensemble.primary_headers.append(a.primary_headers[0])
         ensemble.first_headers.append(a.first_headers[0])
-    write_product(output_flux, output_error, starttimes, endtimes, wavelengths, 
+    write_product(output_flux, output_error, starttimes, endtimes, wavelengths,
                   ensemble, outfile, overwrite)
     return
 
 def rename_files_back(renaming_new):
     """After processing files, they are left with names that end in '_without.fits'.
     This routine renames them back so they end in '_x1d.fits'
-    
+
     Parameters:
     -----------
-    
+
     None
-    
+
     Returns:
     --------
-    
+
     None
-    
+
     """
     for newfile,oldfile in renaming_new.items():
         os.rename(newfile, oldfile)
@@ -465,36 +481,36 @@ def write_product(flux, error, starttimes, endtimes, wavelengths, ensemble, outf
     and end times of each row of the FLUX and ERROR arrays, while WAVELENGTH gives the
     wavelength of each column of these arrays.  The second extension contains the provenance
     information about the files that were used to create these products.
-    
+
     Parameters:
     -----------
-    
+
     flux: float ndarray
         2-d array of flux values
-        
+
     error: float ndarray
         2-d array of error values
-        
+
     starttimes: float ndarray
         1-d array of start times (MJD)
-    
+
     endtimes: float ndarray
         1-d array of stop times (MJD)
-        
+
     wavelengths: float ndarray
         1-d array of wavelengths
-     
-    ensemble: COSSegmentList
-        COSSegmentList made from exposures that were used to create this product
-        
+
+    ensemble: Ullyses_COSSegmentList
+        Ullyses_COSSegmentList made from exposures that were used to create this product
+
     outfile: str
         Name of FITS product file
-        
+
     Returns:
     --------
-    
+
     None
-    
+
     """
     nrows, ncolumns = flux.shape
     npixels = nrows*ncolumns
@@ -526,29 +542,29 @@ def write_product(flux, error, starttimes, endtimes, wavelengths, ensemble, outf
 
 def create_primary_header(ensemble, filename):
     """Create the primary header of the timeseries product.
-    
+
     Parameters:
-    
-    ensemble: COSSegmentList
-        COSSegmentList of full exposures used to make the arrays in the timeseries
+
+    ensemble: Ullyses_COSSegmentList
+        Ullyses_COSSegmentList of full exposures used to make the arrays in the timeseries
         product.  The primary_headers and first_headers attributes are used to
         populate the header
-        
+
     filename: str
         Name of timeseries product filename
-        
+
     Returns:
-    
+
     prihdr: astropy.io,fits PrimaryHDU object
-    
+
     """
     level = 5
-    
+
     # If the target is a ULLYSES target, use the official
     # target name and coords
-    ensemble.target = ensemble.ull_targname()
-    ensemble.targ_ra, ensemble.targ_dec = ensemble.ull_coords()
-    
+    ensemble.target = ensemble.get_targname()
+    ensemble.targ_ra, ensemble.targ_dec = ensemble.get_coords()
+
     hdr0 = fits.Header()
     hdr0['EXTEND'] = ('T', 'FITS file may contain extensions')
     hdr0['NEXTEND'] = 3
@@ -572,23 +588,23 @@ def create_primary_header(ensemble, filename):
     hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
     hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
-    ra, dec = ensemble.ull_coords()
+    ra, dec = ensemble.get_coords()
     hdr0['TARG_RA'] =  (ra,  '[deg] Target right ascension')
     hdr0['TARG_DEC'] =  (dec,  '[deg] Target declination')
     hdr0['PROPOSID'] = (ensemble.combine_keys("proposid", "multi"), 'Program identifier')
     hdr0.add_blank(after='TARG_DEC')
     hdr0.add_blank('           / PROVENANCE INFORMATION', before='PROPOSID')
-    hdr0['CAL_VER'] = (f'ULLYSES Cal {coadd.CAL_VER}', 'HLSP processing software version')
+    hdr0['CAL_VER'] = (f'ULLYSES Cal {CAL_VER}', 'HLSP processing software version')
     hdr0['HLSPID'] = ('ULLYSES', 'Name ID of this HLSP collection')
     hdr0['HSLPNAME'] = ('Hubble UV Legacy Library of Young Stars as Essential Standards',
                     'Name ID of this HLSP collection')
-    hdr0['HLSPLEAD'] = ('Julia Roman-Duval', 'Full name of HLSP project lead') 
+    hdr0['HLSPLEAD'] = ('Julia Roman-Duval', 'Full name of HLSP project lead')
     hdr0['HLSP_VER'] = (VERSION,'HLSP data release version identifier')
     hdr0['HLSP_LVL'] = (level, 'ULLYSES HLSP Level')
     hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
     hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
     hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')
-    
+
     hdr0['CENTRWV'] = (ensemble.combine_keys("centrwv", "average"), 'Central wavelength of the data')
     hdr0.add_blank(after='REFERENC')
     hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')
@@ -597,22 +613,22 @@ def create_primary_header(ensemble, filename):
 
     primary = fits.PrimaryHDU(header=hdr0)
     return primary
-    
+
 def create_extension_1_header(ensemble):
     """Create the extension 1 header for the timeseries product
-    
+
     Parameters:
     -----------
-    
-    ensemble: COSSegmentList
-        The COSSegmentList from which the header parameters are derived.  This should be
+
+    ensemble: Ullyses_COSSegmentList
+        The Ullyses_COSSegmentList from which the header parameters are derived.  This should be
         created from the full exposures
-        
+
     Returns:
     --------
-    
+
     astropy.io.fits.Header object
-    
+
     """
     hdr1 = fits.Header()
     hdr1['EXTNAME'] = ('SCIENCE', 'Spectrum science arrays')
@@ -627,27 +643,27 @@ def create_extension_1_header(ensemble):
     hdr1['DATE-BEG'] = (dt.strftime(dt_beg, "%Y-%m-%dT%H:%M:%S"), 'Date-time of first observation start')
     hdr1.add_blank('', after='TREFPOS')
     hdr1.add_blank('              / FITS TIME COORDINATE KEYWORDS', before='DATE-BEG')
-    
+
     hdr1['DATE-END'] = (dt.strftime(dt_end, "%Y-%m-%dT%H:%M:%S"), 'Date-time of last observation end')
     hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
     hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
     hdr1['XPOSURE'] = (ensemble.combine_keys("exptime", "sum"), '[s] Sum of exposure durations')
     return hdr1
-    
+
 def create_extension_2(ensemble):
     """Create the timeseries product provenance extension
-    
+
     Parameters:
     -----------
-    
-    ensemble: COSSegmentList
-        The COSSegmentList from which the provenance data are to be derived.  Should
+
+    ensemble: Ullyses_COSSegmentList
+        The Ullyses_COSSegmentList from which the provenance data are to be derived.  Should
         be created from the full exposures.
-        
+
     Returns:
-    
+
     astropy.io.fits.BinTableHDU object
-    
+
     """
     hdr2 = fits.Header()
     hdr2['EXTNAME'] = ('PROVENANCE', 'Metadata for contributing observations')
@@ -690,9 +706,9 @@ def create_extension_2(ensemble):
     cexp = fits.Column(name='XPOSURE', array=ensemble.combine_keys("exptime", "arr"), format='F15.9', unit='s')
     cmin = fits.Column(name='MINWAVE', array=ensemble.combine_keys("minwave", "arr"), format='F9.4', unit='Angstrom')
     cmax = fits.Column(name='MAXWAVE', array=ensemble.combine_keys("maxwave", "arr"), format='F9.4', unit='Angstrom')
-    
+
     cd2 = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv, cdb, cdm, cde, cexp, cmin ,cmax])
-    
+
     table2 = fits.BinTableHDU.from_columns(cd2, header=hdr2)
     return table2
 
@@ -702,7 +718,7 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--indir", default=".",
                         help="Path to input directory with either default x1d files or split x1d files")
     parser.add_argument("-g", "--grating", 
-                        help="Grating to process. Either G160M or G230L")
+                        help="Grating to process")
     parser.add_argument("-o", "--outfile",
                         help="Name of output file")
     parser.add_argument("-w", "--wl", default=1, type=int,
@@ -713,5 +729,5 @@ if __name__ == "__main__":
                         help="If True, overwrite existing products")
     args = parser.parse_args()
 
-    process_files(args.grating, args.outfile, args.indir, args.wl, args.min_exp, 
+    process_files(args.grating, args.outfile, args.indir, args.wl, args.min_exp,
          args.clobber)
