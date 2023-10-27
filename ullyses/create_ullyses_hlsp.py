@@ -100,7 +100,7 @@ def make_xsu_hlsps(infile, outdir, targ, hlspname=None):
         ra, dec = (0, 0)
         print(f"{RED}NO ALIAS AND COORDINATES FOUND FOR {ull_targname}{RESET}")
 
-    file_targname = RENAME[targ_lower]
+    file_targname = rename_target(ull_targname)
     
     if hlspname is None:
         hlspname = f"hlsp_ullyses_vlt_xshooter_{file_targname.lower()}_uvb-vis_{VERSION}_vltspec.fits"

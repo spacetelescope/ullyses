@@ -851,11 +851,11 @@ class Ullyses():
                         val = 11400
                 else:
                     actual_key = keymap[tel][key][0]  
-                        hdrno = keymap[tel][key][1]
-                        if hdrno == 0:
-                            val = self.primary_headers[i][actual_key]
-                        else:
-                            val = self.first_headers[i][actual_key]
+                    hdrno = keymap[tel][key][1]
+                    if hdrno == 0:
+                        val = self.primary_headers[i][actual_key]
+                    else:
+                        val = self.first_headers[i][actual_key]
 
 #                match [tel, key]:
 #                    # Handle some special cases
