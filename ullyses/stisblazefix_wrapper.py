@@ -1,8 +1,12 @@
 """
 Apply the stisblazefix to selected echelle data.
 """
-
-from stisblazefix import fluxfix
+import sys
+try:
+    from stisblazefix import fluxfix
+except ModuleNotFoundError:
+    print("To download stisblazefix, follow instructions here: https://stisblazefix.readthedocs.io/en/latest/#installation")
+    sys.exit()
 import pandas as pd
 from astropy.io import fits
 import shutil
