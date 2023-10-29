@@ -1,9 +1,14 @@
 from abc import ABC
+import os
+import pandas as pd
 import numpy as np
 from datetime import datetime as dt
 from astropy.time import Time
 
+import ullyses_utils
+
 SECONDS_PER_DAY = 86400.
+UTILS_DIR = ullyses_utils.__path__[0]
 
 class KeyBlender(ABC):
     def combine_keys(self, key, method="multi", dict_key=None, constant=None):
@@ -52,9 +57,11 @@ class KeyBlender(ABC):
                          "maxwave": ("maxwave", 0),
                          "filename": ("filename", 0),
                          "specres": ("specres", 0),
+                         "comment": ("special", 0),
                          "cal_ver": ("cal_ver", 0)},
                 "WFC3": {"expstart": ("expstart", 0),
                          "expend": ("expend", 0),
+                         "comment": ("special", 0),
                          "exptime": ("exptime", 0)},
                 "FUSE": {"expstart": ("obsstart", 0),
                          "expend": ("obsend", 0),
@@ -72,6 +79,7 @@ class KeyBlender(ABC):
                          "maxwave": ("wavemax", 0),
                          "filename": ("filename", 0),
                          "specres": ("spec_rp", 1),
+                         "comment": ("special", 0),
                          "cal_ver": ("cf_vers", 0)},
                "LCOGT": {"expstart": ("date-obs", 1),
                          "expend": ("exptime", 1),
@@ -83,6 +91,7 @@ class KeyBlender(ABC):
                          "proposid": ("propid", 1),
                          "filename": ("origname", 1),
                          "filter": ("filter", 1),
+                         "comment": ("special", 0),
                          "cal_ver": ("pipever", 1)},
                  "VLT": {"expstart": ("mjd-obs", 1),
                          "expend": ("exptime", 1), 
@@ -102,9 +111,14 @@ class KeyBlender(ABC):
                          "dr_num": ("dr_num", 0),
                          "dr_date": ("dr_date", 0),
                          "specres": ("special", 1),
+                         "comment": ("special", 0),
                          "cal_ver": ("hierarch eso pro rec1 pipe id", 1)}
                          }
-    
+   
+        if key == "comment":
+            dbfile = os.path.join(UTILS_DIR, "data", "calibration_metadata", "ullyses_calibration_db.csv")
+            cal_db = pd.read_csv(dbfile, keep_default_na=False)
+        
         if constant is not None:
             vals = [constant for x in self.first_headers]
         else:
@@ -117,9 +131,25 @@ class KeyBlender(ABC):
                         tel = self.primary_headers[i]["telescop"]
                 else:
                     tel = dict_key
+
+                actual_key = keymap[tel][key][0]  
+                hdrno = keymap[tel][key][1]
                 
-    # Python 3.9 compliant if/else version of match case
-                if tel == "FUSE" and key == "filename":
+                if key == "comment":
+                    filename_key = keymap[tel]["filename"][0]  
+                    filename_hdrno = keymap[tel]["filename"][1]
+                    if filename_hdrno == 0:
+                        filename = self.primary_headers[i][filename_key]
+                    else:
+                        filename = self.first_headers[i][filename_key]
+                    db_roots = cal_db["dataset_name"].values
+                    val = ""
+                    for rootname in db_roots:
+                        if rootname in filename:
+                            val = cal_db.loc[cal_db.dataset_name == rootname]["qual_comm"].values[0]
+                            break
+                elif tel == "FUSE" and key == "filename":
+                    val = self.primary_headers[i][actual_key]
                     val = val.replace(".fit", "_vo.fits")
                 elif tel == "LCOGT" and key == "telescop":
                     telescop = self.first_headers[i]["telescop"]
@@ -154,8 +184,6 @@ class KeyBlender(ABC):
                     else:
                         val = 11400
                 else:
-                    actual_key = keymap[tel][key][0]  
-                    hdrno = keymap[tel][key][1]
                     if hdrno == 0:
                         val = self.primary_headers[i][actual_key]
                     else:
@@ -226,5 +254,6 @@ class KeyBlender(ABC):
         elif method == "arr":
             return np.array(vals)
         elif method == "concat":
+            vals = [x for x in vals if x != ""]
             return " | ".join(vals)
 
