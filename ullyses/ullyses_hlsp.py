@@ -355,6 +355,7 @@ class Ullyses(KeyBlender):
         hdr1['TIMESYS'] = ('UTC', 'Time system in use')
         hdr1['TIMEUNIT'] = ('s', 'Time unit for durations')
         hdr1['TREFPOS'] = ('GEOCENTER', 'Time reference position')
+        hdr1['COMMENT'] = (self.combine_keys("comment", "concat"), "Calibration and/or quality comment")
 
         mjd_beg = self.combine_keys("expstart", "min")
         mjd_end = self.combine_keys("expend", "max")
@@ -377,6 +378,7 @@ class Ullyses(KeyBlender):
         hdr1['TIMESYS'] = ('UTC', 'Time system in use')
         hdr1['TIMEUNIT'] = ('s', 'Time unit for durations')
         hdr1['TREFPOS'] = ('GEOCENTER', 'Time reference position')
+        hdr1['COMMENT'] = (self.combine_keys("comment", "concat"), "Calibration and/or quality comment")
 
         mjd_beg = self.combine_keys("expstart", "min", "WFC3")
         mjd_end = self.combine_keys("expend", "max", "WFC3")
@@ -400,6 +402,7 @@ class Ullyses(KeyBlender):
         hdr1['TIMESYS'] = ('UTC', 'Time system in use')
         hdr1['TIMEUNIT'] = ('s', 'Time unit for durations')
         hdr1['TREFPOS'] = ('GEOCENTER', 'Time reference position')
+        hdr1['COMMENT'] = (self.combine_keys("comment", "concat"), "Calibration and/or quality comment")
 
         mjd_beg = self.photdf.iloc[0]["mjdstart"]
         mjd_end = self.photdf.iloc[-1]["mjdend"]
@@ -495,6 +498,7 @@ class Ullyses(KeyBlender):
         hdr.add_blank('              / FITS TIME COORDINATE KEYWORDS', before='TIMESYS')
         hdr['TIMEUNIT'] = ('s', 'Time unit for durations')
         hdr['TREFPOS'] = ('GEOCENTER', 'Time reference position')
+        hdr['COMMENT'] = (self.combine_keys("comment", "concat"), "Calibration and/or quality comment")
         mjd_beg = self.combine_keys("expstart", "min")
         mjd_end = self.combine_keys("expend", "max")
         dt_beg = Time(mjd_beg, format="mjd").datetime

@@ -65,6 +65,7 @@ class Ullyses_SegmentList(SegmentList):
         hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
         hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
         hdr1['XPOSURE'] = (self.combine_keys("exptime", "sum"), '[s] Sum of exposure durations')
+        hdr1['COMMENT'] = (self.combine_keys("comment", "concat"), "Calibration and/or quality comment")
 
         # set up the table columns
         nelements = len(self.output_wavelength)
