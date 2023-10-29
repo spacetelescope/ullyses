@@ -9,12 +9,12 @@ import datetime
 from datetime import datetime as dt
 
 from ullyses_utils.ullyses_config import CAL_VER
-
+from ullyses.combine_header_keys import KeyBlender
 # coadd data
 #
 
 STIS_NON_CCD_DETECTORS = ['FUV-MAMA', 'NUV-MAMA']
-class SegmentList:
+class SegmentList(KeyBlender):
     def __init__(self, instrument, grating, inpath='.', infiles=None):
         self.get_datasets = False
         if instrument is not None and grating is not None:
@@ -402,73 +402,6 @@ class SegmentList:
         s_region = f"CIRCLE {center_ra} {center_dec} {radius}"
         return s_region
 
-
-    def combine_keys(self, key, method):
-        keymap= {"HST": {"expstart": ("expstart", 1),
-                         "expend": ("expend", 1),
-                         "exptime": ("exptime", 1),
-                         "telescop": ("telescop", 0),
-                         "instrume": ("instrume", 0),
-                         "detector": ("detector", 0),
-                         "opt_elem": ("opt_elem", 0),
-                         "cenwave": ("cenwave", 0),
-                         "aperture": ("aperture", 0),
-                         "obsmode": ("obsmode", 0),
-                         "proposid": ("proposid", 0),
-                         "centrwv": ("centrwv", 0),
-                         "minwave": ("minwave", 0),
-                         "maxwave": ("maxwave", 0),
-                         "filename": ("filename", 0),
-                         "specres": ("specres", 0),
-                         "cal_ver": ("cal_ver", 0)},
-                "FUSE": {"expstart": ("obsstart", 0),
-                         "expend": ("obsend", 0),
-                         "exptime": ("obstime", 0),
-                         "telescop": ("telescop", 0),
-                         "instrume": ("instrume", 0),
-                         "detector": ("detector", 0),
-                         "opt_elem": ("detector", 0),
-                         "cenwave": ("centrwv", 0),
-                         "aperture": ("aperture", 0),
-                         "obsmode": ("instmode", 0),
-                         "proposid": ("prgrm_id", 0),
-                         "centrwv": ("centrwv", 0),
-                         "minwave": ("wavemin", 0),
-                         "maxwave": ("wavemax", 0),
-                         "filename": ("filename", 0),
-                         "specres": ("spec_rp", 1),
-                         "cal_ver": ("cf_vers", 0)}}
-
-        vals = []
-        for i in range(len(self.primary_headers)):
-            tel = self.primary_headers[i]["telescop"]
-            actual_key = keymap[tel][key][0]
-            hdrno = keymap[tel][key][1]
-            if hdrno == 0:
-                val = self.primary_headers[i][actual_key]
-            else:
-                val = self.first_headers[i][actual_key]
-            if tel == "FUSE" and key == "filename":
-                val = val.replace(".fit", "_vo.fits")
-            vals.append(val)
-
-        # Allowable methods are min, max, average, sum, multi, arr
-        if method == "multi":
-            keys_set = list(set(vals))
-            if len(keys_set) > 1:
-                return "MULTI"
-            else:
-                return keys_set[0]
-        elif method == "min":
-            return min(vals)
-        elif method == "max":
-            return max(vals)
-        elif method == "average":
-            return np.average(vals)
-        elif method == "sum":
-            return np.sum(vals)
-        elif method == "arr":
-            return np.array(vals)
 
 # Weight functions for STIS
 weight_function = {
