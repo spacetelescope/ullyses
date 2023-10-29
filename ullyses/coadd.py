@@ -2,16 +2,20 @@ import os
 import glob
 
 import numpy as np
+import astropy
 from astropy.io import fits
+from astropy.time import Time
+import datetime
+from datetime import datetime as dt
+
+from ullyses_utils.ullyses_config import CAL_VER
 
 # coadd data
 #
 
 STIS_NON_CCD_DETECTORS = ['FUV-MAMA', 'NUV-MAMA']
-
 class SegmentList:
-
-    def __init__(self, instrument, grating, path='.'):
+    def __init__(self, instrument, grating, inpath='.', infiles=None):
         self.get_datasets = False
         if instrument is not None and grating is not None:
             self.get_datasets = True
@@ -39,48 +43,52 @@ class SegmentList:
         self.level0 = False
 
         if self.get_datasets:
-            vofiles = glob.glob(os.path.join(path, '*_vo.fits'))
-            x1dfiles = glob.glob(os.path.join(path, '*_x1d.fits')) + glob.glob(os.path.join(path, '*_sx1.fits')) + glob.glob(os.path.join(path, '*_x1f.fits'))
 
             alldata = []
             allhdr0 = []
             allhdr1 = []
 
-            for file in x1dfiles:
-                with fits.open(file) as f1:
-                    prihdr = f1[0].header
-                    if prihdr['OPT_ELEM'].upper() == self.grating and prihdr['INSTRUME'].upper() == self.instrument:
-                        for extension in f1[1:]:
-                            if extension.header['EXTNAME'] == 'SCI':
-                                hdr1 = extension.header
-                                data = extension.data
-                                alldata.append(data)
-                                allhdr0.append(prihdr)
-                                allhdr1.append(hdr1)
-                                extver = extension.header['extver']
-                                if extver> 1:
-                                    expname = extension.header['EXPNAME']
-                                    print(f'Extension {extver} with expname {expname} included for file {file}')
+            if instrument != "FUSE":
+                if infiles is None:
+                    infiles = glob.glob(os.path.join(inpath, '*_x1d.fits')) + glob.glob(os.path.join(inpath, '*_sx1.fits')) + glob.glob(os.path.join(inpath, '*_x1f.fits'))
+
+                for file in infiles:
+                    with fits.open(file) as f1:
+                        prihdr = f1[0].header
+                        if prihdr['OPT_ELEM'].upper() == self.grating and prihdr['INSTRUME'].upper() == self.instrument:
+                            for extension in f1[1:]:
+                                if extension.header['EXTNAME'] == 'SCI':
+                                    hdr1 = extension.header
+                                    data = extension.data
+                                    alldata.append(data)
+                                    allhdr0.append(prihdr)
+                                    allhdr1.append(hdr1)
+                                    extver = extension.header['extver']
+                                    if extver> 1:
+                                        expname = extension.header['EXPNAME']
+                                        print(f'Extension {extver} with expname {expname} included for file {file}')
+                        else:
+                            continue
+    
+                    if len(data) > 0:
+                        print('{} added to file list for instrument/grating {}/{}'.format(file, instrument, grating))
+                        self.instrument = prihdr['INSTRUME'].upper()
+                        self.datasets.append(file)
+                        target = prihdr['TARGNAME'].strip()
+                        if target not in self.targnames:
+                            self.targnames.append(target)
+                        try:
+                            if prihdr['HLSP_LVL'] == 0:
+                                self.level0 = True
+                        except:
+                            pass
                     else:
-                        continue
+                        print('{} has no data'.format(file))
 
-                if len(data) > 0:
-                    print('{} added to file list for instrument/grating {}/{}'.format(file, instrument, grating))
-                    self.instrument = prihdr['INSTRUME'].upper()
-                    self.datasets.append(file)
-                    target = prihdr['TARGNAME'].strip()
-                    if target not in self.targnames:
-                        self.targnames.append(target)
-                    try:
-                        if prihdr['HLSP_LVL'] == 0:
-                            self.level0 = True
-                    except:
-                        pass
-                else:
-                    print('{} has no data'.format(file))
-
-            if grating == 'FUSE':
-                for file in vofiles:
+            elif grating == 'FUSE':
+                if infiles is None:
+                    infiles = glob.glob(os.path.join(inpath, '*_vo.fits'))
+                for file in infiles:
                     with fits.open(file) as f1:
                         prihdr = f1[0].header
                         hdr1 = f1[1].header
@@ -258,6 +266,210 @@ class SegmentList:
         avg_dec = np.average(decs)
         return avg_ra, avg_dec
 
+    def write(self, filename, overwrite=False):
+        """Generic write function for any coaddition usage."""
+
+        self.target = self.get_targname()
+        self.targ_ra, self.targ_dec = self.get_coords()
+
+        # Table 1 - HLSP data
+
+        # set up the header
+        hdr1 = fits.Header()
+        hdr1['EXTNAME'] = ('SCIENCE', 'Spectrum science arrays')
+        hdr1['TIMESYS'] = ('UTC', 'Time system in use')
+        hdr1['TIMEUNIT'] = ('s', 'Time unit for durations')
+        hdr1['TREFPOS'] = ('GEOCENTER', 'Time reference position')
+
+        mjd_beg = self.combine_keys("expstart", "min")
+        mjd_end = self.combine_keys("expend", "max")
+        dt_beg = Time(mjd_beg, format="mjd").datetime
+        dt_end = Time(mjd_end, format="mjd").datetime
+        hdr1['DATE-BEG'] = (dt.strftime(dt_beg, "%Y-%m-%dT%H:%M:%S"), 'Date-time of first observation start')
+        hdr1.add_blank('', after='TREFPOS')
+        hdr1.add_blank('              / FITS TIME COORDINATE KEYWORDS', before='DATE-BEG')
+
+        hdr1['DATE-END'] = (dt.strftime(dt_end, "%Y-%m-%dT%H:%M:%S"), 'Date-time of last observation end')
+        hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
+        hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
+        hdr1['XPOSURE'] = (self.combine_keys("exptime", "sum"), '[s] Sum of exposure durations')
+
+        # set up the table columns
+        nelements = len(self.output_wavelength)
+        rpt = str(nelements)
+
+        # Table with co-added spectrum
+        cw = fits.Column(name='WAVELENGTH', format=rpt+'E', unit="Angstrom")
+        cf = fits.Column(name='FLUX', format=rpt+'E', unit="erg /s /cm**2 /Angstrom")
+        ce = fits.Column(name='ERROR', format=rpt+'E', unit="erg /s /cm**2 /Angstrom")
+        cs = fits.Column(name='SNR', format=rpt+'E')
+        ct = fits.Column(name='EFF_EXPTIME', format=rpt+'E', unit="s")
+        cd = fits.ColDefs([cw, cf, ce, cs, ct])
+        table1 = fits.BinTableHDU.from_columns(cd, nrows=1, header=hdr1)
+
+        # populate the table
+        table1.data['WAVELENGTH'] = self.output_wavelength.copy()
+        table1.data['FLUX'] = self.output_flux.copy()
+        table1.data['ERROR'] = self.output_errors.copy()
+        table1.data['SNR'] = self.signal_to_noise.copy()
+        table1.data['EFF_EXPTIME'] = self.output_exptime.copy()
+        # HLSP primary header
+        hdr0 = fits.Header()
+        hdr0['EXTEND'] = ('T', 'FITS file may contain extensions')
+        hdr0['NEXTEND'] = 3
+        hdr0['FITS_VER'] = 'Definition of the Flexible Image Transport System (FITS) v4.0 https://fits.gsfc.nasa.gov/standard40/fits_standard40aa-le.pdf'
+        hdr0['FITS_SW'] = ('astropy.io.fits v' + astropy.__version__, 'FITS file creation software')
+        hdr0['ORIGIN'] = ('Space Telescope Science Institute', 'FITS file originator')
+        hdr0['DATE'] = (str(datetime.date.today()), 'Date this file was written')
+        hdr0['FILENAME'] = (os.path.basename(filename), 'Name of this file')
+        hdr0['TELESCOP'] = (self.combine_keys("telescop", "multi"), 'Telescope used to acquire data')
+        hdr0['INSTRUME'] = (self.combine_keys("instrume", "multi"), 'Instrument used to acquire data')
+        hdr0.add_blank('', after='TELESCOP')
+        hdr0.add_blank('              / SCIENCE INSTRUMENT CONFIGURATION', before='INSTRUME')
+        hdr0['DETECTOR'] = (self.combine_keys("detector", "multi"), 'Detector or channel used to acquire data')
+        hdr0['DISPERSR'] = (self.combine_keys("opt_elem", "multi"), 'Identifier of disperser')
+        hdr0['CENWAVE'] = (self.combine_keys("cenwave", "multi"), 'Central wavelength setting for disperser')
+        hdr0['APERTURE'] = (self.combine_keys("aperture", "multi"), 'Identifier of entrance aperture')
+        hdr0['S_REGION'] = (self.obs_footprint(), 'Region footprint')
+        hdr0['OBSMODE'] = (self.combine_keys("obsmode", "multi"), 'Instrument operating mode (ACCUM | TIME-TAG)')
+        hdr0['TARGNAME'] = self.target
+        hdr0.add_blank(after='OBSMODE')
+        hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
+
+        hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
+        hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
+        hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
+        hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi"), 'Program identifier')
+        hdr0.add_blank(after='TARG_DEC')
+        hdr0.add_blank('           / PROVENANCE INFORMATION', before='PROPOSID')
+        hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
+        hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
+        hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')
+
+        hdr0['CENTRWV'] = (self.combine_keys("centrwv", "average"), 'Central wavelength of the data')
+        hdr0.add_blank(after='REFERENC')
+        hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')
+        hdr0['MINWAVE'] = (self.combine_keys("minwave", "min"), 'Minimum wavelength in spectrum')
+        hdr0['MAXWAVE'] = (self.combine_keys("maxwave", "max"), 'Maximum wavelength in spectrum')
+
+        primary = fits.PrimaryHDU(header=hdr0)
+
+        # Table 2 - individual product info
+
+        # first set up header
+        hdr2 = fits.Header()
+        hdr2['EXTNAME'] = ('PROVENANCE', 'Metadata for contributing observations')
+        # set up the table columns
+        cfn = fits.Column(name='FILENAME', array=self.combine_keys("filename", "arr"), format='A64')
+        cpid = fits.Column(name='PROPOSID', array=self.combine_keys("proposid", "arr"), format='A32')
+        ctel = fits.Column(name='TELESCOPE', array=self.combine_keys("telescop", "arr"), format='A32')
+        cins = fits.Column(name='INSTRUMENT', array=self.combine_keys("instrume", "arr"), format='A32')
+        cdet = fits.Column(name='DETECTOR', array=self.combine_keys("detector", "arr"), format='A32')
+        cdis = fits.Column(name='DISPERSER', array=self.combine_keys("opt_elem", "arr"), format='A32')
+        ccen = fits.Column(name='CENWAVE', array=self.combine_keys("cenwave", "arr"), format='A32')
+        cap = fits.Column(name='APERTURE', array=self.combine_keys("aperture", "arr"), format='A32')
+        csr = fits.Column(name='SPECRES', array=self.combine_keys("specres", "arr"), format='F8.1')
+        ccv = fits.Column(name='CAL_VER', array=self.combine_keys("cal_ver", "arr"), format='A32')
+        mjd_begs = self.combine_keys("expstart", "arr")
+        mjd_ends = self.combine_keys("expend", "arr")
+        mjd_mids = (mjd_ends + mjd_begs) / 2.
+        cdb = fits.Column(name='MJD_BEG', array=mjd_begs, format='F15.9', unit='d')
+        cdm = fits.Column(name='MJD_MID', array=mjd_mids, format='F15.9', unit='d')
+        cde = fits.Column(name='MJD_END', array=mjd_ends, format='F15.9', unit='d')
+        cexp = fits.Column(name='XPOSURE', array=self.combine_keys("exptime", "arr"), format='F15.9', unit='s')
+        cmin = fits.Column(name='MINWAVE', array=self.combine_keys("minwave", "arr"), format='F9.4', unit='Angstrom')
+        cmax = fits.Column(name='MAXWAVE', array=self.combine_keys("maxwave", "arr"), format='F9.4', unit='Angstrom')
+
+        cd2 = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv, cdb, cdm, cde, cexp, cmin ,cmax])
+
+        table2 = fits.BinTableHDU.from_columns(cd2, header=hdr2)
+
+        # the HDUList:
+        # 0 - empty data - 0th ext header
+        # 1 - HLSP data - 1st ext header
+        # 2 - individual product info - 2nd ext header
+
+        hdul = fits.HDUList([primary, table1, table2])
+
+        hdul.writeto(filename, overwrite=overwrite)
+
+
+    def obs_footprint(self):
+        radius = (2.5 / 2 / 3600)
+        center_ra = self.targ_ra
+        center_dec = self.targ_dec
+
+        s_region = f"CIRCLE {center_ra} {center_dec} {radius}"
+        return s_region
+
+
+    def combine_keys(self, key, method):
+        keymap= {"HST": {"expstart": ("expstart", 1),
+                         "expend": ("expend", 1),
+                         "exptime": ("exptime", 1),
+                         "telescop": ("telescop", 0),
+                         "instrume": ("instrume", 0),
+                         "detector": ("detector", 0),
+                         "opt_elem": ("opt_elem", 0),
+                         "cenwave": ("cenwave", 0),
+                         "aperture": ("aperture", 0),
+                         "obsmode": ("obsmode", 0),
+                         "proposid": ("proposid", 0),
+                         "centrwv": ("centrwv", 0),
+                         "minwave": ("minwave", 0),
+                         "maxwave": ("maxwave", 0),
+                         "filename": ("filename", 0),
+                         "specres": ("specres", 0),
+                         "cal_ver": ("cal_ver", 0)},
+                "FUSE": {"expstart": ("obsstart", 0),
+                         "expend": ("obsend", 0),
+                         "exptime": ("obstime", 0),
+                         "telescop": ("telescop", 0),
+                         "instrume": ("instrume", 0),
+                         "detector": ("detector", 0),
+                         "opt_elem": ("detector", 0),
+                         "cenwave": ("centrwv", 0),
+                         "aperture": ("aperture", 0),
+                         "obsmode": ("instmode", 0),
+                         "proposid": ("prgrm_id", 0),
+                         "centrwv": ("centrwv", 0),
+                         "minwave": ("wavemin", 0),
+                         "maxwave": ("wavemax", 0),
+                         "filename": ("filename", 0),
+                         "specres": ("spec_rp", 1),
+                         "cal_ver": ("cf_vers", 0)}}
+
+        vals = []
+        for i in range(len(self.primary_headers)):
+            tel = self.primary_headers[i]["telescop"]
+            actual_key = keymap[tel][key][0]
+            hdrno = keymap[tel][key][1]
+            if hdrno == 0:
+                val = self.primary_headers[i][actual_key]
+            else:
+                val = self.first_headers[i][actual_key]
+            if tel == "FUSE" and key == "filename":
+                val = val.replace(".fit", "_vo.fits")
+            vals.append(val)
+
+        # Allowable methods are min, max, average, sum, multi, arr
+        if method == "multi":
+            keys_set = list(set(vals))
+            if len(keys_set) > 1:
+                return "MULTI"
+            else:
+                return keys_set[0]
+        elif method == "min":
+            return min(vals)
+        elif method == "max":
+            return max(vals)
+        elif method == "average":
+            return np.average(vals)
+        elif method == "sum":
+            return np.sum(vals)
+        elif method == "arr":
+            return np.array(vals)
+
 # Weight functions for STIS
 weight_function = {
     'unity':      lambda x, y, z: np.ones(len(x)),
@@ -268,10 +480,10 @@ weight_function = {
 
 class STISSegmentList(SegmentList):
 
-    def __init__(self, grating, path, weighting_method='throughput'):
+    def __init__(self, grating, inpath='.', infiles=None, weighting_method='throughput'):
         instrument = 'STIS'
         if grating is None: instrument = None
-        SegmentList.__init__(self, instrument, grating, path)
+        super().__init__(instrument, grating, inpath, infiles)
 
         self.weighting_method = weighting_method
 
@@ -288,10 +500,10 @@ class STISSegmentList(SegmentList):
 
 class COSSegmentList(SegmentList):
 
-    def __init__(self, grating, path):
+    def __init__(self, grating, inpath='.', infiles=None):
         instrument = 'COS'
         if grating is None: instrument = None
-        SegmentList.__init__(self, instrument, grating, path)
+        super().__init__(instrument, grating, inpath, infiles)
 
     def get_flux_weight(self, segment):
         thru_nans = segment.data['net'] / segment.data['flux']
@@ -309,8 +521,8 @@ class COSSegmentList(SegmentList):
 
 class FUSESegmentList(SegmentList):
 
-    def __init__(self, grating, path):
-        SegmentList.__init__(self, 'FUSE', 'FUSE', path)
+    def __init__(self, grating, inpath='.', infiles=None):
+        super().__init__('FUSE', 'FUSE', inpath, infiles)
 
     def get_gross_counts(self, segment):
         print("FUSE doesn't use gross counts")
@@ -364,10 +576,10 @@ class FUSESegmentList(SegmentList):
 
 class CCDSegmentList(SegmentList):
 
-    def __init__(self, grating, path, weighting_method='throughput'):
+    def __init__(self, grating, inpath='.', infiles=None, weighting_method='throughput'):
         instrument = 'STIS'
         if grating is None: instrument = None
-        SegmentList.__init__(self, instrument, grating, path)
+        super().__init__(instrument, grating, inpath, infiles)
 
         self.weighting_method = weighting_method
 

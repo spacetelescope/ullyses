@@ -7,7 +7,7 @@ import tarfile
 
 from astropy.io.fits import FITSDiff
 
-from ullyses import wrapper
+from ullyses import ullyses_coadd_abut_wrapper as wrapper
 from ullyses_utils.ullyses_config import VERSION
 
 
@@ -78,7 +78,7 @@ class TestWrapper():
 
     def run_wrapper(self, target):
         indir = target + '/' + RELEASE + '/input/'
-        wrapper.main(indir, outdir=indir, version=VERSION)
+        wrapper.find_files(indir, outdir=indir, version=VERSION)
         return
 
     def compare_outputs(self, target):
