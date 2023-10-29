@@ -34,9 +34,5 @@ setup(
                         "plotly",
                         "pytest"
                         ],
-    # If you need something from github, any of the below formats work:
-#    dependency_links = ["git+ssh://git@github.com/npirzkal/GRISMCONF.git#egg=GRISMCONF-0.1"],
-#    dependency_links = ["git+git@github.com:npirzkal/NIRCAM_Gsim@master#egg=NIRCAM_Gsim-0.1"],
-#    dependency_links = ["git+https://github.com/npirzkal/NIRCAM_Gsim@master#egg=NIRCAM_Gsim-0.1"],
     dependency_links = ["git+https://github.com/spacetelescope/ullyses-utils@main#egg=ullyses_utils-0.1"],
     )
