@@ -403,7 +403,6 @@ def main(indir, outdir, version=VERSION, clobber=False):
 
         # Create dictionary of all products, with each set to None by default
         products = defaultdict(lambda: None)
-        productlist = []
         productdict = {}
 
         level = 2
@@ -449,7 +448,6 @@ def main(indir, outdir, version=VERSION, clobber=False):
                     prod.write(outname, clobber, level=level, version=version)
                     print(f"   Wrote {outname}")
                 products[f'{instrument}/{grating}'] = prod
-                productlist.append(prod)
             else:
                 print(f"No valid data for grating {grating}")
             if prod.level0 is True:
@@ -471,7 +469,6 @@ def main(indir, outdir, version=VERSION, clobber=False):
                 prod.write(outname, clobber, level=0, version=version)
                 print(f"   Wrote {outname}")
                 products[f'{instrument}/{grating}'] = prod
-                productlist.append(prod)
             products[f'{instrument}/{grating}'] = prod
             productdict[f'{instrument}/{grating}'] = prod
             prod.add_hasp_attributes()
@@ -505,7 +502,6 @@ def main(indir, outdir, version=VERSION, clobber=False):
             filename = os.path.join(outdir, filename)
             products['FUSE/FUSE'].write(filename, clobber, level=level, version=version)
 
-
         # Determine which gratings should contribute to the final level 4 SED HLSP.
         # Starting with the bluest product and working redward, find which products,
         # if any, overlap with the bluer product. If more than one overlaps, use
@@ -513,6 +509,7 @@ def main(indir, outdir, version=VERSION, clobber=False):
         # will just be a region of flux=0 in between.
         level = 4
 
+        productlist = [productdict[key] for key in productdict]
         abutted_product = create_level4_products(productlist, productdict,
                                                  grating_table=ULLYSES_GRATING_PRIORITIES)
         filename = create_output_file_name(abutted_product, version, level=level)
