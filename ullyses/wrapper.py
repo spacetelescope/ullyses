@@ -545,7 +545,8 @@ def create_output_file_name(prod, version=VERSION, level=3):
             suffix = "cspec"
     elif level == 4:
         suffix = "preview-spec"
-        if "G430L" in prod.grating or "G750L" in prod.grating:
+        print(prod.grating)
+        if "g430" in prod.grating or "g750" in prod.grating:
             grating = "uv-opt"
         else:
             grating = "uv"
