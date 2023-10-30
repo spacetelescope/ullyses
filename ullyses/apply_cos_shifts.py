@@ -47,6 +47,7 @@ def apply_shifts_file(infile, outdir, shift_file):
     """
 
     infile_name = os.path.basename(infile)
+    print(f"Shifting {infile_name}")
     if not infile_name.endswith("_asn.fits"):
         raise TypeError("Input file must be an association file")
 
