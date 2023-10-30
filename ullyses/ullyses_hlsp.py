@@ -12,7 +12,7 @@ import sys
 
 from ullyses_utils.parse_csv import parse_aliases
 from ullyses_utils.ullyses_config import VERSION, CAL_VER
-from combine_header_keys import KeyBlender
+from ullyses.combine_header_keys import KeyBlender
 
 CODEDIR = os.path.dirname(__file__)
 RED = "\033[1;31m"
