@@ -106,12 +106,14 @@ class KeyBlender(ABC):
                          "proposid": ("hierarch eso obs prog id", 1),
                          "centrwv": ("arm", 1), 
                          "minwave": ("arm", 1), 
-                         "maxwave": ("arm", 1), 
+                         "maxwave": ("arm", 1),
+                         "cenwave": ("arm", 1), 
                          "filename": ("extname", 1),
                          "dr_num": ("dr_num", 0),
                          "dr_date": ("dr_date", 0),
                          "specres": ("special", 1),
                          "comment": ("special", 0),
+                         "aperture": ("special", 0),
                          "cal_ver": ("hierarch eso pro rec1 pipe id", 1)}
                          }
    
