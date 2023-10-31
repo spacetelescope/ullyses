@@ -40,7 +40,7 @@ class SegmentList:
 
         if self.get_datasets:
             vofiles = glob.glob(os.path.join(path, '*_vo.fits'))
-            x1dfiles = glob.glob(os.path.join(path, '*_x1d.fits')) + glob.glob(os.path.join(path, '*_sx1.fits'))
+            x1dfiles = glob.glob(os.path.join(path, '*_x1d.fits')) + glob.glob(os.path.join(path, '*_sx1.fits')) + glob.glob(os.path.join(path, '*_x1f.fits'))
 
             alldata = []
             allhdr0 = []
