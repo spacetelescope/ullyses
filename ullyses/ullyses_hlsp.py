@@ -327,19 +327,21 @@ class Ullyses(KeyBlender):
         hdr0['XSU_VER'] = (self.combine_keys("dr_num"), 'XSHOOTING-ULLYSES data release identifier')
         hdr0['XSU_DATE'] = (self.combine_keys("dr_date"), 'XSHOOTING-ULLYSES data release date')
 # need to define this
-        xsu_ref = "PAPER!"
-        hdr0['XSU_REF'] = (xsu_ref, 'Bibliographic ID of primary paper')                                         
+        xsu_ref1 = "https://ui.adsabs.harvard.edu/abs/2023A&A...675A.154V"
+        xsu_ref2 = "TBD"
+        hdr0['XSUREF1'] = (xsu_ref1, 'Bibliographic ID of XSHOOTING-ULLYSES paper 1')
+        hdr0['XSUREF2'] = (xsu_ref2, 'Bibliographic ID of XSHOOTING-ULLYSES paper 2')
         hdr0['CAL_VER'] = (f'ULLYSES Cal {self.cal_ver}', 'HLSP processing software version')
-        hdr0.add_blank(after='XSU_REF')                                                                          
+        hdr0.add_blank(after='XSUREF2')
         hdr0.add_blank('           / ULLYSES PROVENANCE INFORMATION', before='CAL_VER')                          
         hdr0['HLSPID'] = ('ULLYSES', 'Name ID of STScI HLSP collection')                                         
         hdr0['HSLPNAME'] = ('Hubble UV Legacy Library of Young Stars as Essential Standards', 'Name ID of STScI HLSP collection')
         hdr0['HLSPLEAD'] = ('Julia Roman-Duval', 'Full name of ULLYSES HLSP project lead')                       
         hdr0['HLSP_VER'] = (self.version, 'ULLYSES HLSP data release version identifier')                               
-        hdr0['HLSP_LVL'] = (0, 'ULLYSES HLSP Level')                                                             
+        hdr0['HLSP_LVL'] = (self.level, 'ULLYSES HLSP Level')
         hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')                                         
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')                  
-        hdr0['ULL_REF'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')       
+        hdr0['ULL_REF'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of ULLYSES paper')
         hdr0['CENTRWV'] = (cenwave, 'Central wavelength of the data')                                          
         hdr0.add_blank(after='ULL_REF')                                                                          
         hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')                                 
