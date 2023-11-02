@@ -78,7 +78,7 @@ class TestWrapper():
 
     def run_wrapper(self, target):
         indir = target + '/' + RELEASE + '/input/'
-        wrapper.find_files(indir, outdir=indir, version=VERSION)
+        wrapper.main(indir, outdir=indir, version=VERSION)
         return
 
     def compare_outputs(self, target):
