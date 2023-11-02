@@ -7,7 +7,7 @@ import tarfile
 
 from astropy.io.fits import FITSDiff
 
-from ullyses import wrapper
+from ullyses import ullyses_coadd_abut_wrapper as wrapper
 from ullyses_utils.ullyses_config import VERSION
 
 

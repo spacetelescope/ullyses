@@ -11,7 +11,8 @@ import calcos
 import glob
 import os
 
-from ullyses import coadd, wrapper
+from ullyses import coadd
+from ullyses import ullyses_coadd_abut_wrapper as wrapper
 from ullyses_utils.ullyses_config import VERSION, CAL_VER
 
 SECONDS_PER_DAY = 86400.0
