@@ -159,7 +159,18 @@ class Ullyses_SegmentList(SegmentList):
         cmin = fits.Column(name='MINWAVE', array=self.combine_keys("minwave", "arr"), format='F9.4', unit='Angstrom')
         cmax = fits.Column(name='MAXWAVE', array=self.combine_keys("maxwave", "arr"), format='F9.4', unit='Angstrom')
 
-        cd2 = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv, cdb, cdm, cde, cexp, cmin ,cmax])
+        ## sort the provenance by MJD start time
+        time_sort = np.argsort(cdb.array) # indices
+        # sort each of the columns using these indices
+        col_in_order = [cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv,
+                        cdb, cdm, cde, cexp, cmin, cmax]
+        sorted_coldef = []
+        for col in col_in_order:
+            col.array = col.array[time_sort]
+            sorted_coldef.append(col)
+
+        # turn into a ColDef to feed into the HDU
+        cd2 = fits.ColDefs(sorted_coldef)
 
         table2 = fits.BinTableHDU.from_columns(cd2, header=hdr2)
 
