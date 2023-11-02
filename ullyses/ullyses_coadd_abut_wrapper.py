@@ -160,7 +160,18 @@ class Ullyses_SegmentList(SegmentList):
         cmin = fits.Column(name='MINWAVE', array=self.combine_keys("minwave", "arr"), format='F9.4', unit='Angstrom')
         cmax = fits.Column(name='MAXWAVE', array=self.combine_keys("maxwave", "arr"), format='F9.4', unit='Angstrom')
 
-        cd2 = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv, cdb, cdm, cde, cexp, cmin ,cmax])
+        ## sort the provenance by MJD start time
+        time_sort = np.argsort(cdb.array) # indices
+        # sort each of the columns using these indices
+        col_in_order = [cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv,
+                        cdb, cdm, cde, cexp, cmin, cmax]
+        sorted_coldef = []
+        for col in col_in_order:
+            col.array = col.array[time_sort]
+            sorted_coldef.append(col)
+
+        # turn into a ColDef to feed into the HDU
+        cd2 = fits.ColDefs(sorted_coldef)
 
         table2 = fits.BinTableHDU.from_columns(cd2, header=hdr2)
 
@@ -254,7 +265,8 @@ class Ullyses_FUSESegmentList(FUSESegmentList, Ullyses_SegmentList):
     pass
 
 
-def find_files(indir, outdir, version=VERSION, clobber=False):
+def find_files(indir): 
+    allfiles = []
     for root, dirs, files in os.walk(indir, topdown=False):
         # Given a dir structure as follow, setting depth=2 ensure subdir/ will not be read
         # ULLYSES_DATA/
@@ -271,7 +283,10 @@ def find_files(indir, outdir, version=VERSION, clobber=False):
 
         nonvofiles = glob.glob(os.path.join(root, '*_x1d.fits')) + glob.glob(os.path.join(root, '*_sx1.fits'))
         vofiles = glob.glob(os.path.join(root, '*_vo.fits'))
-        coadd_and_abut_files(nonvofiles + vofiles, outdir, version, clobber)
+        allfiles += nonvofiles
+        allfiles += vofiles
+    return allfiles 
+
 
 def coadd_and_abut_files(infiles, outdir, version=VERSION, clobber=False):
     outdir_inplace = False
@@ -577,6 +592,12 @@ def create_output_file_name(prod, version=VERSION, level=3):
     return name
 
 
+def main(indir, outdir, version=VERSION, clobber=False):
+    print("dev version!!!")
+    allfiles = find_files(indir)
+    coadd_and_abut_files(allfiles, outdir, version, clobber)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--indir",
@@ -591,4 +612,4 @@ if __name__ == '__main__':
                         help="If True, overwrite existing products")
     args = parser.parse_args()
 
-    find_files(args.indir, args.outdir, args.version, args.clobber)
+    main(args.indir, args.outdir, args.version, args.clobber)
