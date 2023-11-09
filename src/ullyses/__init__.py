@@ -2,7 +2,9 @@ import sys
 
 # Import toml library to read tool table from pyproject.toml
 if sys.version_info.major == 3 and sys.version_info.minor < 11:
-    import tomli
+    # This is a hacky import - if failure encountered, require
+    # tomli as a dependency
+    from pip._vendor import tomli
     loader = tomli.load
 else:
     import tomllib
