@@ -1,19 +1,32 @@
 # ULLYSES
 
-This repository contains the codes used to create the high level science products (HLSPs) for the targets in the Hubble Space Telescope’s (HST) Ultraviolet Legacy Library of Young Stars as Essential Standards (ULLYSES) program. See more info about ULLYSES and its targets at [ullyses.stsci.edu](https://ullyses.stsci.edu).
+This repository contains the codes used to create the high level science
+products (HLSPs) for the targets in the Hubble Space Telescope’s (HST)
+Ultraviolet Legacy Library of Young Stars as Essential Standards (ULLYSES)
+program. See more info about ULLYSES and its targets at
+[ullyses.stsci.edu](https://ullyses.stsci.edu).
 
-A full description of the data products produced by the ULLYSES team can be found at [ULLYSES Data Products](https://ullyses.stsci.edu/ullyses-data-description.html). 
+A full description of the data products produced by the ULLYSES team can
+be found at
+[ULLYSES Data Products](https://ullyses.stsci.edu/ullyses-data-description.html). 
 
 ## Installation
 
-The `ullyses` package can be installed into a virtualenv or conda environment via `pip`. We recommend that for each installation you start by creating a fresh environment that only has Python installed and then install the `ullyses` package and its dependencies into that bare environment. If using conda environments, first make sure you have a recent version of [Anaconda](https://www.anaconda.com/) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html) installed.
+The `ullyses` package can be installed into a virtualenv or conda
+environment via `pip`. We recommend that for each installation you start
+by creating a fresh environment that only has Python installed and then
+install the `ullyses` package and its dependencies into that bare environment.
+If using conda environments, first make sure you have a recent version of
+[Anaconda](https://www.anaconda.com/) or
+[Miniconda](https://docs.conda.io/en/latest/miniconda.html) installed.
 
 The first two steps are to create and activate an environment:
 
-    conda create -n <env_name> python=3.8
+    conda create -n <env_name> python=3.9
     conda activate <env_name>
    
-Python version 3.8 or greater is required for some dependencies, including `calcos`, the COS data calibration pipeline used in these scripts.
+Python version 3.9 or greater is required for some dependencies,
+including `calcos`, the COS data calibration pipeline used in these scripts.
 
 To install your own copy of the code into that environment, simply install with pip:
 

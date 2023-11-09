@@ -7,7 +7,7 @@ name = "ullyses"
 version = "4.0.0"
 description = "Create ULLYSES data products"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 license = { file = "LICENSE" }
 authors = [{ name = "ULLYSES STScI Team", email = "ullyses_dp@stsci.edu" }]
 keywords = ["astronomy"]
