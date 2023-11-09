@@ -36,7 +36,7 @@ dependencies = [
 ]
 
 [project.scripts]
-coadd = ullyses.ullyses_coadd_abut_wrapper:main
+coadd = "ullyses.ullyses_coadd_abut_wrapper:main"
 
 [tool.ullyses]
 release = "dr7"
