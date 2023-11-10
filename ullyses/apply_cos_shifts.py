@@ -36,7 +36,7 @@ for each target that needs correction.
 """
 
 
-def apply_shifts_file(infile, outdir, shift_file):
+def apply_shifts_file(infile, outdir, shift_file, overwrite=False):
     """
     Apply shifts from input txt file. The txt file is given
     as an input to calcos, which recalibrates the rawtag files.
@@ -64,6 +64,11 @@ def apply_shifts_file(infile, outdir, shift_file):
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
+    for item in uniq_ipppss:
+        outfiles = glob.glob(os.path.join(outdir, item+"*"))
+        if len(outfiles) > 0 and overwrite is True:
+            for outfile in outfiles:
+                os.remove(outfile)
     calcos.calcos(infile, shift_file=shift_file, outdir=outdir,
                   verbosity=0)
 
