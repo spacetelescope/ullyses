@@ -194,12 +194,12 @@ def create_ensemble_segmentlist(grating, indir=".", wavelength_binning=1.0, ins=
 
     """
     if ins == "COS":
-        a = wrapper.Ullyses_COSSegmentList(grating, path=indir)
+        a = wrapper.Ullyses_COSSegmentList(grating, inpath=indir)
     elif ins == "STIS":
         if grating in ["G230LB", "G230M", "G230LB", "G230MB", "G430L", "G430M", "G750L", "G750M"]:
-            a = wrapper.Ullyses_CCDSegmentList(grating, path=indir)
+            a = wrapper.Ullyses_CCDSegmentList(grating, inpath=indir)
         else:
-            a = wrapper.Ullyses_STISSegmentList(grating, path=indir)
+            a = wrapper.Ullyses_STISSegmentList(grating, inpath=indir)
     a.create_output_wavelength_grid()
     if wavelength_binning != 1:
         a.delta_wavelength = a.delta_wavelength * wavelength_binning
@@ -438,7 +438,7 @@ def process_sorted_filelist(sorted_list, grating, ensemble, outfile, renaming_ne
             print(f"Skipping file {newfile} as it doesn't have the required grating")
             f1.close()
             continue
-        a = segmentlist(grating, path=indir)
+        a = segmentlist(grating, inpath=indir)
         transfer_from_ensemble(ensemble, a)
         a.coadd()
         start_time = a.first_headers[0]['expend'] - a.first_headers[0]['exptime']/SECONDS_PER_DAY
