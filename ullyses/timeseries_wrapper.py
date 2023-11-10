@@ -5,6 +5,7 @@ If subexposure level -> the input should be raw + spt + asn files, so that the f
 and recalibrated to make subexposure x1ds.
 """
 
+import traceback
 import argparse
 import numpy as np
 from astropy.io import fits
@@ -59,7 +60,7 @@ def get_goodbad_exposures(tss_params):
     return tss_params
 
 
-def read_tss_yaml(targ, yamlfile=None):
+def read_tss_yaml(targ, yamlfile=None, instrument="cos"):
     """ Open the YAML file for the target to read TSS parameters.
 
     Args:
@@ -74,7 +75,7 @@ def read_tss_yaml(targ, yamlfile=None):
     """
 
     if yamlfile is None:
-        yamlfile = os.path.join(UTILS_DIR, f"data/timeseries/{targ}.yaml")
+        yamlfile = os.path.join(UTILS_DIR, f"data/timeseries/{targ}_{instrument.lower()}.yaml")
         assert os.path.exists(yamlfile), f"YAML file not found for {targ}, expected {yamlfile}"
 
     tss_params = read_config(yamlfile)
@@ -142,7 +143,7 @@ def copy_serendipitous_origdata(datadir, orig_datadir, tss_params):
         shutil.copy(item, datadir)
     print(f"\nCopied original files to {datadir}")
     if len(should_be_copied) != 0:
-        print(f"{RED}WARNING: Not all good files were found copied! Missing files: {should_be_copied}{RESET}")
+        print(f"{RED}WARNING: Not all good files were copied! Missing files: {should_be_copied}{RESET}")
 
     return datadir
 
@@ -211,7 +212,7 @@ def copy_monitoring_origdata(datadir, orig_datadir, tss_params):
 
     print(f"\nCopied original files to {datadir}")
     if len(should_be_copied) != 0:
-        print(f"{RED}WARNING: Not all good files were found copied! Missing files: {should_be_copied}{RESET}")
+        print(f"{RED}WARNING: Not all good files were copied! Missing files: {should_be_copied}{RESET}")
 
     return datadir
 
@@ -415,14 +416,14 @@ def create_serendipitous_timeseries(datadir, tss_outdir, targ, tss_params, min_e
         try:
             timeseries.process_files(grat.upper(), outfile, datadir, overwrite=True, 
                                  ins=ins.upper(), min_exptime=min_exptime)
-        except:
+        except Exception:
             without = glob.glob(os.path.join(datadir, "*without*fits"))
             for newname in without:
                 origname = newname.replace("_without.fits", "_x1d.fits")
                 os.rename(newname, origname)
-        
-    return tss_outdir
+            print(traceback.format_exc())
 
+    return tss_outdir
 
 
 def create_monitoring_timeseries(datadir, tss_outdir, targ, tss_params):
@@ -452,11 +453,12 @@ def create_monitoring_timeseries(datadir, tss_outdir, targ, tss_params):
         outfile = os.path.join(tss_outdir, f"hlsp_ullyses_hst_cos_{targ}_{grat}_{VERSION.lower()}_tss.fits")
         try:
             timeseries.process_files(grat.upper(), outfile, indir, overwrite=True) 
-        except:
+        except Exception:
             without = glob.glob(os.path.join(datadir, "*without*fits"))
             for newname in without:
                 origname = newname.replace("_without.fits", "_x1d.fits")
                 os.rename(newname, origname)
+            print(traceback.format_exc())
         
         indir = os.path.join(datadir, grat, "split")
         outfile = os.path.join(tss_outdir, f"hlsp_ullyses_hst_cos_{targ}_{grat}_{VERSION.lower()}_split-tss.fits")
@@ -464,11 +466,12 @@ def create_monitoring_timeseries(datadir, tss_outdir, targ, tss_params):
             timeseries.process_files(grating=grat.upper(), outfile=outfile, indir=indir, 
                                  wavelength_binning=wl_bin, min_exptime=min_exptime, 
                                  overwrite=True)
-        except:
+        except Exception:
             without = glob.glob(os.path.join(datadir, "*without*fits"))
             for newname in without:
                 origname = newname.replace("_without.fits", "_x1d.fits")
                 os.rename(newname, origname)
+            print(traceback.format_exc())
 
     return tss_outdir
 
@@ -538,7 +541,7 @@ def move_output_epoch_data(datadir, tss_params):
 
 
 def serendipitous_star(datadir, orig_datadir, tss_outdir, targ, yamlfile=None, custom_caldir=None,
-                       min_exptime=1):
+                       min_exptime=1, instrument="cos"):
     """
     Args:
         datadir (str): The path the original data will be copied to.
@@ -549,7 +552,7 @@ def serendipitous_star(datadir, orig_datadir, tss_outdir, targ, yamlfile=None, c
     """
     if not os.path.exists(tss_outdir):
         os.makedirs(tss_outdir)
-    tss_params = read_tss_yaml(targ, yamlfile)
+    tss_params = read_tss_yaml(targ, yamlfile, instrument)
     tss_params = get_goodbad_exposures(tss_params)
     copy_serendipitous_origdata(datadir, orig_datadir, tss_params)
     #calibrate_cos_data(datadir, tss_params, custom_caldir)
@@ -557,7 +560,8 @@ def serendipitous_star(datadir, orig_datadir, tss_outdir, targ, yamlfile=None, c
     create_serendipitous_timeseries(datadir, tss_outdir, targ, tss_params, min_exptime)
 
 
-def monitoring_star(datadir, orig_datadir, tss_outdir, targ, yamlfile=None, custom_caldir=None):
+def monitoring_star(datadir, orig_datadir, tss_outdir, targ, yamlfile=None, custom_caldir=None, 
+                    instrument="cos"):
     """
     Main wrapper function to create TSS for a monitoring star.
     Performs the timeseries data product calibration and creation.
@@ -572,7 +576,7 @@ def monitoring_star(datadir, orig_datadir, tss_outdir, targ, yamlfile=None, cust
 
     if not os.path.exists(tss_outdir):
         os.makedirs(tss_outdir)
-    tss_params = read_tss_yaml(targ, yamlfile)
+    tss_params = read_tss_yaml(targ, yamlfile, instrument)
     tss_params = get_goodbad_exposures(tss_params)
     copy_monitoring_origdata(datadir, orig_datadir, tss_params)
     calibrate_cos_data(datadir, tss_params, custom_caldir)
