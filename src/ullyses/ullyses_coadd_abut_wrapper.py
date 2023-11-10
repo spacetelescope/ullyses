@@ -658,7 +658,6 @@ def create_output_file_name(prod, version=VERSION, level=3):
 
 
 def main(indir, outdir, version=VERSION, clobber=False):
-    print("dev version!!!")
     allfiles = find_files(indir)
     coadd_and_abut_files(allfiles, outdir, version, clobber)
 
