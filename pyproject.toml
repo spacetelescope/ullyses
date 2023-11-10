@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ullyses"
-version = "4.0.0"
+version = "4.0.0" # Set release string in release.py
 description = "Create ULLYSES data products"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -38,5 +38,3 @@ dependencies = [
 [project.scripts]
 coadd = "ullyses.ullyses_coadd_abut_wrapper:main"
 
-[tool.ullyses]
-release = "dr7"

@@ -1,18 +1,3 @@
-import sys
+from .release import set_release
 
-# Import toml library to read tool table from pyproject.toml
-if sys.version_info.major == 3 and sys.version_info.minor < 11:
-    # This is a hacky import - if failure encountered, require
-    # tomli as a dependency
-    from pip._vendor import tomli
-    loader = tomli.load
-else:
-    import tomllib
-    loader = tomllib.load
-
-# Load pyproject.toml
-with open('pyproject.toml', 'rb') as f:
-    project_file = loader(f)
-
-# Pull release string from ullyses tool table
-__release__ = project_file['tool']['ullyses']['release']
+__release__ = set_release()
