@@ -662,8 +662,7 @@ def main(indir, outdir, version=VERSION, clobber=False):
     allfiles = find_files(indir)
     coadd_and_abut_files(allfiles, outdir, version, clobber)
 
-
-if __name__ == '__main__':
+def coadd_parser()
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--indir",
                         default="./",
@@ -678,3 +677,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     main(args.indir, args.outdir, args.version, args.clobber)
+
+if __name__ == '__main__':
+    coadd_parser()
