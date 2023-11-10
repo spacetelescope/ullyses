@@ -662,7 +662,7 @@ def main(indir, outdir, version=VERSION, clobber=False):
     allfiles = find_files(indir)
     coadd_and_abut_files(allfiles, outdir, version, clobber)
 
-def coadd_parser()
+def coadd_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--indir",
                         default="./",
