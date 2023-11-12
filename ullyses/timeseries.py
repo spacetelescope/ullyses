@@ -16,6 +16,8 @@ from ullyses import ullyses_coadd_abut_wrapper as wrapper
 from ullyses_utils.ullyses_config import VERSION, CAL_VER
 
 SECONDS_PER_DAY = 86400.0
+RED = "\033[1;31m"
+RESET = "\033[0;0m"
 
 """
     Timeseries product creation code.
@@ -173,7 +175,7 @@ def sort_x1dfiles(x1dfiles, min_exptime=20.0):
     sorted_x1dlist = sorted(x1dlist, key=lambda x: x[1])
     return sorted_x1dlist
 
-def create_ensemble_segmentlist(grating, indir=".", wavelength_binning=1.0, ins="COS"):
+def create_ensemble_segmentlist(grating, indir=".", wavelength_binning=1.0, ins="COS", infiles=None):
     """Create the ensemble Ullyses_COSSegmentList whose wavelength and array
     sizing parameters are to be used to create the output product.
     Should be created from full exposures (not splits), so make sure
@@ -194,12 +196,12 @@ def create_ensemble_segmentlist(grating, indir=".", wavelength_binning=1.0, ins=
 
     """
     if ins == "COS":
-        a = wrapper.Ullyses_COSSegmentList(grating, inpath=indir)
+        a = wrapper.Ullyses_COSSegmentList(grating, inpath=indir, infiles=infiles)
     elif ins == "STIS":
         if grating in ["G230LB", "G230M", "G230LB", "G230MB", "G430L", "G430M", "G750L", "G750M"]:
-            a = wrapper.Ullyses_CCDSegmentList(grating, inpath=indir)
+            a = wrapper.Ullyses_CCDSegmentList(grating, inpath=indir, infiles=infiles)
         else:
-            a = wrapper.Ullyses_STISSegmentList(grating, inpath=indir)
+            a = wrapper.Ullyses_STISSegmentList(grating, inpath=indir, infiles=infiles)
     a.create_output_wavelength_grid()
     if wavelength_binning != 1:
         a.delta_wavelength = a.delta_wavelength * wavelength_binning
@@ -337,7 +339,7 @@ def transfer_from_ensemble(ensemble, segmentlist):
     return
 
 def process_files(grating, outfile, indir=".", wavelength_binning=1, min_exptime=20,
-                  overwrite=False, ins="COS"):
+                  overwrite=False, ins="COS", infiles=None):
     """Process all x1d files in the current directory with the selected grating.
 
     Parameters:
@@ -366,10 +368,10 @@ def process_files(grating, outfile, indir=".", wavelength_binning=1, min_exptime
     # and to contain the headers used to create the provenance table
     # Ullyses_COSSegmentLists have the Ullyses-specific get_target() and get_coords()
     # methods
-    ensemble = create_ensemble_segmentlist(grating, indir, wavelength_binning, ins=ins)
+    ensemble = create_ensemble_segmentlist(grating, indir, wavelength_binning, ins=ins, infiles=infiles)
     # If there's only 1 matching file for hte specified grating, exit 
     if len(ensemble.datasets) == 1:
-        print(f"SKIPPING: only one matching dataset for grating {grating}")
+        print(f"{RED}SKIPPING: only one matching dataset for grating {grating}{RESET}")
         return
     # Rename all the x1d.fits files to remove the _x1d.fits ending so that
     # subsequent Ullyses_COSSegmentLists can be created one at a time
@@ -649,7 +651,7 @@ def create_extension_1_header(ensemble):
     hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
     hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
     hdr1['XPOSURE'] = (ensemble.combine_keys("exptime", "sum"), '[s] Sum of exposure durations')
-    hdr1['COMMENT'] = (self.combine_keys("comment", "concat"), "Calibration and/or quality comment")
+    hdr1['COMMENT'] = (ensemble.combine_keys("comment", "concat"), "Calibration and/or quality comment")
     return hdr1
 
 def create_extension_2(ensemble):
