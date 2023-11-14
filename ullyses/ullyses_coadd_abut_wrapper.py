@@ -448,7 +448,7 @@ def coadd_and_abut_files(infiles, outdir, version=VERSION, clobber=False):
         if df.loc[lowind, "gratings"] in ["E140M", "E140H"]:
             if "G130M" in gratings and "G160M" in gratings:
                 g130mind = df.loc[df["gratings"] == "G130M"].index.values
-                if isinstance(g130mind, int):
+                if isinstance(g130mind, (int, np.integer)):
                     locind = [g130mind]
                 else:
                     locind = g130mind
@@ -456,7 +456,7 @@ def coadd_and_abut_files(infiles, outdir, version=VERSION, clobber=False):
                 shortestwl = df.loc[g130mind[0], "minwls"]
                 df = df.drop(index=g130mind)
                 g160mind = df.loc[df["gratings"] == "G160M"].index.values
-                if isinstance(g160mind, int):
+                if isinstance(g160mind, (int, np.integer)):
                     locind = [g160mind]
                 else:
                     locind = g160mind
@@ -466,7 +466,7 @@ def coadd_and_abut_files(infiles, outdir, version=VERSION, clobber=False):
                 df = df.drop(index=lowind)
             else:
                 shortestwl = df.loc[lowind, "minwls"]
-                if isinstance(lowind, int):
+                if isinstance(lowind, (int, np.integer)):
                     locind = [lowind]
                 else:
                     locind = lowind
@@ -475,7 +475,7 @@ def coadd_and_abut_files(infiles, outdir, version=VERSION, clobber=False):
                 df = df.drop(lowind)
         else:
             shortestwl = df.loc[lowind, "minwls"]
-            if isinstance(lowind, int):
+            if isinstance(lowind, (int, np.integer)):
                 locind = [lowind]
             else:
                 locind = lowind
@@ -490,7 +490,7 @@ def coadd_and_abut_files(infiles, outdir, version=VERSION, clobber=False):
             if "G130M" in used.gratings.values and "G160M" in gratings and "G160M" not in used.gratings.values:
                 lowind = df.loc[df["gratings"] == "G160M"].index.values
                 maxwl = df.loc[lowind[0], "maxwls"]
-                if isinstance(lowind, int):
+                if isinstance(lowind, (int, np.integer)):
                     locind = [lowind]
                 else:
                     locind = lowind
@@ -503,7 +503,7 @@ def coadd_and_abut_files(infiles, outdir, version=VERSION, clobber=False):
                 biggest = ranges.idxmax()
                 match_grating = df2.loc[biggest, "gratings"]
                 match_ind = df.loc[df["gratings"] == match_grating].index.values
-                if isinstance(match_ind, int):
+                if isinstance(match_ind, (int, np.integer)):
                     locind = [match_ind]
                 else:
                     locind = match_ind
@@ -513,7 +513,7 @@ def coadd_and_abut_files(infiles, outdir, version=VERSION, clobber=False):
             # If none overlap, abut with the next closest product.
             elif len(lowind) == 0:
                 lowind = df["minwls"].idxmin()
-                if isinstance(lowind, int):
+                if isinstance(lowind, (int, np.integer)):
                     locind = [lowind]
                 else:
                     locind = lowind
@@ -523,7 +523,7 @@ def coadd_and_abut_files(infiles, outdir, version=VERSION, clobber=False):
             # This is the easy case- only one mode overlaps with the bluer data.
             else:
                 maxwl = df.loc[lowind[0], "maxwls"]
-                if isinstance(lowind, int):
+                if isinstance(lowind, (int, np.integer)):
                     locind = [lowind]
                 else:
                     locind = lowind
