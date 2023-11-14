@@ -459,6 +459,8 @@ def create_subexp_timeseries(datadir, tss_outdir, targ, tss_params):
 
     bins = tss_params["bins"]
     for grat in tss_params["gratings"]:
+        if grat not in ["g230l", "g160m"]:
+            continue
         if not os.path.exists(tss_outdir):
             os.makedirs(tss_outdir)
         # First create the exposure level time-series spectra
