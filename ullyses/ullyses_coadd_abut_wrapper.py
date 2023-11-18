@@ -126,7 +126,9 @@ class Ullyses_SegmentList(SegmentList):
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
         hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')
 
-        hdr0['CENTRWV'] = (self.combine_keys("centrwv", "average"), 'Central wavelength of the data')
+        centrwv = (self.output_wavelength[-1] - self.output_wavelength[0])/2. + self.output_wavelength[0] 
+        hdr0['CENTRWV'] = (centrwv, 'Central wavelength of the data')
+
         hdr0.add_blank(after='REFERENC')
         hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')
         hdr0['MINWAVE'] = (self.combine_keys("minwave", "min"), 'Minimum wavelength in spectrum')
@@ -593,7 +595,6 @@ def create_output_file_name(prod, version=VERSION, level=3):
 
 
 def main(indir, outdir, version=VERSION, clobber=False):
-    print("dev version!!!")
     allfiles = find_files(indir)
     coadd_and_abut_files(allfiles, outdir, version, clobber)
 
