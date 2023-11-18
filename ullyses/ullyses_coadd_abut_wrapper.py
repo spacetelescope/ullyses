@@ -105,7 +105,7 @@ class Ullyses_SegmentList(SegmentList):
         hdr0['APERTURE'] = (self.combine_keys("aperture", "multi"), 'Identifier of entrance aperture')
         hdr0['S_REGION'] = (self.obs_footprint(), 'Region footprint')
         hdr0['OBSMODE'] = (self.combine_keys("obsmode", "multi"), 'Instrument operating mode (ACCUM | TIME-TAG)')
-        hdr0['TARGNAME'] = self.target
+        hdr0['TARGNAME'] = self.get_targname("target_name_ullyses")
         hdr0.add_blank(after='OBSMODE')
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
@@ -213,7 +213,7 @@ class Ullyses_SegmentList(SegmentList):
         s_region = f"CIRCLE {center_ra} {center_dec} {radius}"
         return s_region
 
-    def get_targname(self):
+    def get_targname(self, targcol="target_name_hlsp"):
         aliases_file = ullyses_utils.__path__[0] + '/data/target_metadata/ullyses_aliases.csv'
         aliases = pd.read_csv(aliases_file)
         # These are just preliminary target names, in case we can't find a match
@@ -228,7 +228,7 @@ class Ullyses_SegmentList(SegmentList):
             mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ_upper)).any(), axis=1)
             if set(mask) != {False}:
                 targ_matched = True
-                ull_targname = aliases[mask]["target_name_hlsp"].values[0]
+                ull_targname = aliases[mask][targcol].values[0]
                 break
         if targ_matched is False:
             print(f"{RED}WARNING: Could not match target name {ull_targname} to ULLYSES alias list{RESET}")
