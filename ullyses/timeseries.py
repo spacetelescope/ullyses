@@ -50,7 +50,9 @@ RESET = "\033[0;0m"
 """
 
 def sort_split_x1ds(ins, grating, indir=".", min_exptime=20.0):
-    """Sort the split x1d files.    Select all files that match the
+    """
+    THIS IS NOT CURRENTLY IN USE.
+    Sort the split x1d files.    Select all files that match the
     pattern 'split_*_without.fits' and that match the grating and whose
     exposure time is greated than min_exptime, and sort them by expstart
 
@@ -81,7 +83,9 @@ def sort_split_x1ds(ins, grating, indir=".", min_exptime=20.0):
     return sorted_x1dlist
 
 def sort_full_x1ds(ins, grating, indir=".", min_exptime=20.0):
-    """Sort the full x1d files.    Select all files that match the
+    """
+    THIS IS NOT CURRENTLY IN USE.
+    Sort the full x1d files.    Select all files that match the
     pattern '*_without.fits' and don't start with 'split', and that match
     the grating and whose exposure time is greated than min_exptime, and
     sort them by expstart
