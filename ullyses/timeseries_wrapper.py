@@ -409,7 +409,7 @@ def correct_vignetting(datadir):
     print(f'\nApplied scaling factor to G230L/2950 NUVB data in {os.path.join(datadir, "g230l")}\n') 
 
 
-def create_exp_timeseries(datadir, tss_outdir, targ, tss_params, min_exptime=1):
+def create_exp_timeseries(datadir, tss_outdir, targ, tss_params, min_exptime=0.1):
     """
     Creates the timeseries high level science products for targets with exposure-level TSS
     from the custom-calibrated and split data products.
@@ -564,7 +564,7 @@ def move_output_epoch_data(datadir, tss_params):
 
 
 def exp_star(datadir, orig_datadir, tss_outdir, targ, yamlfile=None, custom_caldir=None,
-                       min_exptime=1, instrument="cos"):
+                       min_exptime=0.1, instrument="cos"):
     """
     Args:
         datadir (str): The path the original data will be copied to.
