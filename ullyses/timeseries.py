@@ -73,12 +73,10 @@ def sort_split_x1ds(ins, grating, indir=".", min_exptime=20.0):
     x1dfiles = glob.glob(os.path.join(indir, 'split*_without.fits'))
     good_list = []
     for file in x1dfiles:
-        f1 = fits.open(file)
-        this_grating = f1[0].header['OPT_ELEM']
-        this_ins = f1[0].header["INSTRUME"]
+        this_grating = fits.getval(file, 'OPT_ELEM')
+        this_ins = fits.getval(file, "INSTRUME")
         if this_grating == grating and this_ins == ins:
             good_list.append(file)
-        f1.close()
     sorted_x1dlist = sort_x1dfiles(good_list, min_exptime=min_exptime)
     return sorted_x1dlist
 
@@ -109,12 +107,10 @@ def sort_full_x1ds(ins, grating, indir=".", min_exptime=20.0):
     for file in x1dfiles:
         if file.startswith('split'):
             continue
-        f1 = fits.open(file)
-        this_grating = f1[0].header['OPT_ELEM']
-        this_ins = f1[0].header["INSTRUME"]
+        this_grating = fits.getval(file, 'OPT_ELEM')
+        this_ins = fits.getval(file, "INSTRUME")
         if this_grating == grating and this_ins == ins:
             good_list.append(file)
-        f1.close()
     sorted_x1dlist = sort_x1dfiles(good_list, min_exptime=min_exptime)
     return sorted_x1dlist
 
@@ -141,12 +137,10 @@ def sort_x1ds(ins, grating, indir=".", min_exptime=20.0):
     x1dfiles = glob.glob(os.path.join(indir, '*_without.fits'))
     good_list = []
     for file in x1dfiles:
-        f1 = fits.open(file)
-        this_grating = f1[0].header['OPT_ELEM']
-        this_ins = f1[0].header["INSTRUME"]
+        this_grating = fits.getval(file, 'OPT_ELEM')
+        this_ins = fits.getval(file, "INSTRUME")
         if this_grating == grating and this_ins == ins:
             good_list.append(file)
-        f1.close()
     sorted_x1dlist = sort_x1dfiles(good_list, min_exptime=min_exptime)
     return sorted_x1dlist
 
@@ -169,13 +163,11 @@ def sort_x1dfiles(x1dfiles, min_exptime=20.0):
     """
     x1dlist = []
     for file in x1dfiles:
-        f1 = fits.open(file)
-        expend = f1[1].header['expend']
-        exptime = f1[1].header['exptime']
+        expend = fits.getval(file, 'expend', 1)
+        exptime = fits.getval(file, 'exptime', 1)
         expstart = expend - exptime/SECONDS_PER_DAY
         if exptime > min_exptime:
             x1dlist.append((file, expstart))
-        f1.close()
     sorted_x1dlist = sorted(x1dlist, key=lambda x: x[1])
     return sorted_x1dlist
 
@@ -437,12 +429,10 @@ def process_sorted_filelist(sorted_list, grating, ensemble, outfile, renaming_ne
         oldfile = renaming_new[newfile]
         os.rename(newfile, oldfile)
         # Make sure this file uses the required grating
-        f1 = fits.open(oldfile)
-        this_grating = f1[0].header['OPT_ELEM']
-        this_ins = f1[0].header["INSTRUME"]
+        this_grating = fits.getval(oldfile, 'OPT_ELEM')
+        this_ins = fits.getval(oldfile, "INSTRUME")
         if this_grating != grating and this_ins != ins:
             print(f"Skipping file {newfile} as it doesn't have the required grating")
-            f1.close()
             continue
         a = segmentlist(grating, inpath=indir)
         transfer_from_ensemble(ensemble, a)
