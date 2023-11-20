@@ -306,8 +306,10 @@ def copy_subexp_caldata(datadir, tss_params, custom_caldir=None):
     for item in corrs:
         if fits.getval(item, "opt_elem") == "G160M":
             d = datadir_g160m
-        else:
+        elif fits.getval(item, "opt_elem") == "G230L":
             d = datadir_g230l
+        else:
+            continue
 #        filename = os.path.basename(item)
 #        sptfile = filename.split("_")[0]+"_spt.fits"
 #        spt = os.path.join(datadir, sptfile)
@@ -331,8 +333,10 @@ def copy_subexp_caldata(datadir, tss_params, custom_caldir=None):
         if orig_corrfiles[i] not in corrfiles and ipppss not in tss_params["bad_ipppss"] and ipppssoot not in tss_params["bad_ipppssoot"]:
             if fits.getval(orig_corrs[i], "opt_elem") == "G160M":
                 d = datadir_g160m
-            else:
+            elif fits.getval(orig_corrs[i], "opt_elem") == "G230L":
                 d = datadir_g230l
+            else:
+                continue
             shutil.copy(orig_corrs[i], d)
 
     x1ds = glob.glob(os.path.join(custom_caldir, "*x1d.fits"))
@@ -345,8 +349,10 @@ def copy_subexp_caldata(datadir, tss_params, custom_caldir=None):
         if orig_x1dfiles[i] not in x1dfiles and ipppss not in tss_params["bad_ipppss"] and ipppssoot not in tss_params["bad_ipppssoot"]:
             if fits.getval(orig_x1ds[i], "opt_elem") == "G160M":
                 d = datadir_g160m
-            else:
+            elif fits.getval(orig_x1ds[i], "opt_elem") == "G230L":
                 d = datadir_g230l
+            else:
+                continue
             shutil.copy(orig_x1ds[i], os.path.join(d, "exp"))
 
     print(f"\nCopied all corrtags and x1ds to\n\t {datadir}/g160m/ and g230l/\n")
@@ -406,7 +412,7 @@ def correct_vignetting(datadir):
                         f"Shape of FITS and scaling factor do not match for {item}"
                     hdulist[1].data["flux"][1] /= scale  # NUVB is 1st index
 
-    print(f'\nApplied scaling factor to G230L/2950 NUVB data in {os.path.join(datadir, "g230l")}\n') 
+    print(f'\nApplied scaling factor to G230L/2950 NUVB data in directories: \n{indirs}\n') 
 
 
 def create_exp_timeseries(datadir, tss_outdir, targ, tss_params, min_exptime=0.1):
@@ -516,6 +522,8 @@ def move_input_epoch_data(datadir, tss_params):
 
     bins = tss_params["bins"]
     for grat in tss_params["gratings"]:
+        if grat not in ["g160m", "g230l"]:
+            continue
         singledir = os.path.join(datadir, grat)
         for epoch_ippp in bins:
             splitdir = os.path.join(singledir, f"{epoch_ippp}_split")
@@ -552,6 +560,8 @@ def move_output_epoch_data(datadir, tss_params):
     
     bins = tss_params["bins"]
     for grat in tss_params["gratings"]:
+        if grat not in ["g160m", "g230l"]:
+            continue
         single_splitdir = os.path.join(datadir, grat, "split")
         if not os.path.exists(single_splitdir):
             os.makedirs(single_splitdir)
@@ -560,7 +570,7 @@ def move_output_epoch_data(datadir, tss_params):
             x1ds = glob.glob(os.path.join(splitdir, "*x1d.fits"))
             for item in x1ds:
                 shutil.move(item, single_splitdir)
-    print(f"\nMoved x1ds to a single directory to be made into TSS: {single_splitdir}")
+        print(f"\nMoved x1ds to a single directory to be made into TSS: {single_splitdir}")
 
 
 def exp_star(datadir, orig_datadir, tss_outdir, targ, yamlfile=None, custom_caldir=None,
