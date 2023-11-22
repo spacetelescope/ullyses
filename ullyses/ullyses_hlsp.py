@@ -12,13 +12,13 @@ import sys
 
 from ullyses_utils.parse_csv import parse_aliases
 from ullyses_utils.ullyses_config import VERSION, CAL_VER
+from ullyses.combine_header_keys import KeyBlender
 
-SECONDS_PER_DAY = 86400.
 CODEDIR = os.path.dirname(__file__)
 RED = "\033[1;31m"
 RESET = "\033[0;0m"
 
-class Ullyses():
+class Ullyses(KeyBlender):
     def __init__(self, files, hlspname, targname, ra, dec, level,
                  cal_ver=CAL_VER, version=VERSION, hlsp_type="spectral", 
                  overwrite=True, photfile=None):
@@ -327,19 +327,21 @@ class Ullyses():
         hdr0['XSU_VER'] = (self.combine_keys("dr_num"), 'XSHOOTING-ULLYSES data release identifier')
         hdr0['XSU_DATE'] = (self.combine_keys("dr_date"), 'XSHOOTING-ULLYSES data release date')
 # need to define this
-        xsu_ref = "PAPER!"
-        hdr0['XSU_REF'] = (xsu_ref, 'Bibliographic ID of primary paper')                                         
+        xsu_ref1 = "https://ui.adsabs.harvard.edu/abs/2023A&A...675A.154V"
+        xsu_ref2 = "TBD"
+        hdr0['XSUREF1'] = (xsu_ref1, 'Bibliographic ID of XSHOOTING-ULLYSES paper 1')
+        hdr0['XSUREF2'] = (xsu_ref2, 'Bibliographic ID of XSHOOTING-ULLYSES paper 2')
         hdr0['CAL_VER'] = (f'ULLYSES Cal {self.cal_ver}', 'HLSP processing software version')
-        hdr0.add_blank(after='XSU_REF')                                                                          
+        hdr0.add_blank(after='XSUREF2')
         hdr0.add_blank('           / ULLYSES PROVENANCE INFORMATION', before='CAL_VER')                          
         hdr0['HLSPID'] = ('ULLYSES', 'Name ID of STScI HLSP collection')                                         
         hdr0['HSLPNAME'] = ('Hubble UV Legacy Library of Young Stars as Essential Standards', 'Name ID of STScI HLSP collection')
         hdr0['HLSPLEAD'] = ('Julia Roman-Duval', 'Full name of ULLYSES HLSP project lead')                       
         hdr0['HLSP_VER'] = (self.version, 'ULLYSES HLSP data release version identifier')                               
-        hdr0['HLSP_LVL'] = (0, 'ULLYSES HLSP Level')                                                             
+        hdr0['HLSP_LVL'] = (self.level, 'ULLYSES HLSP Level')
         hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')                                         
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')                  
-        hdr0['ULL_REF'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')       
+        hdr0['ULL_REF'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of ULLYSES paper')
         hdr0['CENTRWV'] = (cenwave, 'Central wavelength of the data')                                          
         hdr0.add_blank(after='ULL_REF')                                                                          
         hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')                                 
@@ -355,6 +357,7 @@ class Ullyses():
         hdr1['TIMESYS'] = ('UTC', 'Time system in use')
         hdr1['TIMEUNIT'] = ('s', 'Time unit for durations')
         hdr1['TREFPOS'] = ('GEOCENTER', 'Time reference position')
+        hdr1['COMMENT'] = (self.combine_keys("comment", "concat"), "Calibration and/or quality comment")
 
         mjd_beg = self.combine_keys("expstart", "min")
         mjd_end = self.combine_keys("expend", "max")
@@ -377,6 +380,7 @@ class Ullyses():
         hdr1['TIMESYS'] = ('UTC', 'Time system in use')
         hdr1['TIMEUNIT'] = ('s', 'Time unit for durations')
         hdr1['TREFPOS'] = ('GEOCENTER', 'Time reference position')
+        hdr1['COMMENT'] = (self.combine_keys("comment", "concat"), "Calibration and/or quality comment")
 
         mjd_beg = self.combine_keys("expstart", "min", "WFC3")
         mjd_end = self.combine_keys("expend", "max", "WFC3")
@@ -400,6 +404,7 @@ class Ullyses():
         hdr1['TIMESYS'] = ('UTC', 'Time system in use')
         hdr1['TIMEUNIT'] = ('s', 'Time unit for durations')
         hdr1['TREFPOS'] = ('GEOCENTER', 'Time reference position')
+        hdr1['COMMENT'] = (self.combine_keys("comment", "concat"), "Calibration and/or quality comment")
 
         mjd_beg = self.photdf.iloc[0]["mjdstart"]
         mjd_end = self.photdf.iloc[-1]["mjdend"]
@@ -495,6 +500,7 @@ class Ullyses():
         hdr.add_blank('              / FITS TIME COORDINATE KEYWORDS', before='TIMESYS')
         hdr['TIMEUNIT'] = ('s', 'Time unit for durations')
         hdr['TREFPOS'] = ('GEOCENTER', 'Time reference position')
+        hdr['COMMENT'] = (self.combine_keys("comment", "concat"), "Calibration and/or quality comment")
         mjd_beg = self.combine_keys("expstart", "min")
         mjd_end = self.combine_keys("expend", "max")
         dt_beg = Time(mjd_beg, format="mjd").datetime
@@ -726,201 +732,6 @@ class Ullyses():
         self.prov_data = cdp
         self.prov_hdu = provtable
 
-
-    def combine_keys(self, key, method="multi", dict_key=None, constant=None):
-        keymap= {"HST": {"expstart": ("expstart", 1),
-                         "expend": ("expend", 1),
-                         "exptime": ("exptime", 1),
-                         "telescop": ("telescop", 0),
-                         "instrume": ("instrume", 0),
-                         "detector": ("detector", 0),
-                         "opt_elem": ("opt_elem", 0),
-                         "filter": ("filter", 0),
-                         "fgslock": ("fgslock", 0),
-                         "gyromode": ("gyromode", 0),
-                         "flashdur": ("flashdur", 0),
-                         "flashcur": ("flashcur", 0),
-                         "flashlvl": ("flashlvl", 0),
-                         "flashsta": ("flashsta", 0),
-                         "cenwave": ("cenwave", 0),
-                         "aperture": ("aperture", 0),
-                         "obsmode": ("obsmode", 0),
-                         "proposid": ("proposid", 0),
-                         "centrwv": ("centrwv", 0),
-                         "minwave": ("minwave", 0),
-                         "maxwave": ("maxwave", 0),
-                         "filename": ("filename", 0),
-                         "specres": ("specres", 0),
-                         "cal_ver": ("cal_ver", 0)},
-                "WFC3": {"expstart": ("expstart", 0),
-                         "expend": ("expend", 0),
-                         "exptime": ("exptime", 0)},
-                "FUSE": {"expstart": ("obsstart", 0),
-                         "expend": ("obsend", 0),
-                         "exptime": ("obstime", 0),
-                         "telescop": ("telescop", 0),
-                         "instrume": ("instrume", 0),
-                         "detector": ("detector", 0),
-                         "opt_elem": ("detector", 0),
-                         "cenwave": ("centrwv", 0),
-                         "aperture": ("aperture", 0),
-                         "obsmode": ("instmode", 0),
-                         "proposid": ("prgrm_id", 0),
-                         "centrwv": ("centrwv", 0),
-                         "minwave": ("wavemin", 0), 
-                         "maxwave": ("wavemax", 0),
-                         "filename": ("filename", 0),
-                         "specres": ("spec_rp", 1),
-                         "cal_ver": ("cf_vers", 0)},
-               "LCOGT": {"expstart": ("date-obs", 1),
-                         "expend": ("exptime", 1),
-                         "exptime": ("exptime", 1),
-                         "telescop": ("telescop", 1),
-                         "instrume": ("instrume", 1),
-                         "detector": ("telescop", 1),
-                         "opt_elem": ("telescop", 1),
-                         "proposid": ("propid", 1),
-                         "filename": ("origname", 1),
-                         "filter": ("filter", 1),
-                         "cal_ver": ("pipever", 1)},
-                 "VLT": {"expstart": ("mjd-obs", 1),
-                         "expend": ("exptime", 1), 
-                         "exptime": ("exptime", 1),
-                         "telescop": ("telescop", 1),
-                         "instrume": ("instrume", 1),
-                         "detector": ("hierarch eso det name", 1),
-                         "opt_elem": ("seqarm", 1),
-                         "s_region": ("hierarch eso ada posang", 1), # calculate this from position angle
-                         "equinox": ("equinox", 1),
-                         "radesys": ("radecsys", 1),
-                         "proposid": ("hierarch eso obs prog id", 1),
-                         "centrwv": ("arm", 1), 
-                         "minwave": ("arm", 1), 
-                         "maxwave": ("arm", 1), 
-                         "filename": ("extname", 1),
-                         "dr_num": ("dr_num", 0),
-                         "dr_date": ("dr_date", 0),
-                         "specres": ("special", 1),
-                         "cal_ver": ("hierarch eso pro rec1 pipe id", 1)}
-                         }
-
-        if constant is not None:
-            vals = [constant for x in self.first_headers]
-        else:
-            vals = []
-            for i in range(len(self.first_headers)):
-                if dict_key is None:
-                    tel = self.telescope
-                else:
-                    tel = dict_key
-                
-# Python 3.9 compliant if/else version of match case
-                if tel == "FUSE" and key == "filename":
-                    val = val.replace(".fit", "_vo.fits")
-                elif tel == "LCOGT" and key == "telescop":
-                    telescop = self.first_headers[i]["telescop"]
-                    val = f"LCOGT-{telescop}"
-                elif tel == "LCOGT" and (key == "expstart" or key == "expend"):
-                    dto = dt.strptime(self.first_headers[i]["date-obs"], "%Y-%m-%dT%H:%M:%S.%f")
-                    t = Time(dto, format="datetime")
-                    mjdstart = t.mjd
-                    if key == "expstart":
-                        val = mjdstart
-                    elif key == "expend":
-                        exptime = self.first_headers[i]["exptime"]
-                        val = mjdstart + (exptime / SECONDS_PER_DAY) 
-                elif tel == "VLT" and key == "expend":
-                    mjdstart = self.first_headers[i]["mjd-obs"]
-                    exptime = self.first_headers[i]["exptime"]
-                    val = mjdstart + (exptime / SECONDS_PER_DAY)
-                elif tel == "VLT" and (key == "minwave" or key == "maxwave" or key == "cenwave"):
-                    if self.first_headers[i]["arm"] == "UVB": 
-                        wave_vals = {"minwave": 3000, "maxwave": 5551, "cenwave": 4276}
-                    else:
-                        wave_vals = {"minwave": 5451, "maxwave": 10202, "cenwave": 7827}
-                    val = wave_vals[key]
-                elif tel == "VLT" and key == "aperture":
-                    if self.first_headers[i]["arm"] == "UVB":   
-                        val = self.first_headers[i]["hierarch eso ins opti3 name"] 
-                    else:
-                        val = self.first_headers[i]["hierarch eso ins opti4 name"]  
-                elif tel == "VLT" and key == "specres":
-                    if self.first_headers[i]["arm"] == "UVB": 
-                        val = 6700 
-                    else:
-                        val = 11400
-                else:
-                    actual_key = keymap[tel][key][0]  
-                        hdrno = keymap[tel][key][1]
-                        if hdrno == 0:
-                            val = self.primary_headers[i][actual_key]
-                        else:
-                            val = self.first_headers[i][actual_key]
-
-#                match [tel, key]:
-#                    # Handle some special cases
-#                    case ["FUSE", "filename"]:
-#                        val = val.replace(".fit", "_vo.fits")
-#                    case ["LCOGT", "telescop"]:
-#                        telescop = self.first_headers[i]["telescop"] 
-#                        val = f"LCOGT-{telescop}"
-#                    case ["LCOGT", "expstart" | "expend" as k]:
-#                        dto = dt.strptime(self.first_headers[i]["date-obs"], "%Y-%m-%dT%H:%M:%S.%f")
-#                        t = Time(dto, format="datetime")
-#                        mjdstart = t.mjd
-#                        if k == "expstart":
-#                            val = mjdstart
-#                        if k == "expend":
-#                            exptime = self.first_headers[i]["exptime"]
-#                            val = mjdstart + (exptime / SECONDS_PER_DAY) 
-#                    case ["VLT", "expend"]:
-#                        mjdstart = self.first_headers[i]["mjd-obs"]
-#                        exptime = self.first_headers[i]["exptime"]
-#                        val = mjdstart + (exptime / SECONDS_PER_DAY) 
-#                    case ["VLT", "minwave" | "maxwave" | "cenwave" as k]:
-#                        if self.first_headers[i]["arm"] == "UVB":
-#                            wave_vals = {"minwave": 3000, "maxwave": 5551, "cenwave": 4276}
-#                        else:
-#                            wave_vals = {"minwave": 5451, "maxwave": 10202, "cenwave": 7827}
-#                        val = wave_vals[k]
-#                    case ["VLT", "aperture"]:
-#                        if self.first_headers[i]["arm"] == "UVB":
-#                            val = self.first_headers[i]["hierarch eso ins opti3 name"]
-#                        else:
-#                            val = self.first_headers[i]["hierarch eso ins opti4 name"]
-#                    case ["VLT", "specres"]:
-#                        if self.first_headers[i]["arm"] == "UVB":
-#                            val = 6700
-#                        else:
-#                            val = 11400
-#                    # For normal cases
-#                    case other:
-#                        actual_key = keymap[tel][key][0]
-#                        hdrno = keymap[tel][key][1]
-#                        if hdrno == 0:
-#                            val = self.primary_headers[i][actual_key]
-#                        else:
-#                            val = self.first_headers[i][actual_key]
-
-                vals.append(val)
-
-        # Allowable methods are min, max, average, sum, multi, arr
-        if method == "multi":
-            keys_set = list(set(vals))
-            if len(keys_set) > 1:
-                return "MULTI"
-            else:
-                return keys_set[0]
-        elif method == "min":
-            return min(vals)
-        elif method == "max":
-            return max(vals)                                                                 
-        elif method == "average": 
-            return np.average(vals)
-        elif method == "sum":
-            return np.sum(vals)
-        elif method == "arr":
-            return np.array(vals)
 
     def obs_footprint(self):
         # Not using WCS at the moment

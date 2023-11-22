@@ -16,6 +16,8 @@ from ullyses import ullyses_coadd_abut_wrapper as wrapper
 from ullyses_utils.ullyses_config import VERSION, CAL_VER
 
 SECONDS_PER_DAY = 86400.0
+RED = "\033[1;31m"
+RESET = "\033[0;0m"
 
 """
     Timeseries product creation code.
@@ -48,7 +50,9 @@ SECONDS_PER_DAY = 86400.0
 """
 
 def sort_split_x1ds(ins, grating, indir=".", min_exptime=20.0):
-    """Sort the split x1d files.    Select all files that match the
+    """
+    THIS IS NOT CURRENTLY IN USE.
+    Sort the split x1d files.    Select all files that match the
     pattern 'split_*_without.fits' and that match the grating and whose
     exposure time is greated than min_exptime, and sort them by expstart
 
@@ -69,17 +73,17 @@ def sort_split_x1ds(ins, grating, indir=".", min_exptime=20.0):
     x1dfiles = glob.glob(os.path.join(indir, 'split*_without.fits'))
     good_list = []
     for file in x1dfiles:
-        f1 = fits.open(file)
-        this_grating = f1[0].header['OPT_ELEM']
-        this_ins = f1[0].header["INSTRUME"]
+        this_grating = fits.getval(file, 'OPT_ELEM')
+        this_ins = fits.getval(file, "INSTRUME")
         if this_grating == grating and this_ins == ins:
             good_list.append(file)
-        f1.close()
     sorted_x1dlist = sort_x1dfiles(good_list, min_exptime=min_exptime)
     return sorted_x1dlist
 
 def sort_full_x1ds(ins, grating, indir=".", min_exptime=20.0):
-    """Sort the full x1d files.    Select all files that match the
+    """
+    THIS IS NOT CURRENTLY IN USE.
+    Sort the full x1d files.    Select all files that match the
     pattern '*_without.fits' and don't start with 'split', and that match
     the grating and whose exposure time is greated than min_exptime, and
     sort them by expstart
@@ -103,12 +107,10 @@ def sort_full_x1ds(ins, grating, indir=".", min_exptime=20.0):
     for file in x1dfiles:
         if file.startswith('split'):
             continue
-        f1 = fits.open(file)
-        this_grating = f1[0].header['OPT_ELEM']
-        this_ins = f1[0].header["INSTRUME"]
+        this_grating = fits.getval(file, 'OPT_ELEM')
+        this_ins = fits.getval(file, "INSTRUME")
         if this_grating == grating and this_ins == ins:
             good_list.append(file)
-        f1.close()
     sorted_x1dlist = sort_x1dfiles(good_list, min_exptime=min_exptime)
     return sorted_x1dlist
 
@@ -135,12 +137,10 @@ def sort_x1ds(ins, grating, indir=".", min_exptime=20.0):
     x1dfiles = glob.glob(os.path.join(indir, '*_without.fits'))
     good_list = []
     for file in x1dfiles:
-        f1 = fits.open(file)
-        this_grating = f1[0].header['OPT_ELEM']
-        this_ins = f1[0].header["INSTRUME"]
+        this_grating = fits.getval(file, 'OPT_ELEM')
+        this_ins = fits.getval(file, "INSTRUME")
         if this_grating == grating and this_ins == ins:
             good_list.append(file)
-        f1.close()
     sorted_x1dlist = sort_x1dfiles(good_list, min_exptime=min_exptime)
     return sorted_x1dlist
 
@@ -163,17 +163,15 @@ def sort_x1dfiles(x1dfiles, min_exptime=20.0):
     """
     x1dlist = []
     for file in x1dfiles:
-        f1 = fits.open(file)
-        expend = f1[1].header['expend']
-        exptime = f1[1].header['exptime']
+        expend = fits.getval(file, 'expend', 1)
+        exptime = fits.getval(file, 'exptime', 1)
         expstart = expend - exptime/SECONDS_PER_DAY
         if exptime > min_exptime:
             x1dlist.append((file, expstart))
-        f1.close()
     sorted_x1dlist = sorted(x1dlist, key=lambda x: x[1])
     return sorted_x1dlist
 
-def create_ensemble_segmentlist(grating, indir=".", wavelength_binning=1.0, ins="COS"):
+def create_ensemble_segmentlist(grating, indir=".", wavelength_binning=1.0, ins="COS", infiles=None):
     """Create the ensemble Ullyses_COSSegmentList whose wavelength and array
     sizing parameters are to be used to create the output product.
     Should be created from full exposures (not splits), so make sure
@@ -194,12 +192,12 @@ def create_ensemble_segmentlist(grating, indir=".", wavelength_binning=1.0, ins=
 
     """
     if ins == "COS":
-        a = wrapper.Ullyses_COSSegmentList(grating, path=indir)
+        a = wrapper.Ullyses_COSSegmentList(grating, inpath=indir, infiles=infiles)
     elif ins == "STIS":
         if grating in ["G230LB", "G230M", "G230LB", "G230MB", "G430L", "G430M", "G750L", "G750M"]:
-            a = wrapper.Ullyses_CCDSegmentList(grating, path=indir)
+            a = wrapper.Ullyses_CCDSegmentList(grating, inpath=indir, infiles=infiles)
         else:
-            a = wrapper.Ullyses_STISSegmentList(grating, path=indir)
+            a = wrapper.Ullyses_STISSegmentList(grating, inpath=indir, infiles=infiles)
     a.create_output_wavelength_grid()
     if wavelength_binning != 1:
         a.delta_wavelength = a.delta_wavelength * wavelength_binning
@@ -337,7 +335,7 @@ def transfer_from_ensemble(ensemble, segmentlist):
     return
 
 def process_files(grating, outfile, indir=".", wavelength_binning=1, min_exptime=20,
-                  overwrite=False, ins="COS"):
+                  overwrite=False, ins="COS", infiles=None):
     """Process all x1d files in the current directory with the selected grating.
 
     Parameters:
@@ -366,10 +364,10 @@ def process_files(grating, outfile, indir=".", wavelength_binning=1, min_exptime
     # and to contain the headers used to create the provenance table
     # Ullyses_COSSegmentLists have the Ullyses-specific get_target() and get_coords()
     # methods
-    ensemble = create_ensemble_segmentlist(grating, indir, wavelength_binning, ins=ins)
+    ensemble = create_ensemble_segmentlist(grating, indir, wavelength_binning, ins=ins, infiles=infiles)
     # If there's only 1 matching file for hte specified grating, exit 
     if len(ensemble.datasets) == 1:
-        print(f"SKIPPING: only one matching dataset for grating {grating}")
+        print(f"{RED}SKIPPING: only one matching dataset for grating {grating}{RESET}")
         return
     # Rename all the x1d.fits files to remove the _x1d.fits ending so that
     # subsequent Ullyses_COSSegmentLists can be created one at a time
@@ -431,14 +429,12 @@ def process_sorted_filelist(sorted_list, grating, ensemble, outfile, renaming_ne
         oldfile = renaming_new[newfile]
         os.rename(newfile, oldfile)
         # Make sure this file uses the required grating
-        f1 = fits.open(oldfile)
-        this_grating = f1[0].header['OPT_ELEM']
-        this_ins = f1[0].header["INSTRUME"]
+        this_grating = fits.getval(oldfile, 'OPT_ELEM')
+        this_ins = fits.getval(oldfile, "INSTRUME")
         if this_grating != grating and this_ins != ins:
             print(f"Skipping file {newfile} as it doesn't have the required grating")
-            f1.close()
             continue
-        a = segmentlist(grating, path=indir)
+        a = segmentlist(grating, inpath=indir)
         transfer_from_ensemble(ensemble, a)
         a.coadd()
         start_time = a.first_headers[0]['expend'] - a.first_headers[0]['exptime']/SECONDS_PER_DAY
@@ -649,6 +645,7 @@ def create_extension_1_header(ensemble):
     hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
     hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
     hdr1['XPOSURE'] = (ensemble.combine_keys("exptime", "sum"), '[s] Sum of exposure durations')
+    hdr1['COMMENT'] = (ensemble.combine_keys("comment", "concat"), "Calibration and/or quality comment")
     return hdr1
 
 def create_extension_2(ensemble):

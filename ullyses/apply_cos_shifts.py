@@ -36,7 +36,7 @@ for each target that needs correction.
 """
 
 
-def apply_shifts_file(infile, outdir, shift_file):
+def apply_shifts_file(infile, outdir, shift_file, overwrite=False):
     """
     Apply shifts from input txt file. The txt file is given
     as an input to calcos, which recalibrates the rawtag files.
@@ -47,6 +47,7 @@ def apply_shifts_file(infile, outdir, shift_file):
     """
 
     infile_name = os.path.basename(infile)
+    print(f"Shifting {infile_name}")
     if not infile_name.endswith("_asn.fits"):
         raise TypeError("Input file must be an association file")
 
@@ -63,11 +64,17 @@ def apply_shifts_file(infile, outdir, shift_file):
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
+    for item in uniq_ipppss:
+        outfiles = glob.glob(os.path.join(outdir, item+"*"))
+        if len(outfiles) > 0 and overwrite is True:
+            print("Overwrite is True, removing existing products...")
+            for outfile in outfiles:
+                os.remove(outfile)
     calcos.calcos(infile, shift_file=shift_file, outdir=outdir,
                   verbosity=0)
 
 
-def apply_shifts_dir(indir, outdir, shift_file):
+def apply_shifts_dir(indir, outdir, shift_file, overwrite=False):
     """
     Apply shifts from input txt file. The txt file is given
     as an input to calcos, which recalibrates the rawtag files.
@@ -88,7 +95,7 @@ def apply_shifts_dir(indir, outdir, shift_file):
         if len(files) == 0:
             raise FileNotFoundError(f"{ipppss}* files are in shift file, but not in specified directory {indir}")
 
-        apply_shifts_file(files[0], outdir, shift_file)
+        apply_shifts_file(files[0], outdir, shift_file, overwrite)
 
 
 def determine_file_shifts(infile, targ=None):
@@ -190,13 +197,13 @@ def apply_cos_shifts(infiledir, outdir, shift_file=None, targ=None, copydir=None
                 if targ is not None:
                     targ = targ.lower()
                 shift_file = determine_dir_shifts(item, targ)
-            apply_shifts_dir(item, outdir, shift_file)
+            apply_shifts_dir(item, outdir, shift_file, overwrite)
         elif os.path.isfile(item):
             if shift_file is None:
                 if targ is not None:
                     targ = targ.lower()
                 shift_file = determine_file_shifts(item, targ)
-            apply_shifts_file(item, outdir, shift_file)
+            apply_shifts_file(item, outdir, shift_file, ovewrite)
     add_hlsp_lvl0(outdir)
     if copydir is not None:
         copy_output_x1ds(outdir, copydir, overwrite)

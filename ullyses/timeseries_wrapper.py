@@ -5,6 +5,7 @@ If subexposure level -> the input should be raw + spt + asn files, so that the f
 and recalibrated to make subexposure x1ds.
 """
 
+import traceback
 import argparse
 import numpy as np
 from astropy.io import fits
@@ -22,6 +23,15 @@ from ullyses_utils.readwrite_yaml import read_config
 UTILS_DIR = ullyses_utils.__path__[0]
 RED = "\033[1;31m"
 RESET = "\033[0;0m"
+
+
+def remove_identifier(all_ids, ipppss, ipppssoot):
+    for identifier in [ipppss, ipppssoot]:
+        try:
+            all_ids.remove(identifier)
+        except:
+            pass
+
 
 
 def get_goodbad_exposures(tss_params):
@@ -59,7 +69,7 @@ def get_goodbad_exposures(tss_params):
     return tss_params
 
 
-def read_tss_yaml(targ, yamlfile=None):
+def read_tss_yaml(targ, yamlfile=None, instrument="cos"):
     """ Open the YAML file for the target to read TSS parameters.
 
     Args:
@@ -74,7 +84,7 @@ def read_tss_yaml(targ, yamlfile=None):
     """
 
     if yamlfile is None:
-        yamlfile = os.path.join(UTILS_DIR, f"data/timeseries/{targ}.yaml")
+        yamlfile = os.path.join(UTILS_DIR, f"data/timeseries/{targ}_{instrument.lower()}.yaml")
         assert os.path.exists(yamlfile), f"YAML file not found for {targ}, expected {yamlfile}"
 
     tss_params = read_config(yamlfile)
@@ -101,9 +111,9 @@ def replace_utils_dir(shift_file, utils_dir=UTILS_DIR):
     return shift_file
 
 
-def copy_serendipitous_origdata(datadir, orig_datadir, tss_params):
+def copy_exp_origdata(datadir, orig_datadir, tss_params):
     """
-    For serendipitous stars.
+    For exposure-level data.
     Copy the original raw data, to ensure nothing is mistakenly edited.
     Data is copied from orig_datadir to datadir.
 
@@ -134,22 +144,18 @@ def copy_serendipitous_origdata(datadir, orig_datadir, tss_params):
                 continue
         if ipppss in tss_params["bad_ipppss"] or ipppssoot in tss_params["bad_ipppssoot"]:
             continue
-        for identifier in [ipppss, ipppssoot]:
-            try:
-                should_be_copied.remove(identifier)
-            except:
-                pass
+        remove_identifier(should_be_copied, ipppss, ipppssoot)
         shutil.copy(item, datadir)
     print(f"\nCopied original files to {datadir}")
     if len(should_be_copied) != 0:
-        print(f"{RED}WARNING: Not all good files were found copied! Missing files: {should_be_copied}{RESET}")
+        print(f"{RED}WARNING: Not all good files were copied! Missing files: {should_be_copied}{RESET}")
 
     return datadir
 
 
-def copy_monitoring_origdata(datadir, orig_datadir, tss_params):
+def copy_subexp_origdata(datadir, orig_datadir, tss_params):
     """
-    For monitoring stars.
+    For stars with sub-exposure data.
     Copy the original raw data, to ensure nothing is mistakenly edited.
     Data is copied from orig_datadir to datadir.
 
@@ -169,12 +175,14 @@ def copy_monitoring_origdata(datadir, orig_datadir, tss_params):
     do_copy_ipppss = []
     should_be_copied = tss_params["good_ipppssoot"] + tss_params["good_ipppss"]
 
+    bins_ippp = tss_params["bins"]
     if not os.path.exists(datadir):
         os.makedirs(datadir)
     for item in raws:
         basen = os.path.basename(item)
         ipppssoot = basen[:9]
         ipppss = basen[:6]
+        ippp = basen[:4]
         if ipppss not in tss_params["good_ipppss"]:
             if ipppssoot not in tss_params["good_ipppssoot"]:
                 continue
@@ -182,20 +190,21 @@ def copy_monitoring_origdata(datadir, orig_datadir, tss_params):
             continue
         ins = fits.getval(item, "instrume")
         if ins.lower() != tss_params["instrument"]:
+            remove_identifier(should_be_copied, ipppss, ipppssoot)
             continue
         grating = fits.getval(item, "opt_elem")
         if grating.lower() not in tss_params["gratings"]:
+            remove_identifier(should_be_copied, ipppss, ipppssoot)
+            continue
+        if ippp not in bins_ippp:
+            remove_identifier(should_be_copied, ipppss, ipppssoot)
             continue
         do_copy_ipppss.append(ipppss)
         do_copy += glob.glob(os.path.join(orig_datadir, f"{ipppssoot}*rawtag*.fits"))
         do_copy += glob.glob(os.path.join(orig_datadir, f"{ipppssoot}*corrtag*.fits"))
         do_copy += glob.glob(os.path.join(orig_datadir, f"{ipppssoot}*spt*.fits"))
         do_copy += glob.glob(os.path.join(orig_datadir, f"{ipppssoot}*x1d*.fits"))
-        for identifier in [ipppss, ipppssoot]:
-            try:
-                should_be_copied.remove(identifier)
-            except:
-                pass
+        remove_identifier(should_be_copied, ipppss, ipppssoot)
 
     do_copy = list(set(do_copy))
     do_copy_ipppss = list(set(do_copy_ipppss))
@@ -211,12 +220,12 @@ def copy_monitoring_origdata(datadir, orig_datadir, tss_params):
 
     print(f"\nCopied original files to {datadir}")
     if len(should_be_copied) != 0:
-        print(f"{RED}WARNING: Not all good files were found copied! Missing files: {should_be_copied}{RESET}")
-
+        print(f"{RED}WARNING: Not all good files were copied! Missing files: {should_be_copied}{RESET}")
+    
     return datadir
 
 
-def calibrate_cos_data(datadir, tss_params, custom_caldir=None): 
+def calibrate_cos_data(datadir, tss_params, custom_caldir=None, overwrite=True): 
     """
     Calibrate COS data which require special calibration. Typically for
     any exposures which were offset in wavelength.
@@ -253,6 +262,11 @@ def calibrate_cos_data(datadir, tss_params, custom_caldir=None):
             continue
         if ipppss in tss_params["bad_ipppss"]: # This is a bad visit
             continue
+        outfiles = glob.glob(os.path.join(custom_caldir, ipppss+"*"))
+        if len(outfiles) > 0 and overwrite is True:
+            print("Overwrite is True, removing existing products...")
+            for outfile in outfiles:
+                os.remove(outfile)
         if ipppss in wl_shift_ipppss:
             shift_file0 = wl_shift_dict[ipppss]
             shift_file = replace_utils_dir(shift_file0) 
@@ -265,7 +279,7 @@ def calibrate_cos_data(datadir, tss_params, custom_caldir=None):
     return custom_caldir
 
 
-def copy_monitoring_caldata(datadir, tss_params, custom_caldir=None):
+def copy_subexp_caldata(datadir, tss_params, custom_caldir=None):
     """
     Copy the calibrated products for each target (corrtags and x1ds).
 
@@ -292,8 +306,10 @@ def copy_monitoring_caldata(datadir, tss_params, custom_caldir=None):
     for item in corrs:
         if fits.getval(item, "opt_elem") == "G160M":
             d = datadir_g160m
-        else:
+        elif fits.getval(item, "opt_elem") == "G230L":
             d = datadir_g230l
+        else:
+            continue
 #        filename = os.path.basename(item)
 #        sptfile = filename.split("_")[0]+"_spt.fits"
 #        spt = os.path.join(datadir, sptfile)
@@ -317,8 +333,10 @@ def copy_monitoring_caldata(datadir, tss_params, custom_caldir=None):
         if orig_corrfiles[i] not in corrfiles and ipppss not in tss_params["bad_ipppss"] and ipppssoot not in tss_params["bad_ipppssoot"]:
             if fits.getval(orig_corrs[i], "opt_elem") == "G160M":
                 d = datadir_g160m
-            else:
+            elif fits.getval(orig_corrs[i], "opt_elem") == "G230L":
                 d = datadir_g230l
+            else:
+                continue
             shutil.copy(orig_corrs[i], d)
 
     x1ds = glob.glob(os.path.join(custom_caldir, "*x1d.fits"))
@@ -331,11 +349,13 @@ def copy_monitoring_caldata(datadir, tss_params, custom_caldir=None):
         if orig_x1dfiles[i] not in x1dfiles and ipppss not in tss_params["bad_ipppss"] and ipppssoot not in tss_params["bad_ipppssoot"]:
             if fits.getval(orig_x1ds[i], "opt_elem") == "G160M":
                 d = datadir_g160m
-            else:
+            elif fits.getval(orig_x1ds[i], "opt_elem") == "G230L":
                 d = datadir_g230l
+            else:
+                continue
             shutil.copy(orig_x1ds[i], os.path.join(d, "exp"))
 
-    print(f"\nCopied all corrtags and x1ds to\n\t {datadir}g160m/ and g230l/\n")
+    print(f"\nCopied all corrtags and x1ds to\n\t {datadir}/g160m/ and g230l/\n")
     
 
 def create_splittags(datadir, tss_params):
@@ -353,6 +373,8 @@ def create_splittags(datadir, tss_params):
     for grat in tss_params["gratings"]:
         for epoch_ippp in bins:
             splitdir = os.path.join(datadir, grat, f"{epoch_ippp}_split")
+            if grat not in tss_params["bins"][epoch_ippp]:
+                continue
             time_bin = bins[epoch_ippp][grat]["time"]
             splittag_wrapper.main(indir=splitdir, outdir=splitdir, incr=time_bin, 
                                   numcores=10)
@@ -390,12 +412,12 @@ def correct_vignetting(datadir):
                         f"Shape of FITS and scaling factor do not match for {item}"
                     hdulist[1].data["flux"][1] /= scale  # NUVB is 1st index
 
-    print(f'\nApplied scaling factor to G230L/2950 NUVB data in {os.path.join(datadir, "g230l")}\n') 
+    print(f'\nApplied scaling factor to G230L/2950 NUVB data in directories: \n{indirs}\n') 
 
 
-def create_serendipitous_timeseries(datadir, tss_outdir, targ, tss_params, min_exptime=1):
+def create_exp_timeseries(datadir, tss_outdir, targ, tss_params, min_exptime=0.1):
     """
-    Creates the timeseries high level science products for ULLYSES monitoring targets
+    Creates the timeseries high level science products for targets with exposure-level TSS
     from the custom-calibrated and split data products.
 
     Args:
@@ -415,19 +437,20 @@ def create_serendipitous_timeseries(datadir, tss_outdir, targ, tss_params, min_e
         try:
             timeseries.process_files(grat.upper(), outfile, datadir, overwrite=True, 
                                  ins=ins.upper(), min_exptime=min_exptime)
-        except:
+        except Exception:
+            print(f"{RED}EXCEPTION:{RESET}")
             without = glob.glob(os.path.join(datadir, "*without*fits"))
             for newname in without:
                 origname = newname.replace("_without.fits", "_x1d.fits")
                 os.rename(newname, origname)
-        
+            print(traceback.format_exc())
+
     return tss_outdir
 
 
-
-def create_monitoring_timeseries(datadir, tss_outdir, targ, tss_params):
+def create_subexp_timeseries(datadir, tss_outdir, targ, tss_params):
     """
-    Creates the timeseries high level science products for ULLYSES monitoring targets
+    Creates the timeseries high level science products for with sub-exposure level TSS
     from the custom-calibrated and split data products.
 
     Args:
@@ -442,33 +465,42 @@ def create_monitoring_timeseries(datadir, tss_outdir, targ, tss_params):
 
     bins = tss_params["bins"]
     for grat in tss_params["gratings"]:
-        epoch_ippp = list(bins.keys())[0]
-        wl_bin = bins[epoch_ippp][grat]["wave"]
-        min_exptime = bins[epoch_ippp][grat]["min_exptime"]
+        if grat not in ["g230l", "g160m"]:
+            continue
         if not os.path.exists(tss_outdir):
             os.makedirs(tss_outdir)
         # First create the exposure level time-series spectra
         indir = os.path.join(datadir, grat, "exp")
         outfile = os.path.join(tss_outdir, f"hlsp_ullyses_hst_cos_{targ}_{grat}_{VERSION.lower()}_tss.fits")
         try:
-            timeseries.process_files(grat.upper(), outfile, indir, overwrite=True) 
-        except:
+            timeseries.process_files(grat.upper(), outfile, indir, overwrite=True, min_exptime=1) 
+        except Exception:
+            print(f"{RED}EXCEPTION:{RESET}")
             without = glob.glob(os.path.join(datadir, "*without*fits"))
             for newname in without:
                 origname = newname.replace("_without.fits", "_x1d.fits")
                 os.rename(newname, origname)
-        
+            print(traceback.format_exc())
+       
+        # Now make sub-exposure level time series
+        epoch_ippp = list(bins.keys())[0]
+        if grat not in tss_params["bins"][epoch_ippp]:
+            continue
+        wl_bin = bins[epoch_ippp][grat]["wave"]
+        min_exptime = bins[epoch_ippp][grat]["min_exptime"]
         indir = os.path.join(datadir, grat, "split")
         outfile = os.path.join(tss_outdir, f"hlsp_ullyses_hst_cos_{targ}_{grat}_{VERSION.lower()}_split-tss.fits")
         try:
             timeseries.process_files(grating=grat.upper(), outfile=outfile, indir=indir, 
                                  wavelength_binning=wl_bin, min_exptime=min_exptime, 
                                  overwrite=True)
-        except:
+        except Exception:
+            print(f"{RED}EXCEPTION:{RESET}")
             without = glob.glob(os.path.join(datadir, "*without*fits"))
             for newname in without:
                 origname = newname.replace("_without.fits", "_x1d.fits")
                 os.rename(newname, origname)
+            print(traceback.format_exc())
 
     return tss_outdir
 
@@ -490,6 +522,8 @@ def move_input_epoch_data(datadir, tss_params):
 
     bins = tss_params["bins"]
     for grat in tss_params["gratings"]:
+        if grat not in ["g160m", "g230l"]:
+            continue
         singledir = os.path.join(datadir, grat)
         for epoch_ippp in bins:
             splitdir = os.path.join(singledir, f"{epoch_ippp}_split")
@@ -507,7 +541,7 @@ def move_input_epoch_data(datadir, tss_params):
                 if not os.path.exists(copied):
                     sptfile = os.path.join(datadir, spt)
                     shutil.copy(sptfile, splitdir)
-    print(f"\nMoved corrtags to be split")
+        print(f"\nMoved corrtags to be split: {splitdir}")
 
 
 def move_output_epoch_data(datadir, tss_params):
@@ -526,6 +560,8 @@ def move_output_epoch_data(datadir, tss_params):
     
     bins = tss_params["bins"]
     for grat in tss_params["gratings"]:
+        if grat not in ["g160m", "g230l"]:
+            continue
         single_splitdir = os.path.join(datadir, grat, "split")
         if not os.path.exists(single_splitdir):
             os.makedirs(single_splitdir)
@@ -534,11 +570,11 @@ def move_output_epoch_data(datadir, tss_params):
             x1ds = glob.glob(os.path.join(splitdir, "*x1d.fits"))
             for item in x1ds:
                 shutil.move(item, single_splitdir)
-    print(f"\nMoved x1ds to a single directory to be made into TSS")
+        print(f"\nMoved x1ds to a single directory to be made into TSS: {single_splitdir}")
 
 
-def serendipitous_star(datadir, orig_datadir, tss_outdir, targ, yamlfile=None, custom_caldir=None,
-                       min_exptime=1):
+def exp_star(datadir, orig_datadir, tss_outdir, targ, yamlfile=None, custom_caldir=None,
+                       min_exptime=0.1, instrument="cos"):
     """
     Args:
         datadir (str): The path the original data will be copied to.
@@ -549,17 +585,16 @@ def serendipitous_star(datadir, orig_datadir, tss_outdir, targ, yamlfile=None, c
     """
     if not os.path.exists(tss_outdir):
         os.makedirs(tss_outdir)
-    tss_params = read_tss_yaml(targ, yamlfile)
+    tss_params = read_tss_yaml(targ, yamlfile, instrument)
     tss_params = get_goodbad_exposures(tss_params)
-    copy_serendipitous_origdata(datadir, orig_datadir, tss_params)
-    #calibrate_cos_data(datadir, tss_params, custom_caldir)
-    #copy_monitoring_caldata(datadir, tss_params, custom_caldir)
-    create_serendipitous_timeseries(datadir, tss_outdir, targ, tss_params, min_exptime)
+    copy_exp_origdata(datadir, orig_datadir, tss_params)
+    create_exp_timeseries(datadir, tss_outdir, targ, tss_params, min_exptime)
 
 
-def monitoring_star(datadir, orig_datadir, tss_outdir, targ, yamlfile=None, custom_caldir=None):
+def subexp_star(datadir, orig_datadir, tss_outdir, targ, yamlfile=None, custom_caldir=None, 
+                    instrument="cos"):
     """
-    Main wrapper function to create TSS for a monitoring star.
+    Main wrapper function to create TSS for a star with sub-exposure TSS.
     Performs the timeseries data product calibration and creation.
 
     Args:
@@ -572,17 +607,17 @@ def monitoring_star(datadir, orig_datadir, tss_outdir, targ, yamlfile=None, cust
 
     if not os.path.exists(tss_outdir):
         os.makedirs(tss_outdir)
-    tss_params = read_tss_yaml(targ, yamlfile)
+    tss_params = read_tss_yaml(targ, yamlfile, instrument)
     tss_params = get_goodbad_exposures(tss_params)
-    copy_monitoring_origdata(datadir, orig_datadir, tss_params)
+    copy_subexp_origdata(datadir, orig_datadir, tss_params)
     calibrate_cos_data(datadir, tss_params, custom_caldir)
-    copy_monitoring_caldata(datadir, tss_params, custom_caldir)
+    copy_subexp_caldata(datadir, tss_params, custom_caldir)
     move_input_epoch_data(datadir, tss_params)
     create_splittags(datadir, tss_params)
     move_output_epoch_data(datadir, tss_params)
     if "g230l" in tss_params["gratings"]:
         correct_vignetting(datadir)
-    create_monitoring_timeseries(datadir, tss_outdir, targ, tss_params)
+    create_subexp_timeseries(datadir, tss_outdir, targ, tss_params)
 
 
 if __name__ == "__main__":

@@ -52,11 +52,11 @@ def coadd_files(infiles, outdir, outfile=None, clobber=False):
             if not os.path.exists(outdir):
                 os.makedirs(outdir)
             if outfile is None:
-                outfile = f"{instrument.lower()}_{grating.lower()}_coadd.fits"
-                outfile = os.path.join(outdir, outfile)
+                grating_outfile = f"{instrument.lower()}_{grating.lower()}_coadd.fits"
+                grating_outfile = os.path.join(outdir, grating_outfile)
             prod.create_output_wavelength_grid()
             prod.coadd()
             prod.target = prod.get_targname()
             prod.targ_ra, prod.targ_dec = prod.get_coords()
-            prod.write(outfile, clobber)
-            print(f"Wrote {outfile}")
+            prod.write(grating_outfile, clobber)
+            print(f"Wrote {grating_outfile}")
