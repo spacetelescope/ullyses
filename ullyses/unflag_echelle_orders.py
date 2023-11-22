@@ -38,4 +38,4 @@ def unflag_2048(filename):
         # Since custom processing was performed, mark these as level0
         if performed is True:
             hdulist[0].header["HLSP_LVL"] = 0
-            print(f"Subtracted DQ=2048 flag from {opt_elem}/{cenwave} order={order} for {filename}")
+            print(f"Removed all DQ=2048 flags from {opt_elem}/{cenwave} order={order} for {filename}")
