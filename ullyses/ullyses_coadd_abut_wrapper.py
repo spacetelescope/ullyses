@@ -16,6 +16,7 @@ from ullyses.coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDS
 from ullyses.coadd import abut, SegmentList
 import ullyses_utils
 from ullyses_utils.ullyses_config import RENAME, VERSION, CAL_VER
+from ullyses.combine_header_keys import KeyBlender
 
 RED = "\033[1;31m"
 RESET = "\033[0;0m"
@@ -25,7 +26,7 @@ This wrapper goes through each target folder in the ullyses data directory and f
 the data and which gratings are present. This info is then fed into coadd.py.
 '''
 
-class Ullyses_SegmentList(SegmentList):
+class Ullyses_SegmentList(KeyBlender, SegmentList):
     """This class is a mixin to add the project-specific write function and functions
     to populate the target name and coordinates
 
