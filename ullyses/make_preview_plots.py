@@ -8,6 +8,7 @@ from plotly.subplots import make_subplots
 from itertools import repeat
 
 from astropy.io import fits
+from copy import deepcopy
 from specutils import Spectrum1D, SpectralRegion
 from specutils.manipulation import extract_region
 
@@ -216,8 +217,9 @@ def open_files_and_plot(fig, cspec_file, row, flux_maxes, legendgroup, color, vi
             else:
                 showlegend = True
 
-            flux_maxes.append(get_max_flux(wave, flux, echelle=echelle))
-
+            # adding in a deepcopy to the flux b/c I modify the array & python edits it and
+            #   then doesn't plot it otherwise
+            flux_maxes.append(get_max_flux(wave, deepcopy(flux), echelle=echelle))
             fig = add_spectral_trace(fig, wave, flux, lbl, row, legendgroup, color,
                                      showlegend=showlegend, dash=dash, visible=visible)
             trace_count += 1
