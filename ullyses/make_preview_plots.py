@@ -176,15 +176,15 @@ def get_max_flux(wave, flux, dlam=10., echelle=False):
 
 #-------------------------------------------------------------------------------
 
-def add_spectral_trace(fig, wave, flux, lbl, row, legendgroup, showlegend=True, dash=None, visible=True):
+def add_spectral_trace(fig, wave, flux, lbl, row, legendgroup, color, showlegend=True, dash=None, visible=True):
 
     fig.add_trace(go.Scattergl(x=wave,
                                y=flux,
                                mode='lines',
                                line=dict(dash=dash,
-                                         color=COLORS[i],
-                                         width=4),
-                               opacity=0.8,
+                                         color=color,
+                                         width=3),
+                               opacity=0.6,
                                name=lbl,
                                showlegend=showlegend,
                                legendgroup=legendgroup,
@@ -197,7 +197,7 @@ def add_spectral_trace(fig, wave, flux, lbl, row, legendgroup, showlegend=True, 
 
 #-------------------------------------------------------------------------------
 
-def open_files_and_plot(fig, cspec_file, row, flux_maxes, legendgroup, visible=True, dash=None):
+def open_files_and_plot(fig, cspec_file, row, flux_maxes, legendgroup, color, visible=True, dash=None):
 
     #print(cspec_file)
     trace_count = 0
@@ -218,7 +218,7 @@ def open_files_and_plot(fig, cspec_file, row, flux_maxes, legendgroup, visible=T
 
             flux_maxes.append(get_max_flux(wave, flux, echelle=echelle))
 
-            fig = add_spectral_trace(fig, wave, flux, lbl, row, legendgroup,
+            fig = add_spectral_trace(fig, wave, flux, lbl, row, legendgroup, color,
                                      showlegend=showlegend, dash=dash, visible=visible)
             trace_count += 1
 
@@ -237,6 +237,7 @@ def plot_preview(fig, targ_dir, visible=True):
     with fits.open(prev[0]) as hdu:
         wave = hdu[1].data["WAVELENGTH"].ravel()
         flux = hdu[1].data["FLUX"].ravel()
+        #flux[np.where(flux == 0.0)[0]] = "nan"
 
     for row in [1, 2]:
 
@@ -248,13 +249,15 @@ def plot_preview(fig, targ_dir, visible=True):
         fig.add_trace(go.Scatter(x=wave,
                                  y=flux,
                                  mode='lines',
-                                 line=dict(width=4, color='dimgrey'),
+                                 line=dict(width=3,
+                                           color='dimgrey'),
                                  opacity=0.7,
                                  name='All Abutted Spectra<br>(Level 4 HLSP)',
                                  legendgroup='preview',
                                  showlegend=showlegend,
                                  visible=visible,
                                  hovertemplate = '<b>All Abutted</b><br>(%{x}, %{y})<extra></extra>',
+                                 legendrank=1001, # in legend top if legend rank < 1000 & bottom if rank > 1000
                                  ), row=row, col=1)
 
         ntraces += 1
@@ -263,11 +266,11 @@ def plot_preview(fig, targ_dir, visible=True):
 
 #-------------------------------------------------------------------------------
 
-def update_plot_layouts(fig, ymax_arr):
+def update_plot_layouts(fig, ymax_arr, target):
 
     fig.update_annotations(font_size=25)
 
-    fig.add_annotation(text="<sup>*</sup>Gratings with the same resolution ",
+    fig.add_annotation(text="<sup>*</sup>Gratings with similar resolutions ",
                        xref="paper", yref="paper",
                        x=0.97, y=0.45, showarrow=False, font_size=18)
 
@@ -318,51 +321,35 @@ def high_and_low_df():
 
 #-------------------------------------------------------------------------------
 
-if __name__ == "__main__":
+def make_plots(outdir_name, dr):
 
-    # open all of the non-combined(?) cspec files for a specific target
-    #   this will be *_<target>_<grating>_dr?_cspec.fits
-    #   compared to the grating combined ones that will have "-s" in them
-    # This is what Alex does in his plotting routine
-
-    # Maybe we could have different panels for the different levels of combinations?
+    # There are different levels for different combinations of gratings:
     #   panel 1 is individual gratings
     #   panel 2 is combined gratings
     #   overplotted on both is the "preview_spec" which can be turned on&off
-    #     -> or this can be in panel 3
-
-    COLORS = ["#9970ab", "#5aae61", "#d95f02", "#e7298a", "#1bddf2", "#1f78b4", "#fb9a99",
-              "#fdbf6f", "#ffe44b", "#b15928", "#cab2d6", "#b2df8a", "#749688", "#7a7a7a",
-              "#911cff", "#a6cee3"]
 
     highmass_df, lowmass_df = high_and_low_df()
 
     # v-cv-cha
     # hd-104237e
     # av-456
-    for targ_dir in glob.glob("/astro/ullyses/ULLYSES_HLSP/*"):
+    no_previews = []
+    for targ_dir in np.sort(glob.glob("/astro/ullyses/ULLYSES_HLSP/*")):
 
-        targ_dir = os.path.join(targ_dir, "dr6")
-        all_cspec_files = glob.glob(os.path.join(targ_dir, '*_cspec.fits'))
-
-        if not len(all_cspec_files):
-            print(f'No Files for: {targ_dir}')
-            continue
+        targ_dir = os.path.join(targ_dir, "dr7")
 
         ## sort out the different types of cspec files
-        grating_cspec = []
-        combined_cspec = []
-        for f in all_cspec_files:
-            temp_grating = fits.getval(f, 'HLSP_LVL')
-            if temp_grating == 3:
-                # grating combined spectra
-                combined_cspec.append(f)
-            else:
-                # potentially cenwave combined, but only 1 grating
-                grating_cspec.append(f)
+        # CSPEC files: *_<target>_<grating>_dr?_cspec.fits
+        # ASPEC files: *_<target>_<grating>_dr?_cspec.fits
+        grating_cspec = glob.glob(os.path.join(targ_dir, '*_cspec.fits'))
+        combined_aspec = glob.glob(os.path.join(targ_dir, '*_aspec.fits'))
+
+        # check directories where there are no cspec files (should be tss only)
+        if not len(grating_cspec):
+            no_previews.append(targ_dir)
+            continue
 
         # initialize a file
-
         fig = make_subplots(rows=2,
                             cols=1,
                             shared_xaxes=True,
@@ -373,8 +360,10 @@ if __name__ == "__main__":
                                         '<a href="https://ullyses.stsci.edu/ullyses-data-description.html#productDescrip">Level 3 HLSP</a>'),
                             vertical_spacing=0.05)
 
+        # get the ULLYSES HLSP name for the target
         target = match_aliases(fits.getval(grating_cspec[0], 'TARGNAME'))
 
+        # create empty buttons for multiple scale options
         buttons = ['Linear Scale', 'Log Scale']
         n_all_traces = []
         all_vis = []
@@ -390,18 +379,18 @@ if __name__ == "__main__":
 
             temp_trace_count = 0
 
-            ## row 1; grating only files
+            ## row 1; grating only files (cspec)
             grating_ymaxes = []
             detectors = []
-            for i, cspec_file in enumerate(np.sort(grating_cspec)):
-                fig, grating_ymaxes, d, tc = open_files_and_plot(fig, cspec_file, 1, grating_ymaxes, f'{i}grating', visible=vis)
+            for i_cspec, cspec_file in enumerate(np.sort(grating_cspec)):
+                fig, grating_ymaxes, d, tc = open_files_and_plot(fig, cspec_file, 1, grating_ymaxes, f'{i_cspec}grating', CSPEC_COLORS[i_cspec], visible=vis)
                 detectors.append(d)
                 temp_trace_count += tc
 
             ## row 2; abutted files
             combined_maxes = []
-            for i, cspec_file in enumerate(np.sort(combined_cspec)):
-                fig, combined_maxes, d, tc = open_files_and_plot(fig, cspec_file, 2, combined_maxes, f'{i}combined', dash='dot', visible=vis)
+            for i_aspec, aspec_file in enumerate(np.sort(combined_aspec)):
+                fig, combined_maxes, d, tc = open_files_and_plot(fig, aspec_file, 2, combined_maxes, f'{i_aspec}combined', ASPEC_COLORS[i_aspec], visible=vis)
                 temp_trace_count += tc
 
             # for d in np.unique(detectors):
@@ -415,20 +404,43 @@ if __name__ == "__main__":
 
 
         ## formatting
-        fig = update_plot_layouts(fig, grating_ymaxes)
+        fig = update_plot_layouts(fig, grating_ymaxes, target)
 
         fig = make_buttons(fig, all_vis, n_all_traces, buttons)
 
+        ## save the plot out
+        dr_outdir = os.path.join(outdir_name, f"dr{dr}")
+        if not os.path.exists(dr_outdir):
+            os.mkdir(dr_outdir)
+            os.mkdir(os.path.join(dr_outdir, 'highmass'))
+            os.mkdir(os.path.join(dr_outdir, 'lowmass'))
+
         if target in list(highmass_df['target_name_hlsp']):
-            fig_outname = f'/astro/ullyses/preview_plots/highmass/{target}_preview_dr6.html'
+            fig_outname = os.path.join(dr_outdir, f'highmass/{target}_preview_dr7.html')
         elif target in list(lowmass_df['target_name_hlsp']):
-            fig_outname = f'/astro/ullyses/preview_plots/lowmass/{target}_preview_dr6.html'
+            fig_outname = os.path.join(dr_outdir, f'lowmass/{target}_preview_dr7.html')
         else:
             print(f'{target} not recognized')
-            fig_outname = f'/astro/ullyses/preview_plots/highmass/{target}_preview_dr6.html'
-
-
-        #fig.show()
+            fig_outname = os.path.join(dr_outdir, f'{target}_preview_dr7.html')
 
         fig.write_html(fig_outname)
         print(f'Saved: {fig_outname}')
+
+    return no_previews
+
+#-------------------------------------------------------------------------------
+
+if __name__ == "__main__":
+
+    # Trying to make more color-blind accesible. Splitting into blue & red hues
+    CSPEC_COLORS = ["#125A56", "#238F9D", "#60BCE9", "#05457D", #"#C6DBED",
+                    "#00767B", "#42A7C6", "#9DCCEF", "#DEE6E7"] # blues
+    ASPEC_COLORS = ["#A01813", "#E94C1F", "#FD9A44", "#F9D576",
+                    "#D11807", "#F57634", "#FFB954", "#F0E6B2"] # reds
+
+    outdir = '/astro/ullyses/preview_plots/' # sorted into dr#/<highmass/lowmass>
+    dr = 7 # data release number
+    no_previews = make_plots(outdir, dr)
+    print('No files for:')
+    for p in no_previews:
+        print(f"{p}; {glob.glob(os.path.join(p, '*'))}")
