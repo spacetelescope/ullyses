@@ -33,7 +33,7 @@ setup(
                         "pyyaml",
                         "plotly",
                         "pytest",
-                        "hasp>=0.9.4"
+                        "hasp>=0.9.5"
                         ],
     dependency_links = ["git+https://github.com/spacetelescope/ullyses-utils@main#egg=ullyses_utils-0.1"],
     )
