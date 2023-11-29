@@ -81,6 +81,38 @@ def make_lcogt_tss(indir, outdir, targ, hlspname=None, photfile=None):
     U.make_hdrs_and_prov()
     U.write_file()
 
+def make_xsu_hlsps(infile, outdir, targ, hlspname=None):
+    aliases = parse_aliases()
+    alias_mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ.upper())).any(), axis=1)
+    if set(alias_mask) != {False}:
+        ull_targname = aliases[alias_mask]["target_name_hlsp"].values[0]
+        targetinfo_file = os.path.join(UTILS_DIR, "data", "target_metadata", "pd_targetinfo.json")
+        master_list = pd.read_json(targetinfo_file, orient="split")
+        master_list = master_list.apply(lambda x: x.astype(str).str.upper())
+        try:
+            coords = master_list.loc[master_list["mast_targname"] == ull_targname][["ra", "dec"]].values
+            ra, dec = coords[0]
+        except:
+            print(f"{RED}NO COORDINATES FOUND FOR {ull_targname}{RESET}")
+            ra, dec = (0, 0)
+    else:
+        ull_targname = targ
+        ra, dec = (0, 0)
+        print(f"{RED}NO ALIAS AND COORDINATES FOUND FOR {ull_targname}{RESET}")
+
+    file_targname = rename_target(ull_targname)
+    
+    if hlspname is None:
+        hlspname = f"hlsp_ullyses_vlt_xshooter_{file_targname.lower()}_uvb-vis_{VERSION}_vltspec.fits"
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+    outfile = os.path.join(outdir, hlspname)
+    U = Ullyses(files=[infile], hlspname=outfile, targname=ull_targname,  
+                ra=ra, dec=dec, cal_ver=CAL_VER, version=VERSION, level=7, 
+                hlsp_type="xsu", overwrite=True)
+    U.make_hdrs_and_prov()
+    U.write_file()
+
 
 def rename_target(targname):
     targ_lower = targname.lower()

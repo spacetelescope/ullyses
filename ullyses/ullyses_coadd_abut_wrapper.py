@@ -17,6 +17,7 @@ from ullyses.coadd import abut, SegmentList
 import ullyses_utils
 from ullyses_utils.ullyses_config import RENAME, VERSION, CAL_VER
 from hasp.grating_priority import create_level4_products
+from ullyses.combine_header_keys import KeyBlender
 
 RED = "\033[1;31m"
 RESET = "\033[0;0m"
@@ -50,7 +51,7 @@ This wrapper goes through each target folder in the ullyses data directory and f
 the data and which gratings are present. This info is then fed into coadd.py.
 '''
 
-class Ullyses_SegmentList(SegmentList):
+class Ullyses_SegmentList(KeyBlender, SegmentList):
     """This class is a mixin to add the project-specific write function and functions
     to populate the target name and coordinates
 
@@ -90,6 +91,7 @@ class Ullyses_SegmentList(SegmentList):
         hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
         hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
         hdr1['XPOSURE'] = (self.combine_keys("exptime", "sum"), '[s] Sum of exposure durations')
+        hdr1['COMMENT'] = (self.combine_keys("comment", "concat"), "Calibration and/or quality comment")
 
         # set up the table columns
         nelements = len(self.output_wavelength)
@@ -129,7 +131,7 @@ class Ullyses_SegmentList(SegmentList):
         hdr0['APERTURE'] = (self.combine_keys("aperture", "multi"), 'Identifier of entrance aperture')
         hdr0['S_REGION'] = (self.obs_footprint(), 'Region footprint')
         hdr0['OBSMODE'] = (self.combine_keys("obsmode", "multi"), 'Instrument operating mode (ACCUM | TIME-TAG)')
-        hdr0['TARGNAME'] = self.target
+        hdr0['TARGNAME'] = self.get_targname("target_name_ullyses")
         hdr0.add_blank(after='OBSMODE')
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
@@ -150,7 +152,9 @@ class Ullyses_SegmentList(SegmentList):
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
         hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')
 
-        hdr0['CENTRWV'] = (self.combine_keys("centrwv", "average"), 'Central wavelength of the data')
+        centrwv = (self.output_wavelength[-1] - self.output_wavelength[0])/2. + self.output_wavelength[0] 
+        hdr0['CENTRWV'] = (centrwv, 'Central wavelength of the data')
+
         hdr0.add_blank(after='REFERENC')
         hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')
         hdr0['MINWAVE'] = (self.combine_keys("minwave", "min"), 'Minimum wavelength in spectrum')
@@ -235,7 +239,7 @@ class Ullyses_SegmentList(SegmentList):
         s_region = f"CIRCLE {center_ra} {center_dec} {radius}"
         return s_region
 
-    def get_targname(self):
+    def get_targname(self, targcol="target_name_hlsp"):
         aliases_file = ullyses_utils.__path__[0] + '/data/target_metadata/ullyses_aliases.csv'
         aliases = pd.read_csv(aliases_file)
         # These are just preliminary target names, in case we can't find a match
@@ -250,7 +254,7 @@ class Ullyses_SegmentList(SegmentList):
             mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ_upper)).any(), axis=1)
             if set(mask) != {False}:
                 targ_matched = True
-                ull_targname = aliases[mask]["target_name_hlsp"].values[0]
+                ull_targname = aliases[mask][targcol].values[0]
                 break
         if targ_matched is False:
             print(f"{RED}WARNING: Could not match target name {ull_targname} to ULLYSES alias list{RESET}")
@@ -272,72 +276,6 @@ class Ullyses_SegmentList(SegmentList):
         else:
             return avg_ra, avg_dec
 
-    def combine_keys(self, key, method):
-        keymap= {"HST": {"expstart": ("expstart", 1),
-                         "expend": ("expend", 1),
-                         "exptime": ("exptime", 1),
-                         "telescop": ("telescop", 0),
-                         "instrume": ("instrume", 0),
-                         "detector": ("detector", 0),
-                         "opt_elem": ("opt_elem", 0),
-                         "cenwave": ("cenwave", 0),
-                         "aperture": ("aperture", 0),
-                         "obsmode": ("obsmode", 0),
-                         "proposid": ("proposid", 0),
-                         "centrwv": ("centrwv", 0),
-                         "minwave": ("minwave", 0),
-                         "maxwave": ("maxwave", 0),
-                         "filename": ("filename", 0),
-                         "specres": ("specres", 0),
-                         "cal_ver": ("cal_ver", 0)},
-                "FUSE": {"expstart": ("obsstart", 0),
-                         "expend": ("obsend", 0),
-                         "exptime": ("obstime", 0),
-                         "telescop": ("telescop", 0),
-                         "instrume": ("instrume", 0),
-                         "detector": ("detector", 0),
-                         "opt_elem": ("detector", 0),
-                         "cenwave": ("centrwv", 0),
-                         "aperture": ("aperture", 0),
-                         "obsmode": ("instmode", 0),
-                         "proposid": ("prgrm_id", 0),
-                         "centrwv": ("centrwv", 0),
-                         "minwave": ("wavemin", 0),
-                         "maxwave": ("wavemax", 0),
-                         "filename": ("filename", 0),
-                         "specres": ("spec_rp", 1),
-                         "cal_ver": ("cf_vers", 0)}}
-
-        vals = []
-        for i in range(len(self.primary_headers)):
-            tel = self.primary_headers[i]["telescop"]
-            actual_key = keymap[tel][key][0]
-            hdrno = keymap[tel][key][1]
-            if hdrno == 0:
-                val = self.primary_headers[i][actual_key]
-            else:
-                val = self.first_headers[i][actual_key]
-            if tel == "FUSE" and key == "filename":
-                val = val.replace(".fit", "_vo.fits")
-            vals.append(val)
-
-        # Allowable methods are min, max, average, sum, multi, arr
-        if method == "multi":
-            keys_set = list(set(vals))
-            if len(keys_set) > 1:
-                return "MULTI"
-            else:
-                return keys_set[0]
-        elif method == "min":
-            return min(vals)
-        elif method == "max":
-            return max(vals)
-        elif method == "average":
-            return np.average(vals)
-        elif method == "sum":
-            return np.sum(vals)
-        elif method == "arr":
-            return np.array(vals)
 
     def add_hasp_attributes(self):
         self.disambiguated_grating = self.grating.lower()
@@ -586,7 +524,6 @@ def create_output_file_name(prod, version=VERSION, level=3):
 
 
 def main(indir, outdir, version=VERSION, clobber=False):
-    print("dev version!!!")
     allfiles = find_files(indir)
     coadd_and_abut_files(allfiles, outdir, version, clobber)
 

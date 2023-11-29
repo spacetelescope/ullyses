@@ -8,13 +8,11 @@ from astropy.time import Time
 import datetime
 from datetime import datetime as dt
 
-from ullyses_utils.ullyses_config import CAL_VER
-
 # coadd data
 #
 
 STIS_NON_CCD_DETECTORS = ['FUV-MAMA', 'NUV-MAMA']
-class SegmentList:
+class SegmentList():
     def __init__(self, instrument, grating, inpath='.', infiles=None):
         self.get_datasets = False
         if instrument is not None and grating is not None:
@@ -402,8 +400,29 @@ class SegmentList:
         s_region = f"CIRCLE {center_ra} {center_dec} {radius}"
         return s_region
 
-
-    def combine_keys(self, key, method):
+    def combine_keys(self, key, method="multi", dict_key=None, constant=None):
+        """
+        Combine keyword values from multiple input files.
+        Input:
+            self (instance): Instance of either a Ullyses class or SegmentList class.
+            key (str): keyword that is to be combined- this is the output keyword name
+            method (str): Default=multi. Method of combining keywords. Allowed values are: 
+                multi (returns the value MULTI if input files have different key vals),
+                min (returns minimum of all input values),
+                max (returns maximum of all input values),
+                average (returns average of all input values),
+                sum (returns sum of all input values),
+                arr (returns numpy array of all input values),
+                concat (returns pipe-separated string of all input values)
+            dict_key (str): Default=None. Telescope/instrument to look up exact keyword 
+                location from. If None, value is looked up on the fly.
+            constant (str): Default=None. If not None, this value is returned.
+    
+        Returns:
+            Using the supplied method, a single value is returned that distills all input
+                file values into one descriptor.
+        """
+    
         keymap= {"HST": {"expstart": ("expstart", 1),
                          "expend": ("expend", 1),
                          "exptime": ("exptime", 1),
@@ -411,6 +430,13 @@ class SegmentList:
                          "instrume": ("instrume", 0),
                          "detector": ("detector", 0),
                          "opt_elem": ("opt_elem", 0),
+                         "filter": ("filter", 0),
+                         "fgslock": ("fgslock", 0),
+                         "gyromode": ("gyromode", 0),
+                         "flashdur": ("flashdur", 0),
+                         "flashcur": ("flashcur", 0),
+                         "flashlvl": ("flashlvl", 0),
+                         "flashsta": ("flashsta", 0),
                          "cenwave": ("cenwave", 0),
                          "aperture": ("aperture", 0),
                          "obsmode": ("obsmode", 0),
@@ -420,6 +446,7 @@ class SegmentList:
                          "maxwave": ("maxwave", 0),
                          "filename": ("filename", 0),
                          "specres": ("specres", 0),
+                         "comment": ("special", 0),
                          "cal_ver": ("cal_ver", 0)},
                 "FUSE": {"expstart": ("obsstart", 0),
                          "expend": ("obsend", 0),
@@ -433,26 +460,42 @@ class SegmentList:
                          "obsmode": ("instmode", 0),
                          "proposid": ("prgrm_id", 0),
                          "centrwv": ("centrwv", 0),
-                         "minwave": ("wavemin", 0),
+                         "minwave": ("wavemin", 0), 
                          "maxwave": ("wavemax", 0),
                          "filename": ("filename", 0),
                          "specres": ("spec_rp", 1),
-                         "cal_ver": ("cf_vers", 0)}}
+                         "comment": ("special", 0),
+                         "cal_ver": ("cf_vers", 0)},
+                         }
+   
+        if constant is not None:
+            vals = [constant for x in self.first_headers]
+        else:
+            vals = []
+            for i in range(len(self.first_headers)):
+                if dict_key is None:
+                    try:
+                        tel = self.telescope
+                    except AttributeError:
+                        tel = self.primary_headers[i]["telescop"]
+                else:
+                    tel = dict_key
 
-        vals = []
-        for i in range(len(self.primary_headers)):
-            tel = self.primary_headers[i]["telescop"]
-            actual_key = keymap[tel][key][0]
-            hdrno = keymap[tel][key][1]
-            if hdrno == 0:
-                val = self.primary_headers[i][actual_key]
-            else:
-                val = self.first_headers[i][actual_key]
-            if tel == "FUSE" and key == "filename":
-                val = val.replace(".fit", "_vo.fits")
-            vals.append(val)
-
-        # Allowable methods are min, max, average, sum, multi, arr
+                actual_key = keymap[tel][key][0]  
+                hdrno = keymap[tel][key][1]
+                
+                if tel == "FUSE" and key == "filename":
+                    val = self.primary_headers[i][actual_key]
+                    val = val.replace(".fit", "_vo.fits")
+                else:
+                    if hdrno == 0:
+                        val = self.primary_headers[i][actual_key]
+                    else:
+                        val = self.first_headers[i][actual_key]
+    
+                vals.append(val)
+    
+        # Allowable methods are min, max, average, sum, multi, arr, concat
         if method == "multi":
             keys_set = list(set(vals))
             if len(keys_set) > 1:
@@ -462,13 +505,17 @@ class SegmentList:
         elif method == "min":
             return min(vals)
         elif method == "max":
-            return max(vals)
-        elif method == "average":
+            return max(vals)                                                                 
+        elif method == "average": 
             return np.average(vals)
         elif method == "sum":
             return np.sum(vals)
         elif method == "arr":
             return np.array(vals)
+        elif method == "concat":
+            vals = [x for x in vals if x != ""]
+            return " | ".join(vals)
+
 
 # Weight functions for STIS
 weight_function = {
