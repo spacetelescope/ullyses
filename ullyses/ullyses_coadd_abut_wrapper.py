@@ -572,6 +572,11 @@ def create_output_file_name(prod, version=VERSION, level=3):
             grating = "uv"
         if 'fuse' in instrument:
             tel = 'hst-fuse'
+            # Move fuse to the front of the instrument list
+            instrument_list = instrument.split('-')
+            instrument_list.remove('fuse')
+            instrument_list.insert(0, 'fuse')
+            instrument = '-'.join(instrument_list)
         else:
             tel = 'hst'
 
