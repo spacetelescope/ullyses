@@ -306,7 +306,7 @@ def copy_subexp_caldata(datadir, tss_params, custom_caldir=None):
     for item in corrs:
         if fits.getval(item, "opt_elem") == "G160M":
             d = datadir_g160m
-        elif fits.getval(item, "opt_elem") == "G230L":
+        elif fits.getval(item, "opt_elem") == "G230L" and fits.getval(item, "instrume") == "COS":
             d = datadir_g230l
         else:
             continue
@@ -333,7 +333,7 @@ def copy_subexp_caldata(datadir, tss_params, custom_caldir=None):
         if orig_corrfiles[i] not in corrfiles and ipppss not in tss_params["bad_ipppss"] and ipppssoot not in tss_params["bad_ipppssoot"]:
             if fits.getval(orig_corrs[i], "opt_elem") == "G160M":
                 d = datadir_g160m
-            elif fits.getval(orig_corrs[i], "opt_elem") == "G230L":
+            elif fits.getval(orig_corrs[i], "opt_elem") == "G230L" and fits.getval(orig_corrs[i], "instrume") == "COS":
                 d = datadir_g230l
             else:
                 continue
@@ -349,7 +349,7 @@ def copy_subexp_caldata(datadir, tss_params, custom_caldir=None):
         if orig_x1dfiles[i] not in x1dfiles and ipppss not in tss_params["bad_ipppss"] and ipppssoot not in tss_params["bad_ipppssoot"]:
             if fits.getval(orig_x1ds[i], "opt_elem") == "G160M":
                 d = datadir_g160m
-            elif fits.getval(orig_x1ds[i], "opt_elem") == "G230L":
+            elif fits.getval(orig_x1ds[i], "opt_elem") == "G230L" and fits.getval(orig_x1ds[i], "instrume") == "COS":
                 d = datadir_g230l
             else:
                 continue
@@ -400,7 +400,7 @@ def correct_vignetting(datadir):
     indirs = [os.path.join(datadir, "g230l", "exp"),
               os.path.join(datadir, "g230l", "split")]
     for indir in indirs:
-        files = glob.glob(os.path.join(indir, "*x1d.fits"))
+        files = glob.glob(os.path.join(indir, "l*x1d.fits"))
         for item in files:
             if fits.getval(item, "cenwave") == 2950:
                 root = fits.getval(item, "rootname").lower()
