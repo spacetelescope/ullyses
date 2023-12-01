@@ -64,12 +64,11 @@ def apply_shifts_file(infile, outdir, shift_file, overwrite=False):
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
-    for item in uniq_ipppss:
-        outfiles = glob.glob(os.path.join(outdir, item+"*"))
-        if len(outfiles) > 0 and overwrite is True:
-            print("Overwrite is True, removing existing products...")
-            for outfile in outfiles:
-                os.remove(outfile)
+    outfiles = glob.glob(os.path.join(outdir, ipppss+"*"))
+    if len(outfiles) > 0 and overwrite is True:
+        print("Overwrite is True, removing existing products...")
+        for outfile in outfiles:
+            os.remove(outfile)
     calcos.calcos(infile, shift_file=shift_file, outdir=outdir,
                   verbosity=0)
 
