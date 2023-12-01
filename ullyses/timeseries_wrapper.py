@@ -251,7 +251,7 @@ def calibrate_cos_data(datadir, tss_params, custom_caldir=None, overwrite=True):
         wl_shift_ipppss = [None]
     calrequired = [x[:6] for x in calrequired0]
 
-    asns = glob.glob(os.path.join(datadir, "*asn.fits"))
+    asns = glob.glob(os.path.join(datadir, "l*asn.fits"))
     if custom_caldir is None:
         custom_caldir = os.path.join(datadir, "custom_calibration")
     if not os.path.exists(custom_caldir):
@@ -407,9 +407,15 @@ def correct_vignetting(datadir):
     indirs = [os.path.join(datadir, "g230l", "exp"),
               os.path.join(datadir, "g230l", "split")]
     for indir in indirs:
-        files = glob.glob(os.path.join(indir, "l*x1d.fits"))
+        files = glob.glob(os.path.join(indir, "*x1d.fits"))
         for item in files:
             if fits.getval(item, "cenwave") == 2950:
+                try:
+                    scl_done = fits.getval(item, "scl_done")
+                except KeyError:
+                    scl_done = "False"
+                if scl_done == "True":
+                    continue
                 root = fits.getval(item, "rootname").lower()
                 scale_file = os.path.join(UTILS_DIR, "data/vignette_scaling", f"{root}_scale.txt")
                 assert os.path.exists(scale_file), f"No scaling file found for {item}"
@@ -418,6 +424,7 @@ def correct_vignetting(datadir):
                     assert len(scale) == len(hdulist[1].data["flux"][1]),\
                         f"Shape of FITS and scaling factor do not match for {item}"
                     hdulist[1].data["flux"][1] /= scale  # NUVB is 1st index
+                    hdulist[0].header["SCL_DONE"] = "True" 
 
     print(f'\nApplied scaling factor to G230L/2950 NUVB data in directories: \n{indirs}\n') 
 
