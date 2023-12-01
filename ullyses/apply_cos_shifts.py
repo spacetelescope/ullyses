@@ -64,11 +64,16 @@ def apply_shifts_file(infile, outdir, shift_file, overwrite=False):
     if not os.path.exists(outdir):
         os.makedirs(outdir)
 
-    outfiles = glob.glob(os.path.join(outdir, ipppss+"*"))
-    if len(outfiles) > 0 and overwrite is True:
-        print("Overwrite is True, removing existing products...")
-        for outfile in outfiles:
-            os.remove(outfile)
+    if overwrite is True:
+        asndata = fits.getdata(infile)
+        members = [x.lower() for x in asndata["memname"]]
+        for member in members:
+            outfiles = glob.glob(os.path.join(outdir, member+"*"))
+            if len(outfiles) > 0:
+                print(f"Overwrite is True, removing existing products for {member}...")
+                for outfile in outfiles:
+                    os.remove(outfile)
+
     calcos.calcos(infile, shift_file=shift_file, outdir=outdir,
                   verbosity=0)
 

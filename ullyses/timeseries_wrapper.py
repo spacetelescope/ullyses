@@ -262,11 +262,18 @@ def calibrate_cos_data(datadir, tss_params, custom_caldir=None, overwrite=True):
             continue
         if ipppss in tss_params["bad_ipppss"]: # This is a bad visit
             continue
-        outfiles = glob.glob(os.path.join(custom_caldir, ipppss+"*"))
-        if len(outfiles) > 0 and overwrite is True:
-            print("Overwrite is True, removing existing products...")
-            for outfile in outfiles:
-                os.remove(outfile)
+
+        # Delete existing data if overwrite is True
+        if overwrite is True:
+            asndata = fits.getdata(asn)
+            members = [x.lower() for x in asndata["memname"]]
+            for member in members:
+                outfiles = glob.glob(os.path.join(custom_caldir, member+"*"))
+                if len(outfiles) > 0:
+                    print(f"Overwrite is True, removing existing products for {member}...")
+                    for outfile in outfiles:
+                        os.remove(outfile)
+
         if ipppss in wl_shift_ipppss:
             shift_file0 = wl_shift_dict[ipppss]
             shift_file = replace_utils_dir(shift_file0) 
