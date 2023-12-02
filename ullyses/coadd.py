@@ -262,13 +262,16 @@ class SegmentList():
         decs = list(set([h["dec_targ"] for h in self.primary_headers]))
         avg_ra = np.average(ras)
         avg_dec = np.average(decs)
-        return avg_ra, avg_dec
+        epoch = self.combine_keys("equinox")
+        if epoch == "MULTI":
+            epoch = "UNKNOWN"
+        return avg_ra, avg_dec, epoch
 
     def write(self, filename, overwrite=False):
         """Generic write function for any coaddition usage."""
 
         self.target = self.get_targname()
-        self.targ_ra, self.targ_dec = self.get_coords()
+        self.targ_ra, self.targ_dec, self.coord_epoch = self.get_coords()
 
         # Table 1 - HLSP data
 
@@ -831,7 +834,7 @@ def abut(product_short, product_long):
             product_abutted = product_long
         else:
             product_abutted = None
-    product_abutted.targ_ra, product_abutted.targ_dec = product_abutted.get_coords()
+    product_abutted.targ_ra, product_abutted.targ_dec, product_abutted.coord_epoch = product_abutted.get_coords()
     return product_abutted
 
 

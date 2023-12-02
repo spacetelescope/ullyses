@@ -58,6 +58,7 @@ class KeyBlender(ABC):
                          "filename": ("filename", 0),
                          "specres": ("specres", 0),
                          "comment": ("special", 0),
+                         "equinox": ("equinox", 0),
                          "cal_ver": ("cal_ver", 0)},
                 "WFC3": {"expstart": ("expstart", 0),
                          "expend": ("expend", 0),
@@ -258,4 +259,3 @@ class KeyBlender(ABC):
         elif method == "concat":
             vals = [x for x in vals if x != ""]
             return " | ".join(vals)
-

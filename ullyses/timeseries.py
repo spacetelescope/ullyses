@@ -560,7 +560,7 @@ def create_primary_header(ensemble, filename):
     # If the target is a ULLYSES target, use the official
     # target name and coords
     ensemble.target = ensemble.get_targname()
-    ensemble.targ_ra, ensemble.targ_dec = ensemble.get_coords()
+    ensemble.targ_ra, ensemble.targ_dec, ensemble.coord_epoch = ensemble.get_coords()
 
     hdr0 = fits.Header()
     hdr0['EXTEND'] = ('T', 'FITS file may contain extensions')
@@ -585,7 +585,7 @@ def create_primary_header(ensemble, filename):
     hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
     hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
-    ra, dec = ensemble.get_coords()
+    ra, dec, coord_epoch = ensemble.get_coords()
     hdr0['TARG_RA'] =  (ra,  '[deg] Target right ascension')
     hdr0['TARG_DEC'] =  (dec,  '[deg] Target declination')
     hdr0['PROPOSID'] = (ensemble.combine_keys("proposid", "multi"), 'Program identifier')

@@ -14,10 +14,11 @@ from astropy.time import Time
 
 from ullyses.coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDSegmentList
 from ullyses.coadd import abut, SegmentList
+from ullyses.combine_header_keys import KeyBlender
 import ullyses_utils
 from ullyses_utils.ullyses_config import RENAME, VERSION, CAL_VER
+from ullyses_utils import parse_csv, match_aliases
 from hasp.grating_priority import create_level4_products
-from ullyses.combine_header_keys import KeyBlender
 
 RED = "\033[1;31m"
 RESET = "\033[0;0m"
@@ -68,7 +69,7 @@ class Ullyses_SegmentList(KeyBlender, SegmentList):
         # If the target is a ULLYSES target, use the official
         # target name and coords
         self.target = self.get_targname()
-        self.targ_ra, self.targ_dec = self.get_coords()
+        self.targ_ra, self.targ_dec, self.coord_epoch = self.get_coords()
 
         # Table 1 - HLSP data
 
@@ -136,6 +137,7 @@ class Ullyses_SegmentList(KeyBlender, SegmentList):
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
         hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
+        hdr0['EQUINOX'] =  (self.coord_epoch,  'Equinox of celestial coord. system')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
         hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi"), 'Program identifier')
@@ -231,7 +233,7 @@ class Ullyses_SegmentList(KeyBlender, SegmentList):
 #        extent_ra = (2.5 / 2 / 3600) + ra_diff
 #        extent_dec = (2.5 / 2 / 3600) + dec_diff
 #        radius = max([extent_ra, extent_dec])
-        self.targ_ra, self.targ_dec = self.get_coords()
+        self.targ_ra, self.targ_dec, self.coord_epoch = self.get_coords()
         radius = (2.5 / 2 / 3600)
         center_ra = self.targ_ra
         center_dec = self.targ_dec
@@ -263,19 +265,24 @@ class Ullyses_SegmentList(KeyBlender, SegmentList):
     def get_coords(self):
         ras = list(set([h["ra_targ"] for h in self.primary_headers]))
         decs = list(set([h["dec_targ"] for h in self.primary_headers]))
-        avg_ra = np.average(ras)
-        avg_dec = np.average(decs)
+        ra = np.average(ras)
+        dec = np.average(decs)
+        epoch = self.combine_keys("equinox")
+        if epoch == "MULTI":
+            epoch = "UNKNOWN"
         if self.target == "":
-            return avg_ra, avg_dec
-        targetinfo_file = ullyses_utils.__path__[0] + '/data/target_metadata/pd_targetinfo.json'
-        targetinfo = pd.read_json(targetinfo_file, orient="split")
-        targetinfo['mast_targname'] = targetinfo['mast_targname'].str.upper()
-        coords = targetinfo.loc[targetinfo["mast_targname"] == self.target][["ra", "dec"]].values
-        if len(coords) != 0:
-            return coords[0][0], coords[0][1]
-        else:
-            return avg_ra, avg_dec
-
+            return ra, dec, epoch
+        csvs, metadata_dfs = parse_csv.parse_database_csv("all")
+        ull_alias = match_aliases.match_aliases(self.target, "target_name_ullyses")
+        for df in metadata_dfs:
+            df['target_name_ullyses'] = df['target_name_ullyses'].str.upper()
+            row = df.loc[df.target_name_ullyses == ull_alias]
+            if len(row) == 1:
+                ra = row.targ_ra.values[0]
+                dec = row.targ_dec.values[0]
+                epoch = float(row.coordinate_epoch.values[0])
+                break
+        return ra, dec, epoch
 
     def add_hasp_attributes(self):
         self.disambiguated_grating = self.grating.lower()
@@ -380,8 +387,7 @@ def coadd_and_abut_files(infiles, outdir, version=VERSION, clobber=False):
             print(f'Unknown mode [{instrument}, {grating}, {detector}]')
             return
 
-        prod.target = prod.get_targname()
-        prod.targ_ra, prod.targ_dec = prod.get_coords()
+        prod.targ_ra, prod.targ_dec, prod.coord_epoch = prod.get_coords()
 
         # these two calls perform the main functions
         if len(prod.members) > 0:
@@ -390,7 +396,7 @@ def coadd_and_abut_files(infiles, outdir, version=VERSION, clobber=False):
             # this writes the output file
             # If making HLSPs for a DR, put them in the official folder
             prod.target = prod.get_targname()
-            prod.targ_ra, prod.targ_dec = prod.get_coords()
+            prod.targ_ra, prod.targ_dec, prod.coord_epoch = prod.get_coords()
             target = prod.target.lower()
             if target in RENAME:
                 dir_target = RENAME[target]
