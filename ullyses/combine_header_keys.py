@@ -259,3 +259,32 @@ class KeyBlender(ABC):
         elif method == "concat":
             vals = [x for x in vals if x != ""]
             return " | ".join(vals)
+        elif method == "comment":
+            comm_vals = []
+            for comm in vals:
+                if comm not in comm_vals and comm != "":
+                    comm_vals.append(comm)
+            comm_lines = []
+            for comm in comm_vals:
+                starti = 0
+                stopi = 0
+                line_l = 0
+                sp = comm.split(" ")
+                for i,word in enumerate(sp):
+                    line_l += len(word)
+                    if i != len(sp)-1:
+                        line_l += 1
+                    if line_l > 72:
+                        stopi = i
+                        newline = " ".join(sp[starti:stopi])
+                        comm_lines.append(newline)
+                        line_l = 0
+                        starti = i
+                        if i == len(sp)-1:
+                            comm_lines.append(sp[-1])
+                    elif i == len(sp)-1:
+                        stopi = i+1
+                        newline = " ".join(sp[starti:stopi])
+                        comm_lines.append(newline)
+
+            return comm_lines

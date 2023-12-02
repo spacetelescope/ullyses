@@ -645,7 +645,9 @@ def create_extension_1_header(ensemble):
     hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
     hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
     hdr1['XPOSURE'] = (ensemble.combine_keys("exptime", "sum"), '[s] Sum of exposure durations')
-    hdr1['COMMENT'] = (ensemble.combine_keys("comment", "concat"), "Calibration and/or quality comment")
+    all_comments = self.combine_keys("comment", "comment")
+    for comment in all_comments:
+        hdr1['COMMENT'] = (comment, "Calibration and/or quality comment")
     return hdr1
 
 def create_extension_2(ensemble):
