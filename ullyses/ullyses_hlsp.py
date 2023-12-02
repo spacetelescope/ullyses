@@ -173,6 +173,7 @@ class Ullyses(KeyBlender):
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
         hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
+        hdr0['EQUINOX'] =  (self.coord_epoch,  'Equinox of celestial coord. system')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
         hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi"), 'Program identifier')
@@ -230,6 +231,7 @@ class Ullyses(KeyBlender):
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
         hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
+        hdr0['EQUINOX'] =  (self.coord_epoch,  'Equinox of celestial coord. system')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
         hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi"), 'Program identifier')
@@ -273,6 +275,7 @@ class Ullyses(KeyBlender):
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
         hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
+        hdr0['EQUINOX'] =  (self.coord_epoch,  'Equinox of celestial coord. system')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
         hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi", dict_key="LCOGT"), 'Program identifier')
@@ -318,6 +321,7 @@ class Ullyses(KeyBlender):
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
         hdr0['EQUINOX'] = (self.combine_keys("equinox", "multi"), )
         hdr0['RADESYS'] = (self.combine_keys("radesys", "multi"), 'World coordinate reference frame')
+        hdr0['EQUINOX'] =  (self.coord_epoch,  'Equinox of celestial coord. system')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
         hdr0['PROPOSID'] = (self.combine_keys("proposid"), 'Program identifier')                              
