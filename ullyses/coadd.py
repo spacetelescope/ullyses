@@ -451,6 +451,7 @@ class SegmentList():
                          "filename": ("filename", 0),
                          "specres": ("specres", 0),
                          "comment": ("special", 0),
+                         "equinox": ("equinox", 0),
                          "cal_ver": ("cal_ver", 0)},
                 "FUSE": {"expstart": ("obsstart", 0),
                          "expend": ("obsend", 0),
@@ -469,6 +470,7 @@ class SegmentList():
                          "filename": ("filename", 0),
                          "specres": ("spec_rp", 1),
                          "comment": ("special", 0),
+                         "equinox": ("equinox", 0),
                          "cal_ver": ("cf_vers", 0)},
                          }
    
