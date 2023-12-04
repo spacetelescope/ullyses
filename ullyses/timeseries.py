@@ -586,7 +586,7 @@ def create_primary_header(ensemble, filename):
 
     hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
     ra, dec, coord_epoch = ensemble.get_coords()
-    hdr0['EQUINOX'] =  (coord_epoch,  'Equinox of celestial coord. system')
+    hdr0['EPOCH'] =  (coord_epoch,  'Epoch')
     hdr0['TARG_RA'] =  (ra,  '[deg] Target right ascension')
     hdr0['TARG_DEC'] =  (dec,  '[deg] Target declination')
     hdr0['PROPOSID'] = (ensemble.combine_keys("proposid", "multi"), 'Program identifier')
@@ -603,11 +603,14 @@ def create_primary_header(ensemble, filename):
     hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
     hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')
 
-    hdr0['CENTRWV'] = (ensemble.combine_keys("centrwv", "average"), 'Central wavelength of the data')
+    minwave = ensemble.combine_keys("minwave", "min")
+    maxwave = ensemble.combine_keys("maxwave", "max")
+    centrwv = ((maxwave - minwave)/2.) + minwave
+    hdr0['CENTRWV'] = (centrwv, 'Central wavelength of the data')
     hdr0.add_blank(after='REFERENC')
     hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')
-    hdr0['MINWAVE'] = (ensemble.combine_keys("minwave", "min"), 'Minimum wavelength in spectrum')
-    hdr0['MAXWAVE'] = (ensemble.combine_keys("maxwave", "max"), 'Maximum wavelength in spectrum')
+    hdr0['MINWAVE'] = (minwave, 'Minimum wavelength in spectrum')
+    hdr0['MAXWAVE'] = (maxwave, 'Maximum wavelength in spectrum')
 
     primary = fits.PrimaryHDU(header=hdr0)
     return primary

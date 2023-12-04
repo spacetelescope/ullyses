@@ -139,7 +139,7 @@ class Ullyses_SegmentList(KeyBlender, SegmentList):
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
         hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
-        hdr0['EQUINOX'] =  (self.coord_epoch,  'Equinox of celestial coord. system')
+        hdr0['EPOCH'] =  (self.coord_epoch,  'Epoch')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
         hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi"), 'Program identifier')
@@ -156,13 +156,15 @@ class Ullyses_SegmentList(KeyBlender, SegmentList):
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
         hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')
 
-        centrwv = (self.output_wavelength[-1] - self.output_wavelength[0])/2. + self.output_wavelength[0] 
+        minwave = self.combine_keys("minwave", "min")
+        maxwave = self.combine_keys("maxwave", "max")
+        centrwv = ((maxwave - minwave)/2.) + minwave
         hdr0['CENTRWV'] = (centrwv, 'Central wavelength of the data')
 
         hdr0.add_blank(after='REFERENC')
         hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')
-        hdr0['MINWAVE'] = (self.combine_keys("minwave", "min"), 'Minimum wavelength in spectrum')
-        hdr0['MAXWAVE'] = (self.combine_keys("maxwave", "max"), 'Maximum wavelength in spectrum')
+        hdr0['MINWAVE'] = (minwave, 'Minimum wavelength in spectrum')
+        hdr0['MAXWAVE'] = (maxwave, 'Maximum wavelength in spectrum')
 
         primary = fits.PrimaryHDU(header=hdr0)
 
@@ -269,9 +271,7 @@ class Ullyses_SegmentList(KeyBlender, SegmentList):
         decs = list(set([h["dec_targ"] for h in self.primary_headers]))
         ra = np.average(ras)
         dec = np.average(decs)
-        epoch = self.combine_keys("equinox")
-        if epoch == "MULTI":
-            epoch = "UNKNOWN"
+        epoch = "UNKNOWN"
         if self.target == "":
             return ra, dec, epoch
         csvs, metadata_dfs = parse_csv.parse_database_csv("all")

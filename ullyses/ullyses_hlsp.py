@@ -101,11 +101,9 @@ class Ullyses(KeyBlender):
             decs = list(set([h["dec_targ"] for h in self.primary_headers]))
             ra = np.average(ras)
             dec = np.average(decs)
-            epoch = self.combine_keys("equinox")
+            epoch = "UNKNOWN"
         except:
             ra,dec,epoch = (0, 0," UNKNOWN")
-        if epoch == "MULTI":
-            epoch = "UNKNOWN"
         if self.targname == "":
             print(f"{RED}NO COORDINATES FOUND FOR {self.targname}{RESET}")
             return ra, dec, epoch
@@ -200,7 +198,7 @@ class Ullyses(KeyBlender):
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
         hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
-        hdr0['EQUINOX'] =  (self.coord_epoch,  'Equinox of celestial coord. system')
+        hdr0['EPOCH'] =  (self.coord_epoch,  'Epoch')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
         hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi"), 'Program identifier')
@@ -215,13 +213,16 @@ class Ullyses(KeyBlender):
         hdr0['HLSP_LVL'] = (self.level, 'ULLYSES HLSP Level')
         hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
-        hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')  
-                                                                                                                           
-        hdr0['CENTRWV'] = (self.combine_keys("centrwv", "average"), 'Central wavelength of the data')                      
-        hdr0.add_blank(after='REFERENC')                                                                                   
-        hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')                                           
-        hdr0['MINWAVE'] = (self.combine_keys("minwave", "min"), 'Minimum wavelength in spectrum')                          
-        hdr0['MAXWAVE'] = (self.combine_keys("maxwave", "max"), 'Maximum wavelength in spectrum')
+        hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')
+
+        minwave = self.combine_keys("minwave", "min")
+        maxwave = self.combine_keys("maxwave", "max")
+        centrwv = ((maxwave - minwave)/2.) + minwave
+        hdr0['CENTRWV'] = (centrwv, 'Central wavelength of the data') 
+        hdr0.add_blank(after='REFERENC')
+        hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')
+        hdr0['MINWAVE'] = (minwave, 'Minimum wavelength in spectrum')
+        hdr0['MAXWAVE'] = (maxwave, 'Maximum wavelength in spectrum')
     
         self.hdr0 = hdr0 
 
@@ -258,7 +259,7 @@ class Ullyses(KeyBlender):
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
         hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
-        hdr0['EQUINOX'] =  (self.coord_epoch,  'Equinox of celestial coord. system')
+        hdr0['EPOCH'] =  (self.coord_epoch,  'Epoch')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
         hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi"), 'Program identifier')
@@ -302,7 +303,7 @@ class Ullyses(KeyBlender):
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
         hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
-        hdr0['EQUINOX'] =  (self.coord_epoch,  'Equinox of celestial coord. system')
+        hdr0['EPOCH'] =  (self.coord_epoch,  'Epoch')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
         hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi", dict_key="LCOGT"), 'Program identifier')
@@ -346,9 +347,8 @@ class Ullyses(KeyBlender):
         hdr0['TARGNAME'] = (self.targname, 'Target Name')
         hdr0.add_blank(after='OBSMODE')
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
-        hdr0['EQUINOX'] = (self.combine_keys("equinox", "multi"), )
+        hdr0['EPOCH'] =  (self.coord_epoch,  'Epoch')
         hdr0['RADESYS'] = (self.combine_keys("radesys", "multi"), 'World coordinate reference frame')
-        hdr0['EQUINOX'] =  (self.coord_epoch,  'Equinox of celestial coord. system')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
         hdr0['PROPOSID'] = (self.combine_keys("proposid"), 'Program identifier')                              
