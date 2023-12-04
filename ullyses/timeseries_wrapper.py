@@ -251,7 +251,7 @@ def calibrate_cos_data(datadir, tss_params, custom_caldir=None, overwrite=True):
         wl_shift_ipppss = [None]
     calrequired = [x[:6] for x in calrequired0]
 
-    asns = glob.glob(os.path.join(datadir, "*asn.fits"))
+    asns = glob.glob(os.path.join(datadir, "l*asn.fits"))
     if custom_caldir is None:
         custom_caldir = os.path.join(datadir, "custom_calibration")
     if not os.path.exists(custom_caldir):
@@ -262,11 +262,18 @@ def calibrate_cos_data(datadir, tss_params, custom_caldir=None, overwrite=True):
             continue
         if ipppss in tss_params["bad_ipppss"]: # This is a bad visit
             continue
-        outfiles = glob.glob(os.path.join(custom_caldir, ipppss+"*"))
-        if len(outfiles) > 0 and overwrite is True:
-            print("Overwrite is True, removing existing products...")
-            for outfile in outfiles:
-                os.remove(outfile)
+
+        # Delete existing data if overwrite is True
+        if overwrite is True:
+            asndata = fits.getdata(asn)
+            members = [x.lower() for x in asndata["memname"]]
+            for member in members:
+                outfiles = glob.glob(os.path.join(custom_caldir, member+"*"))
+                if len(outfiles) > 0:
+                    print(f"Overwrite is True, removing existing products for {member}...")
+                    for outfile in outfiles:
+                        os.remove(outfile)
+
         if ipppss in wl_shift_ipppss:
             shift_file0 = wl_shift_dict[ipppss]
             shift_file = replace_utils_dir(shift_file0) 
@@ -306,7 +313,7 @@ def copy_subexp_caldata(datadir, tss_params, custom_caldir=None):
     for item in corrs:
         if fits.getval(item, "opt_elem") == "G160M":
             d = datadir_g160m
-        elif fits.getval(item, "opt_elem") == "G230L":
+        elif fits.getval(item, "opt_elem") == "G230L" and fits.getval(item, "instrume") == "COS":
             d = datadir_g230l
         else:
             continue
@@ -333,7 +340,7 @@ def copy_subexp_caldata(datadir, tss_params, custom_caldir=None):
         if orig_corrfiles[i] not in corrfiles and ipppss not in tss_params["bad_ipppss"] and ipppssoot not in tss_params["bad_ipppssoot"]:
             if fits.getval(orig_corrs[i], "opt_elem") == "G160M":
                 d = datadir_g160m
-            elif fits.getval(orig_corrs[i], "opt_elem") == "G230L":
+            elif fits.getval(orig_corrs[i], "opt_elem") == "G230L" and fits.getval(orig_corrs[i], "instrume") == "COS":
                 d = datadir_g230l
             else:
                 continue
@@ -349,7 +356,7 @@ def copy_subexp_caldata(datadir, tss_params, custom_caldir=None):
         if orig_x1dfiles[i] not in x1dfiles and ipppss not in tss_params["bad_ipppss"] and ipppssoot not in tss_params["bad_ipppssoot"]:
             if fits.getval(orig_x1ds[i], "opt_elem") == "G160M":
                 d = datadir_g160m
-            elif fits.getval(orig_x1ds[i], "opt_elem") == "G230L":
+            elif fits.getval(orig_x1ds[i], "opt_elem") == "G230L" and fits.getval(orig_x1ds[i], "instrume") == "COS":
                 d = datadir_g230l
             else:
                 continue
@@ -403,6 +410,12 @@ def correct_vignetting(datadir):
         files = glob.glob(os.path.join(indir, "*x1d.fits"))
         for item in files:
             if fits.getval(item, "cenwave") == 2950:
+                try:
+                    scl_done = fits.getval(item, "scl_done")
+                except KeyError:
+                    scl_done = "False"
+                if scl_done == "True":
+                    continue
                 root = fits.getval(item, "rootname").lower()
                 scale_file = os.path.join(UTILS_DIR, "data/vignette_scaling", f"{root}_scale.txt")
                 assert os.path.exists(scale_file), f"No scaling file found for {item}"
@@ -411,6 +424,7 @@ def correct_vignetting(datadir):
                     assert len(scale) == len(hdulist[1].data["flux"][1]),\
                         f"Shape of FITS and scaling factor do not match for {item}"
                     hdulist[1].data["flux"][1] /= scale  # NUVB is 1st index
+                    hdulist[0].header["SCL_DONE"] = "True" 
 
     print(f'\nApplied scaling factor to G230L/2950 NUVB data in directories: \n{indirs}\n') 
 
