@@ -8,7 +8,7 @@ import tarfile
 from astropy.io.fits import FITSDiff
 
 from ullyses import ullyses_coadd_abut_wrapper as wrapper
-from ullyses_utils.ullyses_config import VERSION
+from .. import __release__
 
 
 AV456 = {'name': 'av-456',
@@ -78,7 +78,7 @@ class TestWrapper():
 
     def run_wrapper(self, target):
         indir = target + '/' + RELEASE + '/input/'
-        wrapper.main(indir, outdir=indir, version=VERSION)
+        wrapper.main(indir, outdir=indir, version=__release__)
         return
 
     def compare_outputs(self, target):
