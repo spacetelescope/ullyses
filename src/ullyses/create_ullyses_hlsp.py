@@ -11,8 +11,8 @@ from astropy.time import Time
 
 from ullyses.ullyses_hlsp import Ullyses
 import ullyses_utils
-from ullyses_utils.ullyses_config import VERSION, CAL_VER, RENAME
 from ullyses_utils.parse_csv import parse_aliases
+from . import __version__, __release__
 
 UTILS_DIR = ullyses_utils.__path__[0]
 PHOT_DIR = os.path.join(UTILS_DIR, "data", "lcogt_photometry")
@@ -28,12 +28,12 @@ def make_imaging_hlsps(drcfile, outdir, targ, hdr_targ=None, hlspname=None):
     ra = fits.getval(drcfile, "ra_targ")
     dec = fits.getval(drcfile, "dec_targ")
     if hlspname is None:
-        hlspname = f"hlsp_ullyses_hst_wfc3_{targ}_{filt.lower()}_{VERSION}_drc.fits"
+        hlspname = f"hlsp_ullyses_hst_wfc3_{targ}_{filt.lower()}_{__release__}_drc.fits"
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     outfile = os.path.join(outdir, hlspname)
     U = Ullyses(files=[drcfile], hlspname=outfile, targname=hdr_targ, 
-                cal_ver=CAL_VER, version=VERSION, level=6, hlsp_type="drizzled")
+                cal_ver=__version__, version=__release__, level=6, hlsp_type="drizzled")
     U.make_hdrs_and_prov()
     U.write_file()
 
@@ -71,12 +71,12 @@ def make_lcogt_tss(indir, outdir, targ, hlspname=None, photfile=None):
         else:
             filts = "v-iprime"
         file_targname = rename_target(ull_targname)
-        hlspname = f"hlsp_ullyses_lcogt_04m_{file_targname.lower()}_{filts}_{VERSION}_tss.fits"
+        hlspname = f"hlsp_ullyses_lcogt_04m_{file_targname.lower()}_{filts}_{__release__}_tss.fits"
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     outfile = os.path.join(outdir, hlspname)
     U = Ullyses(files=filepaths, hlspname=outfile, targname=ull_targname, 
-                cal_ver=CAL_VER, version=VERSION, level=5, 
+                cal_ver=__version__, version=__release__, level=5,
                 hlsp_type="lcogt", photfile=photfile)
     U.make_hdrs_and_prov()
     U.write_file()
@@ -103,21 +103,12 @@ def make_xsu_hlsps(infile, outdir, targ, hlspname=None):
     file_targname = rename_target(ull_targname)
     
     if hlspname is None:
-        hlspname = f"hlsp_ullyses_vlt_xshooter_{file_targname.lower()}_uvb-vis_{VERSION}_vltspec.fits"
+        hlspname = f"hlsp_ullyses_vlt_xshooter_{file_targname.lower()}_uvb-vis_{__release__}_vltspec.fits"
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     outfile = os.path.join(outdir, hlspname)
     U = Ullyses(files=[infile], hlspname=outfile, targname=ull_targname,  
-                cal_ver=CAL_VER, version=VERSION, level=7, 
+                cal_ver=__version__, version=__release__, level=7,
                 hlsp_type="xsu", overwrite=True)
     U.make_hdrs_and_prov()
     U.write_file()
-
-
-def rename_target(targname):
-    targ_lower = targname.lower()
-    if targ_lower in RENAME:
-        file_targname = RENAME[targ_lower]
-    else:
-        file_targname = targname
-    return file_targname

@@ -11,7 +11,8 @@ from astropy.time import Time
 import sys
 
 from ullyses_utils import parse_csv, match_aliases
-from ullyses_utils.ullyses_config import VERSION, CAL_VER
+from . import __release__ as ullyses_release
+from . import __version__ as ullyses_version
 from ullyses.combine_header_keys import KeyBlender
 
 CODEDIR = os.path.dirname(__file__)
@@ -20,7 +21,7 @@ RESET = "\033[0;0m"
 
 class Ullyses(KeyBlender):
     def __init__(self, files, hlspname, targname, level,
-                 cal_ver=CAL_VER, version=VERSION, hlsp_type="spectral", 
+                 cal_ver=ullyses_version, version=ullyses_release, hlsp_type="spectral",
                  overwrite=True, photfile=None):
         
         self.hlsp_type = hlsp_type
