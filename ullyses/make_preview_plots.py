@@ -17,7 +17,7 @@ from ullyses_utils.parse_csv import parse_database_csv
 
 #-------------------------------------------------------------------------------
 
-def make_buttons(fig, all_vis, n_all_traces, button_names):
+def make_buttons(fig, button_names):
     '''Create buttons for plotly figures, being careful to count all of the
     number of traces being added.
 
@@ -25,11 +25,6 @@ def make_buttons(fig, all_vis, n_all_traces, button_names):
     -------
     - fig : plotly figure
         the figure with all traces added
-    - all_vis : list
-        A list of the trace visibilities for which traces should shown up
-        when a button is selected
-    - n_all_traces : int
-        A count of the number of added traces
     - button_names : list
         What should be read on the buttons
 
@@ -44,7 +39,7 @@ def make_buttons(fig, all_vis, n_all_traces, button_names):
                     args=[{'yaxis.type' : scale_type,
                            'yaxis2.type' : scale_type,
                            },])
-               for label, visibility, scale_type in zip(button_names, all_vis, ['linear', 'log'])]
+               for label, scale_type in zip(button_names, ['linear', 'log'])]
 
     # Update remaining layout properties
     fig.update_layout(updatemenus=[dict(type="buttons",
@@ -136,7 +131,7 @@ def get_max_flux(wave, flux, dlam=10., echelle=False):
     # exclude the edges as well;
     if echelle:
         # the echelle edges extend pretty far
-        flux = flux[3000:-1001]
+        flux = flux[20000:-1001]
     elif len(flux) > 3000:
         flux = flux[1000:-1001]
     else:
@@ -146,31 +141,10 @@ def get_max_flux(wave, flux, dlam=10., echelle=False):
 
 #-------------------------------------------------------------------------------
 
-def add_spectral_trace(fig, wave, flux, lbl, row, legendgroup, color, showlegend=True, dash=None, visible=True):
-
-    fig.add_trace(go.Scattergl(x=wave,
-                               y=flux,
-                               mode='lines',
-                               line=dict(dash=dash,
-                                         color=color,
-                                         width=3),
-                               opacity=0.6,
-                               name=lbl,
-                               showlegend=showlegend,
-                               legendgroup=legendgroup,
-                               visible=visible,
-                               hovertemplate = '%{text}<br>(%{x}, %{y})<extra></extra>',
-                               text = [f"<b>{'/'.join(lbl.split(' '))}</b>"]*len(wave),
-                               ), row=row, col=1)
-
-    return fig
-
-#-------------------------------------------------------------------------------
-
-def open_files_and_plot(fig, cspec_file, row, legendgroup, color, visible=True, dash=None):
+def open_files_and_plot(fig, cspec_file, row, legendgroup, color):
 
     #print(cspec_file)
-    trace_count = 0
+
     with fits.open(cspec_file) as hdu:
         detector = hdu[0].header['DETECTOR']
         all_gratings = [g for g in hdu[2].data['DISPERSER']]
@@ -187,23 +161,39 @@ def open_files_and_plot(fig, cspec_file, row, legendgroup, color, visible=True, 
             else:
                 showlegend = True
 
-            fig = add_spectral_trace(fig, wave, flux, lbl, row, legendgroup, color,
-                                     showlegend=showlegend, dash=dash, visible=visible)
-            trace_count += 1
+            ## add the spectrum
+            fig.add_trace(go.Scattergl(x=wave,
+                                       y=flux,
+                                       mode='lines',
+                                       line=dict(color=color,
+                                                 width=2),
+                                       opacity=0.5,
+                                       showlegend=False,
+                                       legendgroup=legendgroup,
+                                       hovertemplate = '%{text}<br>(%{x}, %{y})<extra></extra>',
+                                       text = [f"<b>{'/'.join(lbl.split(' '))}</b>"]*len(wave),
+                                       ), row=row, col=1)
 
-    return fig, detector, trace_count
+    ## adding a trace for the label to make it bigger
+    fig.add_trace(go.Scattergl(x=[wave.min()], y=[-1E-16],
+                               mode='lines',
+                               line=dict(color=color, width=4),
+                               opacity=0.8,
+                               name=lbl,
+                               legendgroup=legendgroup,
+                               ), row=row, col=1)
+
+    return fig, detector
 
 #-------------------------------------------------------------------------------
 
-def plot_preview(fig, targ_dir, visible=True):
-
-    ntraces = 0
+def plot_preview(fig, targ_dir):
 
     prev = glob.glob(os.path.join(targ_dir, '*_preview-spec.fits'))
     if len(prev) == 0:
         #setting the default no preview to something reasonable
         flux_max = [5E-13]
-        return fig, ntraces, flux_max
+        return fig, flux_max
 
     with fits.open(prev[0]) as hdu:
         wave = hdu[1].data["WAVELENGTH"].ravel()
@@ -218,29 +208,28 @@ def plot_preview(fig, targ_dir, visible=True):
         flux[np.where(flux == 0.0)[0]] = "nan"
 
     for row in [1, 2]:
-
-        if row == 1:
-            showlegend = True
-        else:
-            showlegend = False
-
         fig.add_trace(go.Scatter(x=wave,
                                  y=flux,
                                  mode='lines',
-                                 line=dict(width=3,
+                                 line=dict(width=2,
                                            color='dimgrey'),
-                                 opacity=0.7,
-                                 name='All Abutted Spectra<br>(Level 4 HLSP)',
+                                 opacity=0.6,
                                  legendgroup='preview',
-                                 showlegend=showlegend,
-                                 visible=visible,
+                                 showlegend=False,
                                  hovertemplate = '<b>All Abutted</b><br>(%{x}, %{y})<extra></extra>',
                                  legendrank=1001, # in legend top if legend rank < 1000 & bottom if rank > 1000
                                  ), row=row, col=1)
 
-        ntraces += 1
+    ## adding a trace for the label to make it bigger
+    fig.add_trace(go.Scattergl(x=[wave.min()], y=[-1E-16],
+                               mode='lines',
+                               line=dict(color='dimgrey', width=4),
+                               opacity=0.8,
+                               name='All Abutted Spectra<br>(Level 4 HLSP)',
+                               legendgroup='preview',
+                               ), row=1, col=1)
 
-    return fig, ntraces, flux_max
+    return fig, flux_max
 
 #-------------------------------------------------------------------------------
 
@@ -276,6 +265,7 @@ def update_plot_layouts(fig, ymax_arr, target):
                       title={'text' : f"ULLYSES Products Preview for {target}",
                              'font' : {'size' : 30}},
                       hovermode='x unified',
+                      legend={'font' : {'size' : 15} },
                       )
 
     return fig
@@ -339,48 +329,28 @@ def make_plots(base_datadir, outdir_name, dr):
         # get the ULLYSES HLSP name for the target
         target = match_aliases(fits.getval(grating_cspec[0], 'TARGNAME'))
 
-        # create empty buttons for multiple scale options
-        buttons = ['Linear Scale', 'Log Scale']
-        n_all_traces = []
-        all_vis = []
+        ## row 1; grating only files (cspec)
+        detectors = []
+        for i_cspec, cspec_file in enumerate(np.sort(grating_cspec)):
+            fig, d = open_files_and_plot(fig, cspec_file, 1, f'{i_cspec}grating', CSPEC_COLORS[i_cspec])
+            detectors.append(d)
 
-        # looping through the traces to make my buttons. Visible by default for linear
-        #   first. Not visible for log scale
-        for i, (buttonname, vis) in enumerate(zip(buttons, [True, False])):
-            # initializing a False array except for the button that will be visible
-            #    will be adjusted to account for the number of traces per plot later
-            current_plot_visibility = [False] * len(buttons)
-            current_plot_visibility[i] = True
-            all_vis.append(current_plot_visibility)
+        ## row 2; abutted files
+        for i_aspec, aspec_file in enumerate(np.sort(combined_aspec)):
+            fig, d = open_files_and_plot(fig, aspec_file, 2, f'{i_aspec}combined', ASPEC_COLORS[i_aspec])
 
-            temp_trace_count = 0
+        # for d in np.unique(detectors):
+        #     fig = add_tts_regions(fig, d)
 
-            ## row 1; grating only files (cspec)
-            detectors = []
-            for i_cspec, cspec_file in enumerate(np.sort(grating_cspec)):
-                fig, d, tc = open_files_and_plot(fig, cspec_file, 1, f'{i_cspec}grating', CSPEC_COLORS[i_cspec], visible=vis)
-                detectors.append(d)
-                temp_trace_count += tc
-
-            ## row 2; abutted files
-            for i_aspec, aspec_file in enumerate(np.sort(combined_aspec)):
-                fig, d, tc = open_files_and_plot(fig, aspec_file, 2, f'{i_aspec}combined', ASPEC_COLORS[i_aspec], visible=vis)
-                temp_trace_count += tc
-
-            # for d in np.unique(detectors):
-            #     fig = add_tts_regions(fig, d)
-
-            ## plot the preview spec over both of them
-            fig, ntraces, plotting_max = plot_preview(fig, targ_dir, visible=vis)
-            temp_trace_count += ntraces # preview added to each row
-
-            n_all_traces.append(temp_trace_count) # counting the total number of traces for the buttons
-
+        ## plot the preview spec over both of them
+        fig, plotting_max = plot_preview(fig, targ_dir)
 
         ## formatting
         fig = update_plot_layouts(fig, plotting_max, target)
 
-        fig = make_buttons(fig, all_vis, n_all_traces, buttons)
+        # create empty buttons for multiple scale options
+        buttons = ['Linear Scale', 'Log Scale']
+        fig = make_buttons(fig, buttons)
 
         ## save the plot out
         dr_outdir = os.path.join(outdir_name, f"dr{dr}")
@@ -407,10 +377,13 @@ def make_plots(base_datadir, outdir_name, dr):
 if __name__ == "__main__":
 
     # Trying to make more color-blind accesible. Splitting into blue & red hues
-    CSPEC_COLORS = ["#125A56", "#238F9D", "#60BCE9", "#05457D", #"#C6DBED",
-                    "#00767B", "#42A7C6", "#9DCCEF", "#DEE6E7"] # blues
-    ASPEC_COLORS = ["#A01813", "#E94C1F", "#FD9A44", "#F9D576",
-                    "#D11807", "#F57634", "#FFB954", "#F0E6B2"] # reds
+    # ASPEC_COLORS = ["#125A56", "#238F9D", "#60BCE9", "#05457D", #"#C6DBED",
+    #                 "#00767B", "#42A7C6", "#9DCCEF", "#DEE6E7"] # blues
+    ASPEC_COLORS = ["#C2A5CF", "#9970AB", "#762A83", "#E7D4E8"] # purple
+    CSPEC_COLORS = ["#A01813", "#D11807", "#E94C1F", "#F57634", "#FD9A44",
+                    "#FFB954"] # reds
+    # CSPEC_COLORS = CSPEC_COLORS[::-1]
+    # ASPEC_COLORS = ASPEC_COLORS[::-1]
 
     datadir = "/astro/ullyses/ULLYSES_HLSP/"
     outdir = '/astro/ullyses/preview_plots/' # sorted into dr#/<highmass/lowmass>
