@@ -15,7 +15,11 @@ The first two steps are to create and activate an environment:
    
 Python version 3.8 or greater is required for some dependencies, including `calcos`, the COS data calibration pipeline used in these scripts.
 
-To install your own copy of the code into that environment, you first need to fork and clone the `ullyses` repo:
+Then simply install the latest release of ullyses from pip:
+
+    pip install ullyses
+
+To install your own copy of the development version from github, you first need to fork and clone the `ullyses` repo:
 
     cd <where you want to put the repo>
     git clone https://github.com/spacetelescope/ullyses
@@ -23,7 +27,7 @@ To install your own copy of the code into that environment, you first need to fo
 
 Install from your local checked-out copy:
 
-    python setup.py install
+    pip install -e .
 
 All package dependencies will be installed simultaneously, including `ullyses-utils`, which can be found at https://github.com/spacetelescope/ullyses-utils.
 
