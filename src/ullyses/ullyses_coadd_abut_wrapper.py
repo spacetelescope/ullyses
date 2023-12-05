@@ -531,7 +531,7 @@ def coadd_parser():
                         help="Directory(ies) with data to combine")
     parser.add_argument("-o", "--outdir", default=None,
                         help="Directory for output HLSPs")
-    parser.add_argument("-v", "--version", default=VERSION,
+    parser.add_argument("-v", "--version", default=__release__,
                         help="Version number of the HLSP")
     parser.add_argument("-c", "--clobber", default=False,
                         action="store_true",
