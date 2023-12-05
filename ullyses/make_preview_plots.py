@@ -17,31 +17,6 @@ from ullyses_utils.parse_csv import parse_database_csv
 
 #-------------------------------------------------------------------------------
 
-def create_visibility(trace_lengths, visible_list):
-    '''Create visibility lists for plotly buttons. trace_lengths and visible_list
-    must be in the correct order.
-
-    Inputs:
-    -------
-    - trace_lengths : list
-        List of the number of traces in each "button set".
-    - visible_list : list
-        Visibility setting for each button set (either True or False).
-
-    Outputs:
-    --------
-    - visibility : list
-        an updated list of the visibility for each added trace
-    '''
-
-    visibility = []  # Total visibility. Length should match the total number of traces in the figure.
-    for visible, trace_length in zip(visible_list, trace_lengths):
-        visibility += list(repeat(visible, trace_length))  # Set each trace per button.
-
-    return visibility
-
-#-------------------------------------------------------------------------------
-
 def make_buttons(fig, all_vis, n_all_traces, button_names):
     '''Create buttons for plotly figures, being careful to count all of the
     number of traces being added.
@@ -64,15 +39,9 @@ def make_buttons(fig, all_vis, n_all_traces, button_names):
         the figure returned with updated buttons
     '''
 
-    # Create a dictionary of the visibility parameters based on the number of traces
-    # all of the traces that are drawn per subplot plus what we want to show by defualt
-    # vis will look like [True, False, False], [False, True, False], etc
-    all_vis = [create_visibility(n_all_traces, vis) for vis in all_vis]
-
     buttons = [dict(label=str(label),
                     method='relayout',
-                    args=[{'visible': visibility,
-                           'yaxis.type' : scale_type,
+                    args=[{'yaxis.type' : scale_type,
                            'yaxis2.type' : scale_type,
                            },])
                for label, visibility, scale_type in zip(button_names, all_vis, ['linear', 'log'])]
@@ -198,33 +167,31 @@ def add_spectral_trace(fig, wave, flux, lbl, row, legendgroup, color, showlegend
 
 #-------------------------------------------------------------------------------
 
-def open_files_and_plot(fig, cspec_file, row, flux_maxes, legendgroup, color, visible=True, dash=None):
+def open_files_and_plot(fig, cspec_file, row, legendgroup, color, visible=True, dash=None):
 
     #print(cspec_file)
     trace_count = 0
     with fits.open(cspec_file) as hdu:
         detector = hdu[0].header['DETECTOR']
-        echelle = any([g.startswith('E') for g in hdu[2].data['DISPERSER']])
         all_gratings = [g for g in hdu[2].data['DISPERSER']]
         lbl = f"{hdu[0].header['TELESCOP']} {hdu[0].header['INSTRUME']} {'&'.join(np.unique(all_gratings))}"
 
         for ext in range(len(hdu[1].data)):
             wave = hdu[1].data["WAVELENGTH"][ext]
             flux = hdu[1].data["FLUX"][ext]
+            # set the zeros to nans for better plotting
+            flux[np.where(flux == 0.0)[0]] = "nan"
 
             if ext > 1:
                 showlegend = False
             else:
                 showlegend = True
 
-            # adding in a deepcopy to the flux b/c I modify the array & python edits it and
-            #   then doesn't plot it otherwise
-            flux_maxes.append(get_max_flux(wave, deepcopy(flux), echelle=echelle))
             fig = add_spectral_trace(fig, wave, flux, lbl, row, legendgroup, color,
                                      showlegend=showlegend, dash=dash, visible=visible)
             trace_count += 1
 
-    return fig, flux_maxes, detector, trace_count
+    return fig, detector, trace_count
 
 #-------------------------------------------------------------------------------
 
@@ -234,12 +201,21 @@ def plot_preview(fig, targ_dir, visible=True):
 
     prev = glob.glob(os.path.join(targ_dir, '*_preview-spec.fits'))
     if len(prev) == 0:
-        return fig, ntraces
+        #setting the default no preview to something reasonable
+        flux_max = [5E-13]
+        return fig, ntraces, flux_max
 
     with fits.open(prev[0]) as hdu:
         wave = hdu[1].data["WAVELENGTH"].ravel()
         flux = hdu[1].data["FLUX"].ravel()
-        #flux[np.where(flux == 0.0)[0]] = "nan"
+
+        echelle = any([g.startswith('E') for g in hdu[2].data['DISPERSER']])
+        # adding in a deepcopy to the flux b/c I modify the array & python edits it and
+        #   then doesn't plot it otherwise
+        flux_max = get_max_flux(wave, deepcopy(flux), echelle=echelle)
+
+        # after getting the plotting maxes, set the zero flux to nan for better plots
+        flux[np.where(flux == 0.0)[0]] = "nan"
 
     for row in [1, 2]:
 
@@ -264,7 +240,7 @@ def plot_preview(fig, targ_dir, visible=True):
 
         ntraces += 1
 
-    return fig, ntraces
+    return fig, ntraces, flux_max
 
 #-------------------------------------------------------------------------------
 
@@ -280,7 +256,6 @@ def update_plot_layouts(fig, ymax_arr, target):
                       yaxis={'showexponent': 'all',
                              'exponentformat': 'E',
                              'autorange' : False,
-                             'rangemode': 'tozero',
                              'range' : [-0.1*np.max(ymax_arr), 1.10*np.max(ymax_arr)],
                              'title': {'text' : 'Flux (erg/s/cm<sup>2</sup>/&#8491;)',
                                        'font' : {'size' : 25}, },
@@ -289,7 +264,6 @@ def update_plot_layouts(fig, ymax_arr, target):
                       yaxis2={'showexponent': 'all',
                               'exponentformat': 'E',
                               'autorange' : False,
-                              'rangemode': 'tozero',
                               'range' : [-0.1*np.max(ymax_arr), 1.10*np.max(ymax_arr)],
                               'title': {'text' : 'Flux (erg/s/cm<sup>2</sup>/&#8491;)',
                                         'font' : {'size' : 25}, },
@@ -323,7 +297,7 @@ def high_and_low_df():
 
 #-------------------------------------------------------------------------------
 
-def make_plots(outdir_name, dr):
+def make_plots(base_datadir, outdir_name, dr):
 
     # There are different levels for different combinations of gratings:
     #   panel 1 is individual gratings
@@ -336,9 +310,9 @@ def make_plots(outdir_name, dr):
     # hd-104237e
     # av-456
     no_previews = []
-    for targ_dir in np.sort(glob.glob("/astro/ullyses/ULLYSES_HLSP/*")):
+    for targ_dir in np.sort(glob.glob(os.path.join(base_datadir, "*"))):
 
-        targ_dir = os.path.join(targ_dir, "dr7")
+        targ_dir = os.path.join(targ_dir, f"dr{dr}")
 
         ## sort out the different types of cspec files
         # CSPEC files: *_<target>_<grating>_dr?_cspec.fits
@@ -382,31 +356,29 @@ def make_plots(outdir_name, dr):
             temp_trace_count = 0
 
             ## row 1; grating only files (cspec)
-            grating_ymaxes = []
             detectors = []
             for i_cspec, cspec_file in enumerate(np.sort(grating_cspec)):
-                fig, grating_ymaxes, d, tc = open_files_and_plot(fig, cspec_file, 1, grating_ymaxes, f'{i_cspec}grating', CSPEC_COLORS[i_cspec], visible=vis)
+                fig, d, tc = open_files_and_plot(fig, cspec_file, 1, f'{i_cspec}grating', CSPEC_COLORS[i_cspec], visible=vis)
                 detectors.append(d)
                 temp_trace_count += tc
 
             ## row 2; abutted files
-            combined_maxes = []
             for i_aspec, aspec_file in enumerate(np.sort(combined_aspec)):
-                fig, combined_maxes, d, tc = open_files_and_plot(fig, aspec_file, 2, combined_maxes, f'{i_aspec}combined', ASPEC_COLORS[i_aspec], visible=vis)
+                fig, d, tc = open_files_and_plot(fig, aspec_file, 2, f'{i_aspec}combined', ASPEC_COLORS[i_aspec], visible=vis)
                 temp_trace_count += tc
 
             # for d in np.unique(detectors):
             #     fig = add_tts_regions(fig, d)
 
             ## plot the preview spec over both of them
-            fig, ntraces = plot_preview(fig, targ_dir, visible=vis)
+            fig, ntraces, plotting_max = plot_preview(fig, targ_dir, visible=vis)
             temp_trace_count += ntraces # preview added to each row
 
             n_all_traces.append(temp_trace_count) # counting the total number of traces for the buttons
 
 
         ## formatting
-        fig = update_plot_layouts(fig, grating_ymaxes, target)
+        fig = update_plot_layouts(fig, plotting_max, target)
 
         fig = make_buttons(fig, all_vis, n_all_traces, buttons)
 
@@ -418,12 +390,12 @@ def make_plots(outdir_name, dr):
             os.mkdir(os.path.join(dr_outdir, 'lowmass'))
 
         if target in list(highmass_df['target_name_hlsp']):
-            fig_outname = os.path.join(dr_outdir, f'highmass/{target}_preview_dr7.html')
+            fig_outname = os.path.join(dr_outdir, f'highmass/{target}_preview_dr{dr}.html')
         elif target in list(lowmass_df['target_name_hlsp']):
-            fig_outname = os.path.join(dr_outdir, f'lowmass/{target}_preview_dr7.html')
+            fig_outname = os.path.join(dr_outdir, f'lowmass/{target}_preview_dr{dr}.html')
         else:
             print(f'{target} not recognized')
-            fig_outname = os.path.join(dr_outdir, f'{target}_preview_dr7.html')
+            fig_outname = os.path.join(dr_outdir, f'{target}_preview_dr{dr}.html')
 
         fig.write_html(fig_outname)
         print(f'Saved: {fig_outname}')
@@ -440,9 +412,10 @@ if __name__ == "__main__":
     ASPEC_COLORS = ["#A01813", "#E94C1F", "#FD9A44", "#F9D576",
                     "#D11807", "#F57634", "#FFB954", "#F0E6B2"] # reds
 
+    datadir = "/astro/ullyses/ULLYSES_HLSP/"
     outdir = '/astro/ullyses/preview_plots/' # sorted into dr#/<highmass/lowmass>
     dr = 7 # data release number
-    no_previews = make_plots(outdir, dr)
+    no_previews = make_plots(datadir, outdir, dr)
     print('No files for:')
     for p in no_previews:
         print(f"{p}; {glob.glob(os.path.join(p, '*'))}")
