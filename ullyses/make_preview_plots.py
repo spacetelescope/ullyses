@@ -103,7 +103,7 @@ def add_tts_regions(fig, detector):
 
 #-------------------------------------------------------------------------------
 
-def get_max_flux(wave, flux, dlam=10., echelle=False):
+def get_max_flux(wave, flux, gratings, dlam=10.):
     '''
     Determine the maximum flux in spectrum after excluding the contribution
       from strong airglow lines. Currently the absolute maximum is chosen,
@@ -120,7 +120,13 @@ def get_max_flux(wave, flux, dlam=10., echelle=False):
                      1355.5977 : 'O I UV1',
                     }
 
-    for i, line in enumerate(airglow_lines.keys()):
+    echelle_edges = {'E140H' : (1130, 1170),
+                     'E140M' : (1130, 1170),
+                     'E230M' : (1600, 1700),
+                     'E230H' : (1600, 1700)}
+
+    # exclude the airglow regions in the calculation
+    for line in airglow_lines.keys():
         # find where the airglow is in the spectrum (if any)
         #  Full width is dlam, so range is (lam0-dlam/2, lam0+dlam/2)
         wh_airglow = np.where( (wave >= line-(dlam/2)) & (wave <= line+(dlam/2)) )[0]
@@ -128,14 +134,13 @@ def get_max_flux(wave, flux, dlam=10., echelle=False):
             # set the flux to zero in that region
             flux[wh_airglow] = 0.
 
-    # exclude the edges as well;
-    if echelle:
-        # the echelle edges extend pretty far
-        flux = flux[20000:-1001]
-    elif len(flux) > 3000:
-        flux = flux[1000:-1001]
-    else:
-        flux = flux[100:-100]
+    # exclude noisy edges in the calculation
+    for grating, waverange in echelle_edges.items():
+        if grating in gratings:
+            wh_grating = np.where( (wave >= waverange[0]) & (wave <= waverange[1]) )[0]
+            if len(wh_grating):
+                # set the flux to zero in that region
+                flux[wh_grating] = 0.
 
     return flux.max()
 
@@ -162,12 +167,12 @@ def open_files_and_plot(fig, cspec_file, row, legendgroup, color):
                 showlegend = True
 
             ## add the spectrum
-            fig.add_trace(go.Scattergl(x=wave,
+            fig.add_trace(go.Scatter(x=wave,
                                        y=flux,
                                        mode='lines',
                                        line=dict(color=color,
-                                                 width=2),
-                                       opacity=0.5,
+                                                 width=2.5),
+                                       opacity=0.85,
                                        showlegend=False,
                                        legendgroup=legendgroup,
                                        hovertemplate = '%{text}<br>(%{x}, %{y})<extra></extra>',
@@ -175,10 +180,10 @@ def open_files_and_plot(fig, cspec_file, row, legendgroup, color):
                                        ), row=row, col=1)
 
     ## adding a trace for the label to make it bigger
-    fig.add_trace(go.Scattergl(x=[wave.min()], y=[-1E-16],
+    fig.add_trace(go.Scatter(x=[wave.min()], y=[-1E-16],
                                mode='lines',
                                line=dict(color=color, width=4),
-                               opacity=0.8,
+                               opacity=0.85,
                                name=lbl,
                                legendgroup=legendgroup,
                                ), row=row, col=1)
@@ -199,34 +204,33 @@ def plot_preview(fig, targ_dir):
         wave = hdu[1].data["WAVELENGTH"].ravel()
         flux = hdu[1].data["FLUX"].ravel()
 
-        echelle = any([g.startswith('E') for g in hdu[2].data['DISPERSER']])
         # adding in a deepcopy to the flux b/c I modify the array & python edits it and
         #   then doesn't plot it otherwise
-        flux_max = get_max_flux(wave, deepcopy(flux), echelle=echelle)
+        flux_max = get_max_flux(wave, deepcopy(flux), hdu[2].data['DISPERSER'])
 
         # after getting the plotting maxes, set the zero flux to nan for better plots
         flux[np.where(flux == 0.0)[0]] = "nan"
 
     for row in [1, 2]:
         fig.add_trace(go.Scatter(x=wave,
-                                 y=flux,
-                                 mode='lines',
-                                 line=dict(width=2,
-                                           color='dimgrey'),
-                                 opacity=0.6,
-                                 legendgroup='preview',
-                                 showlegend=False,
-                                 hovertemplate = '<b>All Abutted</b><br>(%{x}, %{y})<extra></extra>',
-                                 legendrank=1001, # in legend top if legend rank < 1000 & bottom if rank > 1000
-                                 ), row=row, col=1)
+                                   y=flux,
+                                   mode='lines',
+                                   line=dict(width=1.5,
+                                             color='black'),
+                                   opacity=0.7,
+                                   legendgroup='preview',
+                                   showlegend=False,
+                                   hovertemplate = '<b>All Abutted</b><br>(%{x}, %{y})<extra></extra>',
+                                   ), row=row, col=1)
 
     ## adding a trace for the label to make it bigger
-    fig.add_trace(go.Scattergl(x=[wave.min()], y=[-1E-16],
+    fig.add_trace(go.Scatter(x=[wave.min()], y=[-1E-16],
                                mode='lines',
-                               line=dict(color='dimgrey', width=4),
-                               opacity=0.8,
+                               line=dict(color='black', width=4),
+                               opacity=0.7,
                                name='All Abutted Spectra<br>(Level 4 HLSP)',
                                legendgroup='preview',
+                               #legendrank=1001, # in legend top if legend rank < 1000 & bottom if rank > 1000
                                ), row=1, col=1)
 
     return fig, flux_max
@@ -376,14 +380,11 @@ def make_plots(base_datadir, outdir_name, dr):
 
 if __name__ == "__main__":
 
-    # Trying to make more color-blind accesible. Splitting into blue & red hues
-    # ASPEC_COLORS = ["#125A56", "#238F9D", "#60BCE9", "#05457D", #"#C6DBED",
-    #                 "#00767B", "#42A7C6", "#9DCCEF", "#DEE6E7"] # blues
-    ASPEC_COLORS = ["#C2A5CF", "#9970AB", "#762A83", "#E7D4E8"] # purple
-    CSPEC_COLORS = ["#A01813", "#D11807", "#E94C1F", "#F57634", "#FD9A44",
-                    "#FFB954"] # reds
-    # CSPEC_COLORS = CSPEC_COLORS[::-1]
-    # ASPEC_COLORS = ASPEC_COLORS[::-1]
+    # Trying to make more color-blind accesible.
+    CSPEC_COLORS = ['#d8c53b', '#8ab445', '#93c8b5', '#3a9dab', '#4f88cc',
+                    '#7480d6', '#9075d3', '#b371c4'] # yellow -> green-> blue
+    ASPEC_COLORS = ['#b19bc2', '#82569c', '#4e2a67', '#859a87', '#255b2b',
+                    '#47834f', '#95b399'] # purples -> green (if needed)
 
     datadir = "/astro/ullyses/ULLYSES_HLSP/"
     outdir = '/astro/ullyses/preview_plots/' # sorted into dr#/<highmass/lowmass>
