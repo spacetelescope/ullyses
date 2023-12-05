@@ -560,7 +560,7 @@ def create_primary_header(ensemble, filename):
     # If the target is a ULLYSES target, use the official
     # target name and coords
     ensemble.target = ensemble.get_targname()
-    ensemble.targ_ra, ensemble.targ_dec = ensemble.get_coords()
+    ensemble.targ_ra, ensemble.targ_dec, ensemble.coord_epoch = ensemble.get_coords()
 
     hdr0 = fits.Header()
     hdr0['EXTEND'] = ('T', 'FITS file may contain extensions')
@@ -585,7 +585,8 @@ def create_primary_header(ensemble, filename):
     hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
     hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
-    ra, dec = ensemble.get_coords()
+    ra, dec, coord_epoch = ensemble.get_coords()
+    hdr0['EPOCH'] =  (coord_epoch,  'Epoch')
     hdr0['TARG_RA'] =  (ra,  '[deg] Target right ascension')
     hdr0['TARG_DEC'] =  (dec,  '[deg] Target declination')
     hdr0['PROPOSID'] = (ensemble.combine_keys("proposid", "multi"), 'Program identifier')
@@ -602,11 +603,14 @@ def create_primary_header(ensemble, filename):
     hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
     hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')
 
-    hdr0['CENTRWV'] = (ensemble.combine_keys("centrwv", "average"), 'Central wavelength of the data')
+    minwave = ensemble.combine_keys("minwave", "min")
+    maxwave = ensemble.combine_keys("maxwave", "max")
+    centrwv = ((maxwave - minwave)/2.) + minwave
+    hdr0['CENTRWV'] = (centrwv, 'Central wavelength of the data')
     hdr0.add_blank(after='REFERENC')
     hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')
-    hdr0['MINWAVE'] = (ensemble.combine_keys("minwave", "min"), 'Minimum wavelength in spectrum')
-    hdr0['MAXWAVE'] = (ensemble.combine_keys("maxwave", "max"), 'Maximum wavelength in spectrum')
+    hdr0['MINWAVE'] = (minwave, 'Minimum wavelength in spectrum')
+    hdr0['MAXWAVE'] = (maxwave, 'Maximum wavelength in spectrum')
 
     primary = fits.PrimaryHDU(header=hdr0)
     return primary
@@ -645,7 +649,9 @@ def create_extension_1_header(ensemble):
     hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
     hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
     hdr1['XPOSURE'] = (ensemble.combine_keys("exptime", "sum"), '[s] Sum of exposure durations')
-    hdr1['COMMENT'] = (ensemble.combine_keys("comment", "concat"), "Calibration and/or quality comment")
+    all_comments = self.combine_keys("comment", "comment")
+    for comment in all_comments:
+        hdr1['COMMENT'] = (comment, "Calibration and/or quality comment")
     return hdr1
 
 def create_extension_2(ensemble):

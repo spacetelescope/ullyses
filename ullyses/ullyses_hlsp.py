@@ -10,7 +10,7 @@ from datetime import datetime as dt
 from astropy.time import Time
 import sys
 
-from ullyses_utils.parse_csv import parse_aliases
+from ullyses_utils import parse_csv, match_aliases
 from ullyses_utils.ullyses_config import VERSION, CAL_VER
 from ullyses.combine_header_keys import KeyBlender
 
@@ -19,7 +19,7 @@ RED = "\033[1;31m"
 RESET = "\033[0;0m"
 
 class Ullyses(KeyBlender):
-    def __init__(self, files, hlspname, targname, ra, dec, level,
+    def __init__(self, files, hlspname, targname, level,
                  cal_ver=CAL_VER, version=VERSION, hlsp_type="spectral", 
                  overwrite=True, photfile=None):
         
@@ -67,8 +67,7 @@ class Ullyses(KeyBlender):
                             hdr["arm"] = "VIS"
                         self.first_headers.append(hdulist[i].header) 
         self.targname = targname
-        self.targ_ra = ra
-        self.targ_dec = dec
+        self.targ_ra, self.targ_dec, self.coord_epoch = self.get_coords()
         self.hlspname = hlspname
         self.cal_ver = cal_ver
         self.version = version
@@ -85,7 +84,6 @@ class Ullyses(KeyBlender):
         else:
             tel = self.primary_headers[0]["telescop"]
             self.telescope = tel
-
 #        match self.hlsp_type:
 #            case "lcogt":
 #                self.telescope = "LCOGT"
@@ -97,6 +95,33 @@ class Ullyses(KeyBlender):
 #                tel = self.primary_headers[0]["telescop"]
 #                self.telescope = tel
 
+    def get_coords(self):
+        try:
+            ras = list(set([h["ra_targ"] for h in self.primary_headers]))
+            decs = list(set([h["dec_targ"] for h in self.primary_headers]))
+            ra = np.average(ras)
+            dec = np.average(decs)
+            epoch = "UNKNOWN"
+        except:
+            ra,dec,epoch = (0, 0," UNKNOWN")
+        if self.targname == "":
+            print(f"{RED}NO COORDINATES FOUND FOR {self.targname}{RESET}")
+            return ra, dec, epoch
+        csvs, metadata_dfs = parse_csv.parse_database_csv("all")
+        ull_alias = match_aliases.match_aliases(self.targname, "target_name_ullyses")
+        found = False
+        for df in metadata_dfs: 
+            df['target_name_ullyses'] = df['target_name_ullyses'].str.upper()
+            row = df.loc[df.target_name_ullyses == ull_alias]
+            if len(row) == 1:
+                ra = row.targ_ra.values[0]
+                dec = row.targ_dec.values[0]
+                epoch = float(row.coordinate_epoch.values[0])
+                found = True
+                break
+        if found is False:
+            print(f"{RED}NO COORDINATES FOUND FOR {self.targname}{RESET}")
+        return ra, dec, epoch
 
 
     def make_hdrs_and_prov(self):
@@ -173,6 +198,7 @@ class Ullyses(KeyBlender):
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
         hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
+        hdr0['EPOCH'] =  (self.coord_epoch,  'Epoch')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
         hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi"), 'Program identifier')
@@ -187,13 +213,16 @@ class Ullyses(KeyBlender):
         hdr0['HLSP_LVL'] = (self.level, 'ULLYSES HLSP Level')
         hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
-        hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')  
-                                                                                                                           
-        hdr0['CENTRWV'] = (self.combine_keys("centrwv", "average"), 'Central wavelength of the data')                      
-        hdr0.add_blank(after='REFERENC')                                                                                   
-        hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')                                           
-        hdr0['MINWAVE'] = (self.combine_keys("minwave", "min"), 'Minimum wavelength in spectrum')                          
-        hdr0['MAXWAVE'] = (self.combine_keys("maxwave", "max"), 'Maximum wavelength in spectrum')
+        hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')
+
+        minwave = self.combine_keys("minwave", "min")
+        maxwave = self.combine_keys("maxwave", "max")
+        centrwv = ((maxwave - minwave)/2.) + minwave
+        hdr0['CENTRWV'] = (centrwv, 'Central wavelength of the data') 
+        hdr0.add_blank(after='REFERENC')
+        hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')
+        hdr0['MINWAVE'] = (minwave, 'Minimum wavelength in spectrum')
+        hdr0['MAXWAVE'] = (maxwave, 'Maximum wavelength in spectrum')
     
         self.hdr0 = hdr0 
 
@@ -230,6 +259,7 @@ class Ullyses(KeyBlender):
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
         hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
+        hdr0['EPOCH'] =  (self.coord_epoch,  'Epoch')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
         hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi"), 'Program identifier')
@@ -273,6 +303,7 @@ class Ullyses(KeyBlender):
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
         hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
+        hdr0['EPOCH'] =  (self.coord_epoch,  'Epoch')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
         hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi", dict_key="LCOGT"), 'Program identifier')
@@ -316,7 +347,7 @@ class Ullyses(KeyBlender):
         hdr0['TARGNAME'] = (self.targname, 'Target Name')
         hdr0.add_blank(after='OBSMODE')
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
-        hdr0['EQUINOX'] = (self.combine_keys("equinox", "multi"), )
+        hdr0['EPOCH'] =  (self.coord_epoch,  'Epoch')
         hdr0['RADESYS'] = (self.combine_keys("radesys", "multi"), 'World coordinate reference frame')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
@@ -357,7 +388,9 @@ class Ullyses(KeyBlender):
         hdr1['TIMESYS'] = ('UTC', 'Time system in use')
         hdr1['TIMEUNIT'] = ('s', 'Time unit for durations')
         hdr1['TREFPOS'] = ('GEOCENTER', 'Time reference position')
-        hdr1['COMMENT'] = (self.combine_keys("comment", "concat"), "Calibration and/or quality comment")
+        all_comments = self.combine_keys("comment", "comment")
+        for comment in all_comments:
+            hdr1['COMMENT'] = (comment, "Calibration and/or quality comment")
 
         mjd_beg = self.combine_keys("expstart", "min")
         mjd_end = self.combine_keys("expend", "max")
@@ -380,7 +413,9 @@ class Ullyses(KeyBlender):
         hdr1['TIMESYS'] = ('UTC', 'Time system in use')
         hdr1['TIMEUNIT'] = ('s', 'Time unit for durations')
         hdr1['TREFPOS'] = ('GEOCENTER', 'Time reference position')
-        hdr1['COMMENT'] = (self.combine_keys("comment", "concat"), "Calibration and/or quality comment")
+        all_comments = self.combine_keys("comment", "comment")
+        for comment in all_comments:
+            hdr1['COMMENT'] = (comment, "Calibration and/or quality comment")
 
         mjd_beg = self.combine_keys("expstart", "min", "WFC3")
         mjd_end = self.combine_keys("expend", "max", "WFC3")
@@ -404,7 +439,9 @@ class Ullyses(KeyBlender):
         hdr1['TIMESYS'] = ('UTC', 'Time system in use')
         hdr1['TIMEUNIT'] = ('s', 'Time unit for durations')
         hdr1['TREFPOS'] = ('GEOCENTER', 'Time reference position')
-        hdr1['COMMENT'] = (self.combine_keys("comment", "concat"), "Calibration and/or quality comment")
+        all_comments = self.combine_keys("comment", "comment")
+        for comment in all_comments:
+            hdr1['COMMENT'] = (comment, "Calibration and/or quality comment")
 
         mjd_beg = self.photdf.iloc[0]["mjdstart"]
         mjd_end = self.photdf.iloc[-1]["mjdend"]
@@ -500,7 +537,9 @@ class Ullyses(KeyBlender):
         hdr.add_blank('              / FITS TIME COORDINATE KEYWORDS', before='TIMESYS')
         hdr['TIMEUNIT'] = ('s', 'Time unit for durations')
         hdr['TREFPOS'] = ('GEOCENTER', 'Time reference position')
-        hdr['COMMENT'] = (self.combine_keys("comment", "concat"), "Calibration and/or quality comment")
+        all_comments = self.combine_keys("comment", "comment")
+        for comment in all_comments:
+            hdr1['COMMENT'] = (comment, "Calibration and/or quality comment")
         mjd_beg = self.combine_keys("expstart", "min")
         mjd_end = self.combine_keys("expend", "max")
         dt_beg = Time(mjd_beg, format="mjd").datetime

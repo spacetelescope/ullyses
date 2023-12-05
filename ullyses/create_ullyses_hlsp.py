@@ -32,7 +32,7 @@ def make_imaging_hlsps(drcfile, outdir, targ, hdr_targ=None, hlspname=None):
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     outfile = os.path.join(outdir, hlspname)
-    U = Ullyses(files=[drcfile], hlspname=outfile, targname=hdr_targ, ra=ra, dec=dec, 
+    U = Ullyses(files=[drcfile], hlspname=outfile, targname=hdr_targ, 
                 cal_ver=CAL_VER, version=VERSION, level=6, hlsp_type="drizzled")
     U.make_hdrs_and_prov()
     U.write_file()
@@ -76,7 +76,7 @@ def make_lcogt_tss(indir, outdir, targ, hlspname=None, photfile=None):
         os.makedirs(outdir)
     outfile = os.path.join(outdir, hlspname)
     U = Ullyses(files=filepaths, hlspname=outfile, targname=ull_targname, 
-                ra=ra, dec=dec, cal_ver=CAL_VER, version=VERSION, level=5, 
+                cal_ver=CAL_VER, version=VERSION, level=5, 
                 hlsp_type="lcogt", photfile=photfile)
     U.make_hdrs_and_prov()
     U.write_file()
@@ -108,7 +108,7 @@ def make_xsu_hlsps(infile, outdir, targ, hlspname=None):
         os.makedirs(outdir)
     outfile = os.path.join(outdir, hlspname)
     U = Ullyses(files=[infile], hlspname=outfile, targname=ull_targname,  
-                ra=ra, dec=dec, cal_ver=CAL_VER, version=VERSION, level=7, 
+                cal_ver=CAL_VER, version=VERSION, level=7, 
                 hlsp_type="xsu", overwrite=True)
     U.make_hdrs_and_prov()
     U.write_file()

@@ -136,7 +136,7 @@ def coadd_1d_spectra(files, targ, outdir):
         print(f"Removed {combined}")
     prod = STIScoadd(grating, inpath=coadd_dir, weighting_method='unity')
     prod.target = prod.get_targname()
-    prod.targ_ra, prod.targ_dec = prod.get_coords()
+    prod.targ_ra, prod.targ_dec, prod.coord_epoch = prod.get_coords()
     prod.create_output_wavelength_grid()
     ignore_file = os.path.basename(files[1])
     prod.coadd(ignore_dq_file=ignore_file)
