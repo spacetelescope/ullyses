@@ -400,8 +400,6 @@ def coadd_and_abut_files(infiles, outdir, version=__release__, clobber=False):
             prod.target = prod.get_targname()
             prod.targ_ra, prod.targ_dec, prod.coord_epoch = prod.get_coords()
             target = prod.target.lower()
-            else:
-                dir_target = target
             if outdir_inplace is True:
                 outdir = os.path.join(HLSP_DIR, dir_target, version)
             if not os.path.exists(outdir):
@@ -420,8 +418,6 @@ def coadd_and_abut_files(infiles, outdir, version=__release__, clobber=False):
             # this writes the output file
             # If making HLSPs for a DR, put them in the official folder
             target = prod.target.lower()
-            else:
-                dir_target = target
             if outdir_inplace is True:
                 outdir = os.path.join(HLSP_DIR, dir_target, version)
             if not os.path.exists(outdir):

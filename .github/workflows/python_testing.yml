@@ -62,5 +62,5 @@ jobs:
       run: |
         # run all the unit tests.
         pip install .
-        pytest tests/test_wrapper.py -v 
+        pytest src/ullyses/tests/test_wrapper.py -v
       working-directory: ${{env.working-directory}}
