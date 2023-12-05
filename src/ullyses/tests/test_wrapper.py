@@ -7,7 +7,7 @@ import tarfile
 
 from astropy.io.fits import FITSDiff
 
-from ullyses import ullyses_coadd_abut_wrapper as wrapper
+from .. import ullyses_coadd_abut_wrapper as wrapper
 from .. import __release__
 
 
@@ -20,7 +20,7 @@ HD104237E = {'name': 'hd-104237e',
 V_HK_ORI = {'name': 'v-hk-ori',
             'url': 'https://stsci.box.com/shared/static/dzw9gt283sz6rnekhtq88jxgcl2tq376.gz'}
 
-RELEASE = 'dr6'
+RELEASE = __release__
 
 
 class TestWrapper():
@@ -78,7 +78,7 @@ class TestWrapper():
 
     def run_wrapper(self, target):
         indir = target + '/' + RELEASE + '/input/'
-        wrapper.main(indir, outdir=indir, version=__release__)
+        wrapper.main(indir, outdir=indir, version=RELEASE)
         return
 
     def compare_outputs(self, target):
