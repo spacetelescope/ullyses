@@ -524,14 +524,14 @@ def main(indir, outdir, version=__release__, clobber=False):
     coadd_and_abut_files(allfiles, outdir, version, clobber)
 
 
-if __name__ == '__main__':
+def coadd_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--indir",
                         default="./",
                         help="Directory(ies) with data to combine")
     parser.add_argument("-o", "--outdir", default=None,
                         help="Directory for output HLSPs")
-    parser.add_argument("-v", "--version", default=__release__,
+    parser.add_argument("-v", "--version", default=VERSION,
                         help="Version number of the HLSP")
     parser.add_argument("-c", "--clobber", default=False,
                         action="store_true",
@@ -539,3 +539,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     main(args.indir, args.outdir, args.version, args.clobber)
+
+
+if __name__ == '__main__':
+    coadd_parser()
