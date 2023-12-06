@@ -35,7 +35,7 @@ dependencies = [
     "matplotlib",
     "pyyaml",
     "plotly",
-    "scipy>1.11.4",
+    "scipy>=1.11.4",
     "hasp>=0.9.5"
 ]
 
