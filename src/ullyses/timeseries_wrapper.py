@@ -17,8 +17,8 @@ import calcos
 from ullyses import splittag_wrapper
 from ullyses import timeseries
 import ullyses_utils
-from ullyses_utils.ullyses_config import VERSION
 from ullyses_utils.readwrite_yaml import read_config
+from . import __release__
 
 UTILS_DIR = ullyses_utils.__path__[0]
 RED = "\033[1;31m"
@@ -447,7 +447,7 @@ def create_exp_timeseries(datadir, tss_outdir, targ, tss_params, min_exptime=0.1
     ins = tss_params["instrument"]
     for grat in tss_params["gratings"]: 
         # Create the exposure level time-series spectra
-        outfile = os.path.join(tss_outdir, f"hlsp_ullyses_hst_{ins}_{targ}_{grat}_{VERSION.lower()}_tss.fits")
+        outfile = os.path.join(tss_outdir, f"hlsp_ullyses_hst_{ins}_{targ}_{grat}_{__release__.lower()}_tss.fits")
         try:
             timeseries.process_files(grat.upper(), outfile, datadir, overwrite=True, 
                                  ins=ins.upper(), min_exptime=min_exptime)
@@ -485,7 +485,7 @@ def create_subexp_timeseries(datadir, tss_outdir, targ, tss_params):
             os.makedirs(tss_outdir)
         # First create the exposure level time-series spectra
         indir = os.path.join(datadir, grat, "exp")
-        outfile = os.path.join(tss_outdir, f"hlsp_ullyses_hst_cos_{targ}_{grat}_{VERSION.lower()}_tss.fits")
+        outfile = os.path.join(tss_outdir, f"hlsp_ullyses_hst_cos_{targ}_{grat}_{__release__.lower()}_tss.fits")
         try:
             timeseries.process_files(grat.upper(), outfile, indir, overwrite=True, min_exptime=1) 
         except Exception:
@@ -503,7 +503,7 @@ def create_subexp_timeseries(datadir, tss_outdir, targ, tss_params):
         wl_bin = bins[epoch_ippp][grat]["wave"]
         min_exptime = bins[epoch_ippp][grat]["min_exptime"]
         indir = os.path.join(datadir, grat, "split")
-        outfile = os.path.join(tss_outdir, f"hlsp_ullyses_hst_cos_{targ}_{grat}_{VERSION.lower()}_split-tss.fits")
+        outfile = os.path.join(tss_outdir, f"hlsp_ullyses_hst_cos_{targ}_{grat}_{__release__.lower()}_split-tss.fits")
         try:
             timeseries.process_files(grating=grat.upper(), outfile=outfile, indir=indir, 
                                  wavelength_binning=wl_bin, min_exptime=min_exptime, 

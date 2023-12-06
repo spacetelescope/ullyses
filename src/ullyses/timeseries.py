@@ -13,7 +13,7 @@ import os
 
 from ullyses import coadd
 from ullyses import ullyses_coadd_abut_wrapper as wrapper
-from ullyses_utils.ullyses_config import VERSION, CAL_VER
+from . import __version__, __release__
 
 SECONDS_PER_DAY = 86400.0
 RED = "\033[1;31m"
@@ -592,12 +592,12 @@ def create_primary_header(ensemble, filename):
     hdr0['PROPOSID'] = (ensemble.combine_keys("proposid", "multi"), 'Program identifier')
     hdr0.add_blank(after='TARG_DEC')
     hdr0.add_blank('           / PROVENANCE INFORMATION', before='PROPOSID')
-    hdr0['CAL_VER'] = (f'ULLYSES Cal {CAL_VER}', 'HLSP processing software version')
+    hdr0['CAL_VER'] = (f'ULLYSES Cal {__version__}', 'HLSP processing software version')
     hdr0['HLSPID'] = ('ULLYSES', 'Name ID of this HLSP collection')
     hdr0['HSLPNAME'] = ('Hubble UV Legacy Library of Young Stars as Essential Standards',
                     'Name ID of this HLSP collection')
     hdr0['HLSPLEAD'] = ('Julia Roman-Duval', 'Full name of HLSP project lead')
-    hdr0['HLSP_VER'] = (VERSION,'HLSP data release version identifier')
+    hdr0['HLSP_VER'] = (__release__,'HLSP data release version identifier')
     hdr0['HLSP_LVL'] = (level, 'ULLYSES HLSP Level')
     hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
     hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')

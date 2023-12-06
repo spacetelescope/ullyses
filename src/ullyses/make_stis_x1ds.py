@@ -15,8 +15,8 @@ from ullyses.stis_coadd_x1d import coadd_1d_spectra
 import ullyses_utils
 
 utils_dir = ullyses_utils.__path__[0]
-from ullyses_utils.ullyses_config import VERSION, RENAME
 from ullyses_utils.readwrite_yaml import read_config
+from . import __release__
 
 CONFIG_DIR = os.path.join(utils_dir, "data", "stis_configs")
 OUTDIR_ROOT = None
@@ -135,10 +135,8 @@ def copy_rename_yaml(targ, outdir, config_dir=CONFIG_DIR):
         f = os.path.basename(item)
         spl = f.split("_")
         targ = spl[0].lower()
-        if targ in RENAME:
-            targ = RENAME[targ]
         grating = spl[1].split(".")[0]
-        newname = f"hlsp_ullyses_hst_stis_{targ}_{grating}_{VERSION}_spec.yaml"
+        newname = f"hlsp_ullyses_hst_stis_{targ}_{grating}_{__release__}_spec.yaml"
         if not os.path.exists(outdir):
             os.makedirs(outdir)
         shutil.copyfile(item, os.path.join(outdir, newname))

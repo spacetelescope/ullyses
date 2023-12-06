@@ -16,7 +16,7 @@ from ullyses.coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDS
 from ullyses.coadd import abut, SegmentList
 from ullyses.combine_header_keys import KeyBlender
 import ullyses_utils
-from ullyses_utils.ullyses_config import RENAME, VERSION, CAL_VER
+from . import __release__, __version__
 from ullyses_utils import parse_csv, match_aliases
 from hasp.grating_priority import create_level4_products
 
@@ -145,7 +145,7 @@ class Ullyses_SegmentList(KeyBlender, SegmentList):
         hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi"), 'Program identifier')
         hdr0.add_blank(after='TARG_DEC')
         hdr0.add_blank('           / PROVENANCE INFORMATION', before='PROPOSID')
-        hdr0['CAL_VER'] = (f'ULLYSES Cal {CAL_VER}', 'HLSP processing software version')
+        hdr0['CAL_VER'] = (f'ULLYSES Cal {__version__}', 'HLSP processing software version')
         hdr0['HLSPID'] = ('ULLYSES', 'Name ID of this HLSP collection')
         hdr0['HSLPNAME'] = ('Hubble UV Legacy Library of Young Stars as Essential Standards',
                         'Name ID of this HLSP collection')
@@ -334,7 +334,7 @@ def find_files(indir):
     return allfiles 
 
 
-def coadd_and_abut_files(infiles, outdir, version=VERSION, clobber=False):
+def coadd_and_abut_files(infiles, outdir, version=__release__, clobber=False):
     outdir_inplace = False
     if outdir is None:
         HLSP_DIR = os.getenv('HLSP_DIR')
@@ -400,10 +400,6 @@ def coadd_and_abut_files(infiles, outdir, version=VERSION, clobber=False):
             prod.target = prod.get_targname()
             prod.targ_ra, prod.targ_dec, prod.coord_epoch = prod.get_coords()
             target = prod.target.lower()
-            if target in RENAME:
-                dir_target = RENAME[target]
-            else:
-                dir_target = target
             if outdir_inplace is True:
                 outdir = os.path.join(HLSP_DIR, dir_target, version)
             if not os.path.exists(outdir):
@@ -422,10 +418,6 @@ def coadd_and_abut_files(infiles, outdir, version=VERSION, clobber=False):
             # this writes the output file
             # If making HLSPs for a DR, put them in the official folder
             target = prod.target.lower()
-            if target in RENAME:
-                dir_target = RENAME[target]
-            else:
-                dir_target = target
             if outdir_inplace is True:
                 outdir = os.path.join(HLSP_DIR, dir_target, version)
             if not os.path.exists(outdir):
@@ -482,16 +474,12 @@ def coadd_and_abut_files(infiles, outdir, version=VERSION, clobber=False):
     print(f"   Wrote {filename}")
 
 
-def create_output_file_name(prod, version=VERSION, level=3):
+def create_output_file_name(prod, version=__release__, level=3):
     instrument = prod.instrument.lower()   # will be either cos, stis, or fuse. If abbuted can be cos-stis or cos-stis-fuse
     grating = prod.grating.lower()
     target = prod.target.lower()
     version = version.lower()
     aperture = prod.aperture.lower()
-
-    # Target names can't have a period in them or it breaks MAST
-    if target in RENAME:
-        target = RENAME[target]
 
     if level == 0:
         tel = 'hst'
@@ -531,19 +519,19 @@ def create_output_file_name(prod, version=VERSION, level=3):
     return name
 
 
-def main(indir, outdir, version=VERSION, clobber=False):
+def main(indir, outdir, version=__release__, clobber=False):
     allfiles = find_files(indir)
     coadd_and_abut_files(allfiles, outdir, version, clobber)
 
 
-if __name__ == '__main__':
+def coadd_parser():
     parser = argparse.ArgumentParser()
     parser.add_argument("-i", "--indir",
                         default="./",
                         help="Directory(ies) with data to combine")
     parser.add_argument("-o", "--outdir", default=None,
                         help="Directory for output HLSPs")
-    parser.add_argument("-v", "--version", default=VERSION,
+    parser.add_argument("-v", "--version", default=__release__,
                         help="Version number of the HLSP")
     parser.add_argument("-c", "--clobber", default=False,
                         action="store_true",
@@ -551,3 +539,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     main(args.indir, args.outdir, args.version, args.clobber)
+
+
+if __name__ == '__main__':
+    coadd_parser()
