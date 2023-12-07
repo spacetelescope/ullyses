@@ -199,7 +199,7 @@ class Ullyses(KeyBlender):
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
         hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
-        hdr0['EPOCH'] =  (self.coord_epoch,  'Epoch')
+        hdr0['G_EPOCH'] =  (self.coord_epoch,  'Epoch of GAIA coordinates')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
         hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi"), 'Program identifier')
@@ -260,7 +260,7 @@ class Ullyses(KeyBlender):
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
         hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
-        hdr0['EPOCH'] =  (self.coord_epoch,  'Epoch')
+        hdr0['G_EPOCH'] =  (self.coord_epoch,  'Epoch of GAIA coordinates')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
         hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi"), 'Program identifier')
@@ -304,7 +304,7 @@ class Ullyses(KeyBlender):
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
         hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
-        hdr0['EPOCH'] =  (self.coord_epoch,  'Epoch')
+        hdr0['G_EPOCH'] =  (self.coord_epoch,  'Epoch of GAIA coordinates')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
         hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi", dict_key="LCOGT"), 'Program identifier')
@@ -348,7 +348,7 @@ class Ullyses(KeyBlender):
         hdr0['TARGNAME'] = (self.targname, 'Target Name')
         hdr0.add_blank(after='OBSMODE')
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
-        hdr0['EPOCH'] =  (self.coord_epoch,  'Epoch')
+        hdr0['G_EPOCH'] =  (self.coord_epoch,  'Epoch of GAIA coordinates')
         hdr0['RADESYS'] = (self.combine_keys("radesys", "multi"), 'World coordinate reference frame')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')

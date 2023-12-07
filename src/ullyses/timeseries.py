@@ -586,7 +586,7 @@ def create_primary_header(ensemble, filename):
 
     hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
     ra, dec, coord_epoch = ensemble.get_coords()
-    hdr0['EPOCH'] =  (coord_epoch,  'Epoch')
+    hdr0['G_EPOCH'] =  (coord_epoch,  'Epoch of GAIA coordinates')
     hdr0['TARG_RA'] =  (ra,  '[deg] Target right ascension')
     hdr0['TARG_DEC'] =  (dec,  '[deg] Target declination')
     hdr0['PROPOSID'] = (ensemble.combine_keys("proposid", "multi"), 'Program identifier')
