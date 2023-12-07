@@ -70,8 +70,7 @@ def make_lcogt_tss(indir, outdir, targ, hlspname=None, photfile=None):
             filts = "uprime-v-iprime"
         else:
             filts = "v-iprime"
-        file_targname = rename_target(ull_targname)
-        hlspname = f"hlsp_ullyses_lcogt_04m_{file_targname.lower()}_{filts}_{__release__}_tss.fits"
+        hlspname = f"hlsp_ullyses_lcogt_04m_{ull_targname.lower()}_{filts}_{__release__}_tss.fits"
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     outfile = os.path.join(outdir, hlspname)
@@ -100,10 +99,8 @@ def make_xsu_hlsps(infile, outdir, targ, hlspname=None):
         ra, dec = (0, 0)
         print(f"{RED}NO ALIAS AND COORDINATES FOUND FOR {ull_targname}{RESET}")
 
-    file_targname = rename_target(ull_targname)
-    
     if hlspname is None:
-        hlspname = f"hlsp_ullyses_vlt_xshooter_{file_targname.lower()}_uvb-vis_{__release__}_vltspec.fits"
+        hlspname = f"hlsp_ullyses_vlt_xshooter_{ull_targname.lower()}_uvb-vis_{__release__}_vltspec.fits"
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     outfile = os.path.join(outdir, hlspname)
