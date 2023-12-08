@@ -452,7 +452,7 @@ def create_exp_timeseries(datadir, tss_outdir, targ, tss_params, min_exptime=0.1
             timeseries.process_files(grat.upper(), outfile, datadir, overwrite=True, 
                                  ins=ins.upper(), min_exptime=min_exptime)
         except Exception:
-            print(f"{RED}EXCEPTION:{RESET}")
+            print(f"{RED}WARNING: EXCEPTION={RESET}")
             without = glob.glob(os.path.join(datadir, "*without*fits"))
             for newname in without:
                 origname = newname.replace("_without.fits", "_x1d.fits")
@@ -489,7 +489,7 @@ def create_subexp_timeseries(datadir, tss_outdir, targ, tss_params):
         try:
             timeseries.process_files(grat.upper(), outfile, indir, overwrite=True, min_exptime=1) 
         except Exception:
-            print(f"{RED}EXCEPTION:{RESET}")
+            print(f"{RED}WARNING: EXCEPTION={RESET}")
             without = glob.glob(os.path.join(datadir, "*without*fits"))
             for newname in without:
                 origname = newname.replace("_without.fits", "_x1d.fits")
@@ -509,7 +509,7 @@ def create_subexp_timeseries(datadir, tss_outdir, targ, tss_params):
                                  wavelength_binning=wl_bin, min_exptime=min_exptime, 
                                  overwrite=True)
         except Exception:
-            print(f"{RED}EXCEPTION:{RESET}")
+            print(f"{RED}WARNING: EXCEPTION={RESET}")
             without = glob.glob(os.path.join(datadir, "*without*fits"))
             for newname in without:
                 origname = newname.replace("_without.fits", "_x1d.fits")

@@ -367,7 +367,7 @@ def process_files(grating, outfile, indir=".", wavelength_binning=1, min_exptime
     ensemble = create_ensemble_segmentlist(grating, indir, wavelength_binning, ins=ins, infiles=infiles)
     # If there's only 1 matching file for hte specified grating, exit 
     if len(ensemble.datasets) == 1:
-        print(f"{RED}SKIPPING: only one matching dataset for grating {grating}{RESET}")
+        print(f"{RED}WARNING: only one matching dataset for grating {grating}, skipping{RESET}")
         return
     # Rename all the x1d.fits files to remove the _x1d.fits ending so that
     # subsequent Ullyses_COSSegmentLists can be created one at a time

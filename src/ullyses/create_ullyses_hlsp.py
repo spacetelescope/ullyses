@@ -11,7 +11,8 @@ from astropy.time import Time
 
 from ullyses.ullyses_hlsp import Ullyses
 import ullyses_utils
-from ullyses_utils.parse_csv import parse_aliases, match_aliases
+from ullyses_utils.parse_csv import parse_aliases
+from ullyses_utils import match_aliases
 from . import __version__, __release__
 
 UTILS_DIR = ullyses_utils.__path__[0]
