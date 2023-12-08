@@ -58,7 +58,7 @@ def make_lcogt_tss(indir, outdir, targ, hlspname=None, photfile=None):
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     outfile = os.path.join(outdir, hlspname)
-    ull_targname = match_aliases(hlsp_targname, "target_name_ullyses")
+    ull_targname = match_aliases.match_aliases(hlsp_targname, "target_name_ullyses")
     U = Ullyses(files=filepaths, hlspname=outfile, targname=ull_targname, 
                 cal_ver=__version__, version=__release__, level=5,
                 hlsp_type="lcogt", photfile=photfile)
@@ -73,7 +73,7 @@ def make_xsu_hlsps(infile, outdir, targ, hlspname=None):
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     outfile = os.path.join(outdir, hlspname)
-    ull_targname = match_aliases(hlsp_targname, "target_name_ullyses")
+    ull_targname = match_aliases.match_aliases(hlsp_targname, "target_name_ullyses")
     U = Ullyses(files=[infile], hlspname=outfile, targname=ull_targname,  
                 cal_ver=__version__, version=__release__, level=7,
                 hlsp_type="xsu", overwrite=True)
