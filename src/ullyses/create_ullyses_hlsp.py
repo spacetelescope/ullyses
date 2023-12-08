@@ -41,23 +41,7 @@ def make_imaging_hlsps(drcfile, outdir, targ, hdr_targ=None, hlspname=None):
 def make_lcogt_tss(indir, outdir, targ, hlspname=None, photfile=None):
     if photfile is None:
         photfile = os.path.join(PHOT_DIR, f"{targ.upper()}_phot.txt")
-    aliases = parse_aliases()
-    alias_mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ.upper())).any(), axis=1)
-    if set(alias_mask) != {False}:
-        hlsp_targname = aliases[alias_mask]["target_name_hlsp"].values[0]
-        targetinfo_file = os.path.join(UTILS_DIR, "data", "target_metadata", "pd_targetinfo.json")
-        master_list = pd.read_json(targetinfo_file, orient="split")
-        master_list = master_list.apply(lambda x: x.astype(str).str.upper())
-        try:
-            coords = master_list.loc[master_list["mast_targname"] == hlsp_targname][["ra", "dec"]].values
-            ra, dec = coords[0]
-        except:
-            print(f"{RED}NO COORDINATES FOUND FOR {hlsp_targname}{RESET}")
-            ra, dec = (0, 0)
-    else:
-        hlsp_targname = targ
-        ra, dec = (0, 0)
-        print(f"{RED}NO ALIAS AND COORDINATES FOUND FOR {hlsp_targname}{RESET}")
+    hlsp_targname = match_aliases.match_aliases(targ)
 
     df = pd.read_csv(photfile, 
             names=["filename", "mjdstart", "mjdend", "wl", "flux", "err"],
@@ -82,23 +66,7 @@ def make_lcogt_tss(indir, outdir, targ, hlspname=None, photfile=None):
     U.write_file()
 
 def make_xsu_hlsps(infile, outdir, targ, hlspname=None):
-    aliases = parse_aliases()
-    alias_mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ.upper())).any(), axis=1)
-    if set(alias_mask) != {False}:
-        hlsp_targname = aliases[alias_mask]["target_name_hlsp"].values[0]
-        targetinfo_file = os.path.join(UTILS_DIR, "data", "target_metadata", "pd_targetinfo.json")
-        master_list = pd.read_json(targetinfo_file, orient="split")
-        master_list = master_list.apply(lambda x: x.astype(str).str.upper())
-        try:
-            coords = master_list.loc[master_list["mast_targname"] == hlsp_targname][["ra", "dec"]].values
-            ra, dec = coords[0]
-        except:
-            print(f"{RED}NO COORDINATES FOUND FOR {hlsp_targname}{RESET}")
-            ra, dec = (0, 0)
-    else:
-        hlsp_targname = targ
-        ra, dec = (0, 0)
-        print(f"{RED}NO ALIAS AND COORDINATES FOUND FOR {hlsp_targname}{RESET}")
+    hlsp_targname = match_aliases.match_aliases(targ)
 
     if hlspname is None:
         hlspname = f"hlsp_ullyses_vlt_xshooter_{hlsp_targname.lower()}_uvb-vis_{__release__}_vltspec.fits"
