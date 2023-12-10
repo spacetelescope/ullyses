@@ -104,6 +104,7 @@ class Ullyses(KeyBlender):
             dec = np.average(decs)
             epoch = "UNKNOWN"
         except:
+            print(f"{RED}WARNING:NO COORDINATES FOUND {RESET}")
             ra,dec,epoch = (0, 0," UNKNOWN")
         if self.targname == "":
             print(f"{RED}WARNING:NO COORDINATES FOUND FOR {self.targname}{RESET}")
