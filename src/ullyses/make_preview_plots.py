@@ -3,14 +3,10 @@ import glob
 import os
 import numpy as np
 import plotly.graph_objects as go
-import astropy.units as u
 from plotly.subplots import make_subplots
-from itertools import repeat
 
 from astropy.io import fits
 from copy import deepcopy
-from specutils import Spectrum1D, SpectralRegion
-from specutils.manipulation import extract_region
 
 from ullyses_utils.match_aliases import match_aliases
 from ullyses_utils.parse_csv import parse_database_csv
@@ -141,6 +137,10 @@ def get_max_flux(wave, flux, gratings, dlam=10.):
             if len(wh_grating):
                 # set the flux to zero in that region
                 flux[wh_grating] = 0.
+
+    # remove the edges just to be sure. There are some with weird edges like CHX-18N
+    if len(flux) > 300: # in case it is only COS/NUV for some reason
+        flux = flux[100:-100]
 
     return flux.max()
 
@@ -380,16 +380,25 @@ def make_plots(base_datadir, outdir_name, dr):
 
 if __name__ == "__main__":
 
-    # Trying to make more color-blind accesible.
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-i", "--datadir", type=str, default=".",
+                        help="Top level directory to search for files, where \
+                              everything below is sorted into seaprate directories\
+                              by target name.")
+    parser.add_argument("-o", "--outdir", type=str, default='.',
+                        help="Directory to save the outputs. Default is the current directory, \
+                              with two new sub-directories: lowmass and highmass.")
+    parser.add_argument("-d", "--datarelease", type=int, default='7',
+                        help="Integer value of the ULLYSES data release. Default is 7.")
+    args = parser.parse_args()
+
+    # Trying to make more color-blind accessible.
     CSPEC_COLORS = ['#d8c53b', '#8ab445', '#93c8b5', '#3a9dab', '#4f88cc',
                     '#7480d6', '#9075d3', '#b371c4'] # yellow -> green-> blue
     ASPEC_COLORS = ['#b19bc2', '#82569c', '#4e2a67', '#859a87', '#255b2b',
                     '#47834f', '#95b399'] # purples -> green (if needed)
 
-    datadir = "/astro/ullyses/ULLYSES_HLSP/"
-    outdir = '/astro/ullyses/preview_plots/' # sorted into dr#/<highmass/lowmass>
-    dr = 7 # data release number
-    no_previews = make_plots(datadir, outdir, dr)
+    no_previews = make_plots(args.datadir, args.outdir, args.datarelease)
     print('No files for:')
     for p in no_previews:
         print(f"{p}; {glob.glob(os.path.join(p, '*'))}")
