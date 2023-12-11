@@ -8,15 +8,20 @@ See more info about ULLYSES and its targets at [ullyses.stsci.edu](https://ullys
 
 The `ullyses` package can be installed into a virtualenv or conda environment via `pip`. We recommend that for each installation you start by creating a fresh environment that only has Python installed and then install the `ullyses` package and its dependencies into that bare environment. If using conda environments, first make sure you have a recent version of [Anaconda](https://www.anaconda.com/) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html) installed.
 
-All package dependencies will be installed with `ullyses`, including [ullyses-utils](https://github.com/spacetelescope/ullyses-utils), which contains the utility scripts and data files used to create HLSPs. 
-The only exception is the `stisblazefix` package, which must be installed
-manually, but only if you wish to create blaze-corrected products. Instructions are available in the [stisblazefix documentation](https://stisblazefix.readthedocs.io/en/latest/#installation). 
+All package dependencies will be installed with `ullyses`, including 
+[ullyses-utils](https://github.com/spacetelescope/ullyses-utils), which contains the utility scripts and 
+data files used to create HLSPs. 
+The only exceptions are the `stisblazefix` and CalSTIS packages, which must be installed
+manually, but only if you wish to create blaze-corrected products or custom-calibrated STIS products. 
+Instructions for installing stisblazefix are available in the 
+[stisblazefix documentation](https://stisblazefix.readthedocs.io/en/latest/#installation). To install CalSTIS, you must
+use [`stenv`](https://stenv.readthedocs.io/en/latest/getting_started.html).
 
 ### Installing the Latest Release
 
 The first two steps are to create and activate an environment:
 
-    conda create -n <env_name> python=3.9 hstcal
+    conda create -n <env_name> python=3.9
     conda activate <env_name>
    
 Python version 3.9 or greater is required for some dependencies, including `calcos`, the COS data calibration pipeline used in these scripts.
