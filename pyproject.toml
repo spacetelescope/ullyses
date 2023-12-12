@@ -36,7 +36,7 @@ dependencies = [
     "pyyaml",
     "plotly",
     "scipy>=1.11.4",
-    "hasp>=0.9.5"
+    "hasp>=0.9.6"
 ]
 
 [project.scripts]
