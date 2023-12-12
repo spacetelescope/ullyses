@@ -493,7 +493,7 @@ class StisCcd(StisData):
         """
 
         if os.path.exists(self.outdir):
-            print("WARNING: Output directory already exists, deleting {0}".format(self.outdir))
+            print("Warning: Output directory already exists, deleting {0}".format(self.outdir))
             shutil.rmtree(self.outdir)
         os.mkdir(self.outdir)
     
@@ -521,10 +521,10 @@ class StisCcd(StisData):
         print("\n", f" CHECKING CR REJECTION ".center(NCOLS, SYM), "\n")
         
         if self.x1d_mast is None:
-            print("WARNING: No x1d files found, cannot check CR rejection rate")
+            print("Warning: No x1d files found, cannot check CR rejection rate")
             return
         if self.flt is None:
-            print("WARNING: No FLT files found, cannot check CR rejection rate")
+            print("Warning: No FLT files found, cannot check CR rejection rate")
             return
 
         x1d_data = fits.getdata(self.x1d_mast)[0]

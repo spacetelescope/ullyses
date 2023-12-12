@@ -221,7 +221,7 @@ class SegmentList():
         if len(good_dq[0]) == 0:
             self.first_good_wavelength = None
             self.last_good_wavelength = None
-            print("Warning: No good pixels in product")
+            print("WARNING: No good pixels in product")
         else:
             self.first_good_wavelength = self.output_wavelength[good_dq][0]
             self.last_good_wavelength = self.output_wavelength[good_dq][-1]

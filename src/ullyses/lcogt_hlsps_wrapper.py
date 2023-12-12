@@ -1,6 +1,6 @@
 import argparse
 
-from ullyses.create_ullyses_hlsp import make_lcogt_tss, rename_target
+from ullyses.create_ullyses_hlsp import make_lcogt_tss
 
 
 def lcogt_hlsps_wrapper(indir, outdir, targ, hlspname=None, photfile=None):

@@ -367,7 +367,7 @@ def process_files(grating, outfile, indir=".", wavelength_binning=1, min_exptime
     ensemble = create_ensemble_segmentlist(grating, indir, wavelength_binning, ins=ins, infiles=infiles)
     # If there's only 1 matching file for hte specified grating, exit 
     if len(ensemble.datasets) == 1:
-        print(f"{RED}SKIPPING: only one matching dataset for grating {grating}{RESET}")
+        print(f"{RED}WARNING: only one matching dataset for grating {grating}, skipping{RESET}")
         return
     # Rename all the x1d.fits files to remove the _x1d.fits ending so that
     # subsequent Ullyses_COSSegmentLists can be created one at a time
@@ -586,7 +586,7 @@ def create_primary_header(ensemble, filename):
 
     hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
     ra, dec, coord_epoch = ensemble.get_coords()
-    hdr0['EPOCH'] =  (coord_epoch,  'Epoch')
+    hdr0['G_EPOCH'] =  (coord_epoch,  'Epoch of GAIA coordinates')
     hdr0['TARG_RA'] =  (ra,  '[deg] Target right ascension')
     hdr0['TARG_DEC'] =  (dec,  '[deg] Target declination')
     hdr0['PROPOSID'] = (ensemble.combine_keys("proposid", "multi"), 'Program identifier')
@@ -649,7 +649,7 @@ def create_extension_1_header(ensemble):
     hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
     hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
     hdr1['XPOSURE'] = (ensemble.combine_keys("exptime", "sum"), '[s] Sum of exposure durations')
-    all_comments = self.combine_keys("comment", "comment")
+    all_comments = ensemble.combine_keys("comment", "comment")
     for comment in all_comments:
         hdr1['COMMENT'] = (comment, "Calibration and/or quality comment")
     return hdr1

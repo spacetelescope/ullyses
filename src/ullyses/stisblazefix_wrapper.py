@@ -15,16 +15,16 @@ import shutil
 import ullyses_utils
 
 
-def apply_sbf(infile, outdir=None, pdfname='/dev/null', verbose=True):
+def apply_sbf(infile, outfile=None, pdfname='/dev/null', verbose=True):
     fluxfix([infile], pdfname=pdfname)
     x1ffile = infile.replace("x1d.fits", "x1f.fits")
-    if outdir is not None:
+    if outfile is None:
+        outfile = x1ffile
+    else:
+        outdir = os.path.dirname(outfile)
         if not os.path.exists(outdir):
             os.makedirs(outdir)
-        outfile = os.path.join(outdir, os.path.basename(x1ffile))
         shutil.move(x1ffile, outfile)
-    else:
-        outfile = x1ffile
     # Since custom processing was performed, mark these as level0
     with fits.open(outfile, mode="update") as hdulist:
         hdulist[0].header["HLSP_LVL"] = 0

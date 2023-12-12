@@ -1,23 +1,36 @@
 # ULLYSES
 
-This repository contains the codes used to create the high level science products (HLSPs) for the targets in the Hubble Space Telescope’s (HST) Ultraviolet Legacy Library of Young Stars as Essential Standards (ULLYSES) program. See more info about ULLYSES and its targets at [ullyses.stsci.edu](https://ullyses.stsci.edu).
+This repository contains the codes used to create the high level science products (HLSPs) for the targets in the Hubble Space Telescope’s (HST) Ultraviolet Legacy Library of Young Stars as Essential Standards (ULLYSES) program. In particular, the spectral coaddition algorithm used by the [HASP](https://github.com/spacetelescope/hasp) (Hubble Advanced Spectral Products) is included in the ULLYSES package. 
 
-A full description of the data products produced by the ULLYSES team can be found at [ULLYSES Data Products](https://ullyses.stsci.edu/ullyses-data-description.html). 
+See more info about ULLYSES and its targets at [ullyses.stsci.edu](https://ullyses.stsci.edu). A full description of the data products produced by the ULLYSES team can be found at [ULLYSES Data Products](https://ullyses.stsci.edu/ullyses-data-description.html). 
 
 ## Installation
 
 The `ullyses` package can be installed into a virtualenv or conda environment via `pip`. We recommend that for each installation you start by creating a fresh environment that only has Python installed and then install the `ullyses` package and its dependencies into that bare environment. If using conda environments, first make sure you have a recent version of [Anaconda](https://www.anaconda.com/) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html) installed.
 
+All package dependencies will be installed with `ullyses`, including 
+[ullyses-utils](https://github.com/spacetelescope/ullyses-utils), which contains the utility scripts and 
+data files used to create HLSPs. 
+The only exceptions are the `stisblazefix` and CalSTIS packages, which must be installed
+manually, but only if you wish to create blaze-corrected products or custom-calibrated STIS products. 
+Instructions for installing stisblazefix are available in the 
+[stisblazefix documentation](https://stisblazefix.readthedocs.io/en/latest/#installation). To install CalSTIS, you must
+use [`stenv`](https://stenv.readthedocs.io/en/latest/getting_started.html).
+
+### Installing the Latest Release
+
 The first two steps are to create and activate an environment:
 
-    conda create -n <env_name> python=3.8
+    conda create -n <env_name> python=3.9
     conda activate <env_name>
    
-Python version 3.8 or greater is required for some dependencies, including `calcos`, the COS data calibration pipeline used in these scripts.
+Python version 3.9 or greater is required for some dependencies, including `calcos`, the COS data calibration pipeline used in these scripts.
 
 Then simply install the latest release of ullyses from pip:
 
     pip install ullyses
+
+### Installing the Development Version
 
 To install your own copy of the development version from github, you first need to fork and clone the `ullyses` repo:
 
@@ -25,45 +38,48 @@ To install your own copy of the development version from github, you first need 
     git clone https://github.com/spacetelescope/ullyses
     cd ullyses
 
-Install from your local checked-out copy:
+Then install from your local checked-out copy:
 
     pip install -e .
-
-All package dependencies will be installed simultaneously, including `ullyses-utils`, which can be found at https://github.com/spacetelescope/ullyses-utils.
 
 ## Creating HLSPs (High Level Science Products)
 
 There are four main types of ULLYSES HLSPs:
 1. [coadded](https://ullyses.stsci.edu/ullyses-data-description.html#CoaddSpectra) and [abutted](https://ullyses.stsci.edu/ullyses-data-description.html#AbutSpectra) spectra
-2. timeseries spectra
-3. re-packaged drizzled images
+2. [timeseries spectra](https://ullyses.stsci.edu/ullyses-data-description.html#TSS)
+3. [re-packaged drizzled images](https://ullyses.stsci.edu/ullyses-data-description.html#hlspFormatWFC3)
 4. custom-calibrated individual spectra, or level0 HLSPs
 
 Below are instructions for creating each type of HLSP.
 
-### Coadded Spectra HLSPs 
+### Coadded and Abutted Spectral HLSPs 
 [Coadded](https://ullyses.stsci.edu/ullyses-data-description.html#CoaddSpectra) 
 and [abutted](https://ullyses.stsci.edu/ullyses-data-description.html#AbutSpectra)
-spectra for a single target are created by first putting all input
-files into a single directory. Currently supported instruments are HST/COS, HST/STIS, and FUSE.
-The input files are `_x1d.fits` files for COS and STIS,
-and `_vo.fits` for FUSE. These input files may also be level0 (custom-calibrated spectra, see below) 
-themselves. Coadded and abutted spectra are then created using
-the wrapper script, which can be run from the command line.  For convenience,
-it is recommended to create an environment variable pointing to the location
-of the wrapper script:
+spectra are created for each target. 
+Currently supported instruments are HST/COS, HST/STIS, and FUSE.
+The input files are `_x1d.fits` or `_sx1.fits` files for COS and STIS,
+and `_vo.fits` for FUSE. These input files may also be level0 (custom-calibrated spectra, see 
+[below](#Custom-Calibrated-Spectra-HLSPs)) 
+themselves. Coadded and abutted spectra can then be created programmatically,
+or using the command-line script, `coadd`. 
 
-    export ubin=/path/to/github/checkout/ullyses
+From the command line:
+    
+    coadd -i <input_directory> -o <output_directory>
 
-Then invoke the script from the directory containing the files to be processed:
+Where `<input_directory>` contains the data to be coadded, and the products will
+be written to `<output_directory>`.
 
-    cd /directory/containing/data/files/
-    python $ubin/wrapper.py -o './products'
+A directory, or a specific set of files, can be provided programmatically:
 
-Alternatively, the script can be run from a directory that doesn't contain the data
-to be processed by using the ``-i /directory/containing/data/`` option:
+    from ullyses.ullyses_coadd_abut_wrapper import main, coadd_and_abut_files
+    coadd_and_abut_files(file_list, output_directory)
+    main(input_directory, output_directory)
 
-    python $ubin/wrapper.py -o /directory/to/put/products -i /directory/containing/input/data
+Regardless of what files are specified in the input list or directory, only
+files of the same instrument and grating combination will be coadded. Data
+from all input gratings will be abutted according to the strategy adopted
+by ULLYSES.
 
 ### Timeseries Spectra HLSPs
 
@@ -140,7 +156,7 @@ Optional arguments are:
   --hlspname HLSPNAME   Name of output HLSP file. By default, follows ULLYSES standard
 ```
 
-### Custom-calibrated Spectra (level0) HLSPs
+### Custom Calibrated Spectra HLSPs
 
 Prior to turning spectra into ULLYSES HLSPs, some targets require extra processing to
 fix various calibration issues. For example, STIS/G750L data must be defringed, or
@@ -149,7 +165,7 @@ calibration steps have been applied, a keyword is added to the output FITS file 
 that the file should be considered a level0 HLSP- that is, a custom-calibrated *individual*
 1D spectrum. The various level0 products, and how to create them, are described below.
 
-#### Custom-calibrated STIS spectra
+#### Custom Calibrated STIS spectra
 All T Tauri star STIS CCD observations, and a subset of STIS NUV- and FUV-MAMA observations,
 require tailored calibrations. Special calibration steps can include: 
 custom hot pixel identification and flagging, defringing for G750L observations, and 
@@ -220,7 +236,7 @@ Other optional arguments are:
   -c, --overwrite       If True, overwrite existing products
 ```
 
-#### Custom-flagged FUSE spectra
+#### Custom Flagged FUSE spectra
 The ULLYSES team typically uses FUSE 
 [VO (Virtual Observatory)](https://ui.adsabs.harvard.edu/abs/2007PASP..119..527D/abstract) 
 files with minimal modification. A DQ (Data Quality) array is added to each VO file, as is

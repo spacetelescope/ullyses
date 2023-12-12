@@ -23,9 +23,10 @@ classifiers = [
 
 dependencies = [
     "setuptools",
-    "numpy",
+    "datetime",
+    "numpy>=1.22.4",
     "cython",
-    "astropy>=5.0.4",
+    "astropy>=6.0.0",
     "ullyses_utils>=3.0.0",
     "pandas>2.0",
     "calcos>=3.4.0",
@@ -34,7 +35,8 @@ dependencies = [
     "matplotlib",
     "pyyaml",
     "plotly",
-    "hasp>=0.9.5"
+    "scipy>=1.11.4",
+    "hasp>=0.9.6"
 ]
 
 [project.scripts]

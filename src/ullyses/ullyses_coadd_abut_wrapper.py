@@ -25,7 +25,7 @@ RESET = "\033[0;0m"
 
 ULLYSES_GRATING_PRIORITIES = {'COS/G130M': {'minwave': 900, 'maxwave': 1470, 'priority': 1},
                               'FUSE/FUSE': {'minwave': 912, 'maxwave': 1179.9, 'priority': 2},
-                              'STIS/E140M': {'minwave': 1141.6, 'maxwave': 1727.2, 'priority': 3},
+                              'STIS/E140M': {'minwave': 1143.0, 'maxwave': 1727.2, 'priority': 3},
                               'COS/G160M': {'minwave': 1342, 'maxwave': 1800, 'priority': 4},
                               'STIS/E140H': {'minwave': 1141.1, 'maxwave': 1687.9, 'priority': 5},
                               'STIS/G140M': {'minwave': 1145.1, 'maxwave': 1741.9, 'priority': 6},
@@ -139,7 +139,7 @@ class Ullyses_SegmentList(KeyBlender, SegmentList):
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
         hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
-        hdr0['EPOCH'] =  (self.coord_epoch,  'Epoch')
+        hdr0['G_EPOCH'] =  (self.coord_epoch,  'Epoch of GAIA coordinates')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
         hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi"), 'Program identifier')
@@ -267,12 +267,14 @@ class Ullyses_SegmentList(KeyBlender, SegmentList):
         return ull_targname
 
     def get_coords(self):
+        matched = False
         ras = list(set([h["ra_targ"] for h in self.primary_headers]))
         decs = list(set([h["dec_targ"] for h in self.primary_headers]))
         ra = np.average(ras)
         dec = np.average(decs)
         epoch = "UNKNOWN"
         if self.target == "":
+            print(f"{RED}WARNING: Could not determine coordinates{RESET}")
             return ra, dec, epoch
         csvs, metadata_dfs = parse_csv.parse_database_csv("all")
         ull_alias = match_aliases.match_aliases(self.target, "target_name_ullyses")
@@ -280,10 +282,13 @@ class Ullyses_SegmentList(KeyBlender, SegmentList):
             df['target_name_ullyses'] = df['target_name_ullyses'].str.upper()
             row = df.loc[df.target_name_ullyses == ull_alias]
             if len(row) == 1:
+                matched = True
                 ra = row.targ_ra.values[0]
                 dec = row.targ_dec.values[0]
                 epoch = float(row.coordinate_epoch.values[0])
                 break
+        if matched is False:
+            print(f"{RED}WARNING: Could not determine coordinates for {ull_alias}{RESET}")
         return ra, dec, epoch
 
     def add_hasp_attributes(self):
@@ -389,7 +394,6 @@ def coadd_and_abut_files(infiles, outdir, version=__release__, clobber=False):
             print(f'Unknown mode [{instrument}, {grating}, {detector}]')
             return
 
-        prod.targ_ra, prod.targ_dec, prod.coord_epoch = prod.get_coords()
 
         # these two calls perform the main functions
         if len(prod.members) > 0:
@@ -398,7 +402,6 @@ def coadd_and_abut_files(infiles, outdir, version=__release__, clobber=False):
             # this writes the output file
             # If making HLSPs for a DR, put them in the official folder
             prod.target = prod.get_targname()
-            prod.targ_ra, prod.targ_dec, prod.coord_epoch = prod.get_coords()
             target = prod.target.lower()
             if outdir_inplace is True:
                 outdir = os.path.join(HLSP_DIR, dir_target, version)

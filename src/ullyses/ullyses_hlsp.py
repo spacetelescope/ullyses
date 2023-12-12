@@ -104,9 +104,10 @@ class Ullyses(KeyBlender):
             dec = np.average(decs)
             epoch = "UNKNOWN"
         except:
+            print(f"{RED}WARNING:NO COORDINATES FOUND {RESET}")
             ra,dec,epoch = (0, 0," UNKNOWN")
         if self.targname == "":
-            print(f"{RED}NO COORDINATES FOUND FOR {self.targname}{RESET}")
+            print(f"{RED}WARNING:NO COORDINATES FOUND FOR {self.targname}{RESET}")
             return ra, dec, epoch
         csvs, metadata_dfs = parse_csv.parse_database_csv("all")
         ull_alias = match_aliases.match_aliases(self.targname, "target_name_ullyses")
@@ -121,7 +122,7 @@ class Ullyses(KeyBlender):
                 found = True
                 break
         if found is False:
-            print(f"{RED}NO COORDINATES FOUND FOR {self.targname}{RESET}")
+            print(f"{RED}WARNING:NO COORDINATES FOUND FOR {self.targname}{RESET}")
         return ra, dec, epoch
 
 
@@ -199,7 +200,7 @@ class Ullyses(KeyBlender):
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
         hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
-        hdr0['EPOCH'] =  (self.coord_epoch,  'Epoch')
+        hdr0['G_EPOCH'] =  (self.coord_epoch,  'Epoch of GAIA coordinates')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
         hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi"), 'Program identifier')
@@ -260,7 +261,7 @@ class Ullyses(KeyBlender):
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
         hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
-        hdr0['EPOCH'] =  (self.coord_epoch,  'Epoch')
+        hdr0['G_EPOCH'] =  (self.coord_epoch,  'Epoch of GAIA coordinates')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
         hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi"), 'Program identifier')
@@ -304,7 +305,7 @@ class Ullyses(KeyBlender):
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
 
         hdr0['RADESYS'] = ('ICRS ','World coordinate reference frame')
-        hdr0['EPOCH'] =  (self.coord_epoch,  'Epoch')
+        hdr0['G_EPOCH'] =  (self.coord_epoch,  'Epoch of GAIA coordinates')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
         hdr0['PROPOSID'] = (self.combine_keys("proposid", "multi", dict_key="LCOGT"), 'Program identifier')
@@ -348,7 +349,7 @@ class Ullyses(KeyBlender):
         hdr0['TARGNAME'] = (self.targname, 'Target Name')
         hdr0.add_blank(after='OBSMODE')
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
-        hdr0['EPOCH'] =  (self.coord_epoch,  'Epoch')
+        hdr0['G_EPOCH'] =  (self.coord_epoch,  'Epoch of GAIA coordinates')
         hdr0['RADESYS'] = (self.combine_keys("radesys", "multi"), 'World coordinate reference frame')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')

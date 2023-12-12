@@ -12,6 +12,7 @@ from astropy.time import Time
 from ullyses.ullyses_hlsp import Ullyses
 import ullyses_utils
 from ullyses_utils.parse_csv import parse_aliases
+from ullyses_utils import match_aliases
 from . import __version__, __release__
 
 UTILS_DIR = ullyses_utils.__path__[0]
@@ -41,23 +42,7 @@ def make_imaging_hlsps(drcfile, outdir, targ, hdr_targ=None, hlspname=None):
 def make_lcogt_tss(indir, outdir, targ, hlspname=None, photfile=None):
     if photfile is None:
         photfile = os.path.join(PHOT_DIR, f"{targ.upper()}_phot.txt")
-    aliases = parse_aliases()
-    alias_mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ.upper())).any(), axis=1)
-    if set(alias_mask) != {False}:
-        ull_targname = aliases[alias_mask]["target_name_hlsp"].values[0]
-        targetinfo_file = os.path.join(UTILS_DIR, "data", "target_metadata", "pd_targetinfo.json")
-        master_list = pd.read_json(targetinfo_file, orient="split")
-        master_list = master_list.apply(lambda x: x.astype(str).str.upper())
-        try:
-            coords = master_list.loc[master_list["mast_targname"] == ull_targname][["ra", "dec"]].values
-            ra, dec = coords[0]
-        except:
-            print(f"{RED}NO COORDINATES FOUND FOR {ull_targname}{RESET}")
-            ra, dec = (0, 0)
-    else:
-        ull_targname = targ
-        ra, dec = (0, 0)
-        print(f"{RED}NO ALIAS AND COORDINATES FOUND FOR {ull_targname}{RESET}")
+    hlsp_targname = match_aliases.match_aliases(targ)
 
     df = pd.read_csv(photfile, 
             names=["filename", "mjdstart", "mjdend", "wl", "flux", "err"],
@@ -70,11 +55,11 @@ def make_lcogt_tss(indir, outdir, targ, hlspname=None, photfile=None):
             filts = "uprime-v-iprime"
         else:
             filts = "v-iprime"
-        file_targname = rename_target(ull_targname)
-        hlspname = f"hlsp_ullyses_lcogt_04m_{file_targname.lower()}_{filts}_{__release__}_tss.fits"
+        hlspname = f"hlsp_ullyses_lcogt_04m_{hlsp_targname.lower()}_{filts}_{__release__}_tss.fits"
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     outfile = os.path.join(outdir, hlspname)
+    ull_targname = match_aliases.match_aliases(hlsp_targname, "target_name_ullyses")
     U = Ullyses(files=filepaths, hlspname=outfile, targname=ull_targname, 
                 cal_ver=__version__, version=__release__, level=5,
                 hlsp_type="lcogt", photfile=photfile)
@@ -82,31 +67,14 @@ def make_lcogt_tss(indir, outdir, targ, hlspname=None, photfile=None):
     U.write_file()
 
 def make_xsu_hlsps(infile, outdir, targ, hlspname=None):
-    aliases = parse_aliases()
-    alias_mask = aliases.apply(lambda row: row.astype(str).str.fullmatch(re.escape(targ.upper())).any(), axis=1)
-    if set(alias_mask) != {False}:
-        ull_targname = aliases[alias_mask]["target_name_hlsp"].values[0]
-        targetinfo_file = os.path.join(UTILS_DIR, "data", "target_metadata", "pd_targetinfo.json")
-        master_list = pd.read_json(targetinfo_file, orient="split")
-        master_list = master_list.apply(lambda x: x.astype(str).str.upper())
-        try:
-            coords = master_list.loc[master_list["mast_targname"] == ull_targname][["ra", "dec"]].values
-            ra, dec = coords[0]
-        except:
-            print(f"{RED}NO COORDINATES FOUND FOR {ull_targname}{RESET}")
-            ra, dec = (0, 0)
-    else:
-        ull_targname = targ
-        ra, dec = (0, 0)
-        print(f"{RED}NO ALIAS AND COORDINATES FOUND FOR {ull_targname}{RESET}")
+    hlsp_targname = match_aliases.match_aliases(targ)
 
-    file_targname = rename_target(ull_targname)
-    
     if hlspname is None:
-        hlspname = f"hlsp_ullyses_vlt_xshooter_{file_targname.lower()}_uvb-vis_{__release__}_vltspec.fits"
+        hlspname = f"hlsp_ullyses_vlt_xshooter_{hlsp_targname.lower()}_uvb-vis_{__release__}_vltspec.fits"
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     outfile = os.path.join(outdir, hlspname)
+    ull_targname = match_aliases.match_aliases(hlsp_targname, "target_name_ullyses")
     U = Ullyses(files=[infile], hlspname=outfile, targname=ull_targname,  
                 cal_ver=__version__, version=__release__, level=7,
                 hlsp_type="xsu", overwrite=True)
