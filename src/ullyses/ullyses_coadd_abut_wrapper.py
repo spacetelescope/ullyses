@@ -430,32 +430,39 @@ def coadd_and_abut_files(infiles, outdir, version=__release__, clobber=False):
             prod.write(outname, clobber, level=0, version=version)
             print(f"   Wrote {outname}")
             products[f'{instrument}/{grating}'] = prod
+        prod.add_hasp_attributes()
         products[f'{instrument}/{grating}'] = prod
         productdict[f'{instrument}/{grating}'] = prod
-        prod.add_hasp_attributes()
 
     # Create level 3 products- abutted spectra for gratings of the same
-    # resolution for each instrument.
+    # resolution for each instrument. Only create this product if more than
+    # one grating of each resolution group is detected.
     level = 3
-    lvl3_modes = {"cos_fuv_m": ["COS/G130M", "COS/G160M", "COS/G185M"],
-                  "stis_m": ["STIS/E140M", "STIS/E230M"],
+    lvl3_modes = {"cos_fuv_m": ["COS/G130M", "COS/G160M", "COS/G185M", "COS/G285M", "COS/G225M"],
+                  "stis_m": ["STIS/E140M", "STIS/E230M", "STIS/G230MB", "STIS/G140M", "STIS/G230M", "STIS/G750M", "STIS/G430M"],
                   "stis_h": ["STIS/E140H", "STIS/E230H"],
-                  "stis_l": ["STIS/G140L", "STIS/G230L", "STIS/G430L", "STIS/G750L"]}
+                  "stis_l": ["STIS/G140L", "STIS/G230L", "STIS/G230LB", "STIS/G430L", "STIS/G750L"],
+                  }
     for outprod,modes in lvl3_modes.items():
-        abutted = None
+        lvl3_productlist = []
+        lvl3_productdict = {}
         dowrite = False
         for mode in modes:
             if products[mode] is not None:
-                if abutted is None:
-                    abutted = products[mode]
-                else:
-                    abutted = abut(abutted, products[mode])
-                    dowrite = True
-        if dowrite is True:
-            filename = create_output_file_name(abutted, version, level=level)
+                lvl3_productlist.append(products[mode])
+                lvl3_productdict[mode] = products[mode]
+                dowrite = True
+        # We only write level 3 products if more than one grating was found per resolution
+        # group
+        if dowrite is True and len(lvl3_productlist) > 1:
+            lvl3_product = create_level4_products(lvl3_productlist, lvl3_productdict,
+                                             grating_table=ULLYSES_GRATING_PRIORITIES)
+            filename = create_output_file_name(lvl3_product, version, level=level)
             filename = os.path.join(outdir, filename)
-            abutted.write(filename, clobber, level=level, version=version)
+            lvl3_product.write(filename, clobber, level=level, version=version)
             print(f"   Wrote {filename}")
+
+
     # Manually write out a FUSE level3 product.
     if products['FUSE/FUSE'] is not None:
         filename = create_output_file_name(products['FUSE/FUSE'], version, level=level)
