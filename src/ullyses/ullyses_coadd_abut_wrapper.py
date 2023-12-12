@@ -430,9 +430,9 @@ def coadd_and_abut_files(infiles, outdir, version=__release__, clobber=False):
             prod.write(outname, clobber, level=0, version=version)
             print(f"   Wrote {outname}")
             products[f'{instrument}/{grating}'] = prod
+        prod.add_hasp_attributes()
         products[f'{instrument}/{grating}'] = prod
         productdict[f'{instrument}/{grating}'] = prod
-        prod.add_hasp_attributes()
 
     # Create level 3 products- abutted spectra for gratings of the same
     # resolution for each instrument. Only create this product if more than
@@ -452,6 +452,8 @@ def coadd_and_abut_files(infiles, outdir, version=__release__, clobber=False):
                 lvl3_productlist.append(products[mode])
                 lvl3_productdict[mode] = products[mode]
                 dowrite = True
+        # We only write level 3 products if more than one grating was found per resolution
+        # group
         if dowrite is True and len(lvl3_productlist) > 1:
             lvl3_product = create_level4_products(lvl3_productlist, lvl3_productdict,
                                              grating_table=ULLYSES_GRATING_PRIORITIES)
