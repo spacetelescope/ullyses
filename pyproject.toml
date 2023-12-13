@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ullyses"
+version = "3.0.0"
+description = "Create ULLYSES data products"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { file = "LICENSE" }
+authors = [{ name = "ULLYSES STScI Team", email = "ullyses_dp@stsci.edu" }]
+keywords = ["astronomy"]
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Development Status :: 1 - Planning",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Astronomy",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Software Development :: Libraries :: Python Modules"
+]
+
+dependencies = [
+    "setuptools",
+    "numpy",
+    "cython",
+    "astropy>=5.0.4",
+    "ullyses_utils>=2.1.2",
+    "pandas",
+    "calcos>=3.4.0",
+    "costools",
+    "stistools>=1.4.2",
+    "matplotlib",
+    "pyyaml"
+]
