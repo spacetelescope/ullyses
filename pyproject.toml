@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ullyses"
-version = "4.0.0" # Set release string in release.py
+version = "4.1.0" # Set release string in release.py
 description = "Create ULLYSES data products"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -22,12 +22,11 @@ classifiers = [
 ]
 
 dependencies = [
-    "setuptools",
     "datetime",
     "numpy>=1.22.4",
     "cython",
     "astropy>=6.0.0",
-    "ullyses_utils>=3.0.0",
+    "ullyses_utils>=3.1.0",
     "pandas>2.0",
     "calcos>=3.4.0",
     "costools",
