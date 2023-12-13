@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ullyses"
-version = "4.0.0" # Set release string in release.py
+version = "4.1.0" # Set release string in release.py
 description = "Create ULLYSES data products"
 readme = "README.md"
 requires-python = ">=3.9"
