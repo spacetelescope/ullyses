@@ -629,8 +629,8 @@ class Ullyses(KeyBlender):
             data['FLUX'] = data['FLUX'] / 10 # nm to A
             data['ERR'] = data['ERR'] / 10 # nm to A
             data.columns['WAVE'].unit = 'Angstrom'
-            data.columns['FLUX'].unit = 'erg/s/cm2/Angstrom'
-            data.columns['ERR'].unit = 'erg/s/cm2/Angstrom'
+            data.columns['FLUX'].unit = 'erg/s/cm**2/Angstrom'
+            data.columns['ERR'].unit = 'erg/s/cm**2/Angstrom'
             data.columns['WAVE'].name = 'WAVELENGTH_AIR' # not in vacuum
 
             # fill in more important keywords
