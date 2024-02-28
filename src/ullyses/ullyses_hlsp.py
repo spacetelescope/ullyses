@@ -104,10 +104,9 @@ class Ullyses(KeyBlender):
             dec = np.average(decs)
             epoch = "UNKNOWN"
         except:
-            print(f"{RED}WARNING:NO COORDINATES FOUND {RESET}")
             ra,dec,epoch = (0, 0," UNKNOWN")
         if self.targname == "":
-            print(f"{RED}WARNING:NO COORDINATES FOUND FOR {self.targname}{RESET}")
+            print(f"{RED}WARNING:NO COORDINATES FOUND FOR UNKNOWN TARGET {self.targname}{RESET}, SETTING RA/DEC TO: ({ra:.3f}, {dec:.3f})")
             return ra, dec, epoch
         csvs, metadata_dfs = parse_csv.parse_database_csv("all")
         ull_alias = match_aliases.match_aliases(self.targname, "target_name_ullyses")
@@ -122,7 +121,7 @@ class Ullyses(KeyBlender):
                 found = True
                 break
         if found is False:
-            print(f"{RED}WARNING:NO COORDINATES FOUND FOR {self.targname}{RESET}")
+            print(f"{RED}WARNING:NO COORDINATES FOUND FOR {self.targname}{RESET}, SETTING RA/DEC TO: ({ra:.3f}, {dec:.3f})")
         return ra, dec, epoch
 
 
