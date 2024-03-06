@@ -408,7 +408,7 @@ class Ullyses(KeyBlender):
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
         hdr0['PROPOSID'] = (self.combine_keys("proposid", dict_key="PEN"), 'Program identifier')
         hdr0.add_blank(after='TARG_DEC')
-        hdr0.add_blank('           / XSHOOTU PROVENANCE INFORMATION', before='PROPOSID')
+        hdr0.add_blank('           / PENELLOPE PROVENANCE INFORMATION', before='PROPOSID')
         hdr0['CREATOR'] = ('PENELLOPE Team', 'Creator of FITS file')
         pen_ref = "https://ui.adsabs.harvard.edu/abs/2021A%26A...650A.196M"
         hdr0['PEN_REF'] = (pen_ref, 'Bibliographic ID of PENELLOPE survey paper')
