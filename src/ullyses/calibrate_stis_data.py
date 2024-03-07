@@ -126,6 +126,7 @@ class StisData:
         if not os.path.exists(outdir):
             os.mkdir(outdir)
         self.dolog = dolog
+        self.orig_stdout = sys.stdout
         if dolog is True:
             if logfile is None:
                 logfile = os.path.join(outdir, f"{nowdt.strftime('%Y%m%d_%H%M')}_cal.log")
@@ -843,6 +844,7 @@ def calibrate_stis_data(indir, yamlfile, dolog=True, logfile=None, outdir=None,
             S = StisMama(infile=infile, yamlfile=yamlfile, dolog=dolog, 
                          logfile=logfile, outdir=outdir, overwrite=overwrite)
         S.run_all()
+        sys.stdout = self.orig_stdout
 
 
 if __name__ == "__main__":
