@@ -844,7 +844,7 @@ def calibrate_stis_data(indir, yamlfile, dolog=True, logfile=None, outdir=None,
             S = StisMama(infile=infile, yamlfile=yamlfile, dolog=dolog, 
                          logfile=logfile, outdir=outdir, overwrite=overwrite)
         S.run_all()
-        sys.stdout = self.orig_stdout
+        sys.stdout = S.orig_stdout
 
 
 if __name__ == "__main__":
