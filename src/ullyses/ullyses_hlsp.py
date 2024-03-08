@@ -899,7 +899,30 @@ class Ullyses(KeyBlender):
         cmin = fits.Column(name='MINWAVE', array=self.combine_keys("minwave", "arr", dict_key=project), format='F9.4', unit='Angstrom')
         cmax = fits.Column(name='MAXWAVE', array=self.combine_keys("maxwave", "arr", dict_key=project), format='F9.4', unit='Angstrom')
 
-        cdp = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv, cdb, cdm, cde, cexp, cmin ,cmax])
+        if project == "PEN": # sort the prov. to match the ext order. Already is for XSU
+            ## sort the provenance by MJD start time & in wavelength order blue -> red
+            time_sort = np.argsort(cdb.array) # indices
+            order_dict = {'UVB' : 0, 'VIS' : 1, 'NIR' : 2}
+
+            # find the index for the wavelngths using the disperser info
+            wave_ind = []
+            for i, arm in enumerate(cdis.array[time_sort]):
+                wave_ind.append(order_dict[arm])
+                # increment the dictionary for the next epoch (if there is one)
+                order_dict[arm] += 3 # UV, VIS, NIR
+
+            # sort each of the columns using these indices
+            col_in_order = [cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv,
+                            cdb, cdm, cde, cexp, cmin, cmax]
+            sorted_coldef = []
+            for col in col_in_order:
+                col.array = col.array[time_sort][wave_ind]
+                sorted_coldef.append(col)
+        else: # XSU
+            sorted_coldef = [cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv,
+                            cdb, cdm, cde, cexp, cmin, cmax]
+
+        cdp = fits.ColDefs(sorted_coldef)
         provtable = fits.BinTableHDU.from_columns(cdp, header=hdr)
 
         self.prov_hdr = hdr
