@@ -627,6 +627,9 @@ class Ullyses(KeyBlender):
             else:
                 extname = '_'.join(os.path.basename(filename).split('.fits')[0].split('_')[2:-1]).upper()
 
+            # set this manually so that the FILENAME in prov. ext picks it up
+            self.first_headers[i]['EXTNAME'] = extname
+
             all_extnames.append(extname) # for sorting later with ep1 in
 
             with fits.open(filename) as hdulist:
