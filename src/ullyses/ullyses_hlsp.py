@@ -364,9 +364,8 @@ class Ullyses(KeyBlender):
         hdr0['CREATOR'] = ('XSHOOTING-ULLYSES Team', 'Creator of FITS file')
         hdr0['XSU_VER'] = (self.combine_keys("dr_num", dict_key="XSU"), 'XSHOOTING-ULLYSES data release identifier')
         hdr0['XSU_DATE'] = (self.combine_keys("dr_date", dict_key="XSU"), 'XSHOOTING-ULLYSES data release date')
-# need to define this
         xsu_ref1 = "https://ui.adsabs.harvard.edu/abs/2023A&A...675A.154V"
-        xsu_ref2 = "TBD"
+        xsu_ref2 = "https://arxiv.org/abs/2402.16987"
         hdr0['XSUREF1'] = (xsu_ref1, 'Bibliographic ID of XSHOOTING-ULLYSES paper 1')
         hdr0['XSUREF2'] = (xsu_ref2, 'Bibliographic ID of XSHOOTING-ULLYSES paper 2')
         hdr0['CAL_VER'] = (f'ULLYSES Cal {self.cal_ver}', 'HLSP processing software version')
