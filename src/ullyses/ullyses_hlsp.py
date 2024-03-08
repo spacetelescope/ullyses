@@ -50,10 +50,19 @@ class Ullyses(KeyBlender):
         for item in self.files:
             with fits.open(item) as hdulist:
                 self.nextend = len(hdulist)
-                self.primary_headers.append(hdulist[0].header)
-                self.first_headers.append(hdulist[1].header)
                 if hlsp_type == "drizzled": # Get the WGT headers
+                    self.primary_headers.append(hdulist[0].header)
                     self.second_headers.append(hdulist[2].header)
+                elif hlsp_type == 'xsu':
+                    # We call each of the data extensions in an original XSU product a
+                    # "first extension" since each is really a separate exposure;
+                    # treat each extension as though it was its own file
+                    for i in range(1, self.nextend):
+                        self.primary_headers.append(hdulist[0].header)
+                        self.first_headers.append(hdulist[i].header)
+                else: # grab the first data extension header
+                    self.primary_headers.append(hdulist[0].header)
+                    self.first_headers.append(hdulist[1].header)
 
         self.targname = targname
         self.targ_ra, self.targ_dec, self.coord_epoch = self.get_coords()
