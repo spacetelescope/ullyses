@@ -1,11 +1,16 @@
 from astropy.io import fits
 from collections import defaultdict
 import os
+import datetime
 
 from ullyses.coadd import COSSegmentList, STISSegmentList, FUSESegmentList, CCDSegmentList  
 
-def coadd_files(infiles, outdir, outfile=None, clobber=False):
-     
+def coadd_files(infiles, outdir=None, outfile=None, clobber=False):
+
+    if outdir is None:
+        now = datetime.datetime.now()
+        outdir = f"{now.strftime('%d%b%Y_%H%M%S')}_coadd" 
+
     nonvofiles = [x for x in infiles if "_vo.fits" not in x]
     vofiles = [x for x in infiles if "_vo.fits" in x]
     # collect the gratings that we will loop through

@@ -138,11 +138,14 @@ def get_max_flux(wave, flux, gratings, dlam=10.):
                 # set the flux to zero in that region
                 flux[wh_grating] = 0.
 
+    if wave.min() < 1100 and 'G130M' in gratings:
+        # the lower fluxes are very noisy for c1096, so cut those off
+        flux = flux[4000:-200]
     # remove the edges just to be sure. There are some with weird edges like CHX-18N
-    if len(flux) > 300: # in case it is only COS/NUV for some reason
-        flux = flux[100:-100]
+    if len(flux) > 300: # in case it is only COS/NUV or another small range grating
+        flux = flux[200:-200]
 
-    return flux.max()
+    return np.nanmax(flux)
 
 #-------------------------------------------------------------------------------
 
@@ -395,8 +398,8 @@ if __name__ == "__main__":
     # Trying to make more color-blind accessible.
     CSPEC_COLORS = ['#d8c53b', '#8ab445', '#93c8b5', '#3a9dab', '#4f88cc',
                     '#7480d6', '#9075d3', '#b371c4'] # yellow -> green-> blue
-    ASPEC_COLORS = ['#b19bc2', '#82569c', '#4e2a67', '#859a87', '#255b2b',
-                    '#47834f', '#95b399'] # purples -> green (if needed)
+    ASPEC_COLORS = ['#b19bc2', '#82569c', '#4e2a67', '#47834f', '#859a87',
+                    '#255b2b', '#95b399'] # purples -> green (if needed)
 
     no_previews = make_plots(args.datadir, args.outdir, args.datarelease)
     print('No files for:')
