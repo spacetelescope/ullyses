@@ -333,6 +333,7 @@ class Ullyses(KeyBlender):
     def make_xsu_hdr0(self):
         hdr0 = fits.Header()
         hdr0['NEXTEND'] = self.nextend
+        hdr0['FITS_VER'] = 'Definition of the Flexible Image Transport System (FITS) v4.0 https://fits.gsfc.nasa.gov/standard40/fits_standard40aa-le.pdf'
         hdr0['FITS_SW'] = (f'astropy.io.fits v {astropy.__version__}', 'FITS file creation software')
         hdr0['ORIGIN'] =  ("XSHOOTING-ULLYSES", 'FITS file originator')
         hdr0['DATE'] = (f'{str(datetime.date.today())}', 'Date this file was written')
@@ -346,7 +347,7 @@ class Ullyses(KeyBlender):
         minwave = 3000
         maxwave = 10202
         cenwave = 6601
-        hdr0['CENWAVE'] = (cenwave, 'Central wavelength setting for disperser')
+        hdr0['CENWAVE'] = (self.combine_keys("cenwave", "multi", dict_key="XSU"), 'Central wavelength setting for disperser')
         hdr0['APERTURE'] = (self.combine_keys("aperture", dict_key="XSU"), 'Identifier of entrance aperture')
         hdr0['S_REGION'] = (self.obs_footprint(), 'Region footprint')
         hdr0['OBSMODE'] = ("ACCUM", 'Instrument operating mode (ACCUM | TIME-TAG)')
@@ -389,7 +390,8 @@ class Ullyses(KeyBlender):
 
     def make_penellope_hdr0(self):
         hdr0 = fits.Header()
-        hdr0['NEXTEND'] = self.nextend
+        hdr0['NEXTEND'] = len(self.files) + 2 # 1 file per epoch + prov & primary
+        hdr0['FITS_VER'] = 'Definition of the Flexible Image Transport System (FITS) v4.0 https://fits.gsfc.nasa.gov/standard40/fits_standard40aa-le.pdf'
         hdr0['FITS_SW'] = (f'astropy.io.fits v {astropy.__version__}', 'FITS file creation software')
         hdr0['ORIGIN'] =  ("PENELLOPE", 'FITS file originator')
         hdr0['DATE'] = (f'{str(datetime.date.today())}', 'Date this file was written')
@@ -403,7 +405,7 @@ class Ullyses(KeyBlender):
         minwave = 3000
         maxwave = 24790
         cenwave = (minwave + maxwave) // 2
-        hdr0['CENWAVE'] = (cenwave, 'Central wavelength setting for disperser')
+        hdr0['CENWAVE'] = (self.combine_keys("cenwave", "multi", dict_key="PEN"), 'Central wavelength setting for disperser')
         hdr0['APERTURE'] = (self.combine_keys("aperture", dict_key="PEN"), 'Identifier of entrance aperture')
         hdr0['S_REGION'] = (self.obs_footprint(), 'Region footprint')
         hdr0['OBSMODE'] = ("ACCUM", 'Instrument operating mode (ACCUM | TIME-TAG)')
