@@ -616,7 +616,7 @@ class Ullyses(KeyBlender):
 
         all_hdu = [] # to make a single file per target
         all_extnames = []
-        for i, filename in enumerate(np.sort(self.files)):
+        for i, filename in enumerate(self.files):
             # of the format flux_{targname}_{epN}_nir_tell_P3.fits where epN is
             #   only there if there is more than one epoch and N is the epoch #
             # we only want to know the telescope arm used, epoch, and if the spec
@@ -913,13 +913,13 @@ class Ullyses(KeyBlender):
                 wave_ind.append(order_dict[arm])
                 # increment the dictionary for the next epoch (if there is one)
                 order_dict[arm] += 3 # UV, VIS, NIR
-
             # sort each of the columns using these indices
             col_in_order = [cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv,
                             cdb, cdm, cde, cexp, cmin, cmax]
             sorted_coldef = []
+
             for col in col_in_order:
-                col.array = col.array[time_sort][wave_ind]
+                col.array = col.array[time_sort][np.argsort(wave_ind)]
                 sorted_coldef.append(col)
         else: # XSU
             sorted_coldef = [cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv,
