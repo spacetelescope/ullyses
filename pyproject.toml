@@ -32,6 +32,7 @@ dependencies = [
     "costools",
     "stistools>=1.4.2",
     "matplotlib",
+    "ipympl",
     "pyyaml",
     "plotly",
     "scipy>=1.11.4",
