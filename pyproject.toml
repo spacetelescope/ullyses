@@ -32,10 +32,12 @@ dependencies = [
     "costools",
     "stistools>=1.4.2",
     "matplotlib",
+    "ipympl",
     "pyyaml",
     "plotly",
     "scipy>=1.11.4",
-    "hasp>=0.9.6"
+    "hasp>=0.9.6",
+    "jupyter"
 ]
 
 [project.scripts]

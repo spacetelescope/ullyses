@@ -74,7 +74,7 @@ def copy_cvso104_fringeflat(cvso109_dir, cvso104_fringeflat):
     shutil.copy(cvso104_fringeflat, cvso109_dir)
 
 
-def make_custom_x1ds(datadir, outdir, targ, config_dir=CONFIG_DIR):
+def make_custom_x1ds(datadir, outdir, targ, config_dir=CONFIG_DIR, *args, **kwargs):
     """
     Calibrate the STIS x1ds using the calibrate_stis_data function.
 
@@ -91,7 +91,7 @@ def make_custom_x1ds(datadir, outdir, targ, config_dir=CONFIG_DIR):
     configs = glob.glob(os.path.join(config_dir, f"{targ}_*yaml"))
     assert len(configs) != 0, f"No config files for target {targ}"
     for config in configs:
-        calibrate_stis_data(datadir, config, outdir=outdir)
+        calibrate_stis_data(datadir, config, outdir=outdir, *args, **kwargs)
     print(f"\nMade custom products for target {targ}, wrote to {outdir}\n")
 
 

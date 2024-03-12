@@ -19,14 +19,25 @@ use [`stenv`](https://stenv.readthedocs.io/en/latest/getting_started.html).
 
 ### Installing the Latest Release
 
-The first two steps are to create and activate an environment:
+If you do not already have conda installed, you can do so by following 
+[these instructions](https://stenv.readthedocs.io/en/latest/getting_started.html#conda-basics).
+
+If you do *not* need to run the custom STIS calibration pipeline, you can create and activate your conda environment like so:
 
     conda create -n <env_name> python=3.9
     conda activate <env_name>
    
 Python version 3.9 or greater is required for some dependencies, including `calcos`, the COS data calibration pipeline used in these scripts.
 
-Then simply install the latest release of ullyses from pip:
+If you want to run the custom STIS calibration pipeline, you must create the environment like so:
+
+    conda env create -n <env_name> --file <filename>
+    conda activate <env_name>
+
+Where `<filename>` is determined by following the instructions for
+[choosing a release](https://stenv.readthedocs.io/en/latest/getting_started.html#choose-an-stenv-release) in the `stenv` documentation.
+
+After creating your conda environemnt, simply install the latest release of ullyses from pip:
 
     pip install ullyses
 
