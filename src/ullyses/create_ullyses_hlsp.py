@@ -33,7 +33,7 @@ def make_imaging_hlsps(drcfile, outdir, targ, hdr_targ=None, hlspname=None):
     if not os.path.exists(outdir):
         os.makedirs(outdir)
     outfile = os.path.join(outdir, hlspname)
-    U = Ullyses(files=[drcfile], hlspname=outfile, targname=hdr_targ, 
+    U = Ullyses(files=[drcfile], hlspname=outfile, targname=hdr_targ,
                 cal_ver=__version__, version=__release__, level=6, hlsp_type="drizzled")
     U.make_hdrs_and_prov()
     U.write_file()
@@ -44,7 +44,7 @@ def make_lcogt_tss(indir, outdir, targ, hlspname=None, photfile=None):
         photfile = os.path.join(PHOT_DIR, f"{targ.upper()}_phot.txt")
     hlsp_targname = match_aliases.match_aliases(targ)
 
-    df = pd.read_csv(photfile, 
+    df = pd.read_csv(photfile,
             names=["filename", "mjdstart", "mjdend", "wl", "flux", "err"],
             skiprows=[0], delim_whitespace=True)
     df = df.sort_values("mjdstart")
@@ -60,7 +60,7 @@ def make_lcogt_tss(indir, outdir, targ, hlspname=None, photfile=None):
         os.makedirs(outdir)
     outfile = os.path.join(outdir, hlspname)
     ull_targname = match_aliases.match_aliases(hlsp_targname, "target_name_ullyses")
-    U = Ullyses(files=filepaths, hlspname=outfile, targname=ull_targname, 
+    U = Ullyses(files=filepaths, hlspname=outfile, targname=ull_targname,
                 cal_ver=__version__, version=__release__, level=5,
                 hlsp_type="lcogt", photfile=photfile)
     U.make_hdrs_and_prov()
@@ -75,8 +75,24 @@ def make_xsu_hlsps(infile, outdir, targ, hlspname=None):
         os.makedirs(outdir)
     outfile = os.path.join(outdir, hlspname)
     ull_targname = match_aliases.match_aliases(hlsp_targname, "target_name_ullyses")
-    U = Ullyses(files=[infile], hlspname=outfile, targname=ull_targname,  
+    U = Ullyses(files=[infile], hlspname=outfile, targname=ull_targname,
                 cal_ver=__version__, version=__release__, level=7,
                 hlsp_type="xsu", overwrite=True)
+    U.make_hdrs_and_prov()
+    U.write_file()
+
+def make_penellope_hlsps(infiles, outdir, targ, hlspname=None):
+    hlsp_targname = match_aliases.match_aliases(targ)
+    ull_targname = match_aliases.match_aliases(hlsp_targname, "target_name_ullyses")
+
+    if hlspname is None:
+        hlspname = f"hlsp_ullyses_vlt_xshooter_{hlsp_targname.lower()}_uvb-vis-nir_{__release__}_vltspec.fits"
+    if not os.path.exists(outdir):
+        os.makedirs(outdir)
+    outfile = os.path.join(outdir, hlspname)
+
+    U = Ullyses(files=infiles, hlspname=outfile, targname=ull_targname,
+                cal_ver=__version__, version=__release__, level=7,
+                hlsp_type="penellope", overwrite=True)
     U.make_hdrs_and_prov()
     U.write_file()
