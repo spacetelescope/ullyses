@@ -23,18 +23,18 @@ class Ullyses(KeyBlender):
     def __init__(self, files, hlspname, targname, level,
                  cal_ver=ullyses_version, version=ullyses_release, hlsp_type="spectral",
                  overwrite=True, photfile=None):
-        
+
         self.hlsp_type = hlsp_type
-        accepted_types = ["spectral", "imaging", "drizzled", "lcogt", "xsu"]
-        if self.hlsp_type not in accepted_types: 
-            print(f"ERROR: HLSP type not '{self.hlsp_type}' recognized. Must be one of {accepted_types}") 
+        accepted_types = ["spectral", "imaging", "drizzled", "lcogt", "xsu", "penellope"]
+        if self.hlsp_type not in accepted_types:
+            print(f"ERROR: HLSP type not '{self.hlsp_type}' recognized. Must be one of {accepted_types}")
             sys.exit()
-        
+
         self.files = files
         if hlsp_type == "lcogt":
             assert photfile is not None, "Photometry file must be supplied for LCOGT data"
             self.photfile = photfile
-            df = pd.read_csv(self.photfile, 
+            df = pd.read_csv(self.photfile,
                     names=["filename", "mjdstart", "mjdend", "wl", "flux", "err"],
                     skiprows=[0], delim_whitespace=True)
             df = df.sort_values("mjdstart")
@@ -50,23 +50,20 @@ class Ullyses(KeyBlender):
         for item in self.files:
             with fits.open(item) as hdulist:
                 self.nextend = len(hdulist)
-                if self.hlsp_type != "xsu":
+                if hlsp_type == "drizzled": # Get the WGT headers
                     self.primary_headers.append(hdulist[0].header)
-                    self.first_headers.append(hdulist[1].header)
-                    if hlsp_type == "drizzled": # Get the WGT headers
-                        self.second_headers.append(hdulist[2].header)
-                elif self.hlsp_type == "xsu":
-        # We call each of the data extensions in an original XSU product a 
-        # "first extension" since each is really a separate exposure 
+                    self.second_headers.append(hdulist[2].header)
+                elif hlsp_type == 'xsu':
+                    # We call each of the data extensions in an original XSU product a
+                    # "first extension" since each is really a separate exposure;
+                    # treat each extension as though it was its own file
                     for i in range(1, self.nextend):
                         self.primary_headers.append(hdulist[0].header)
-                        hdr = hdulist[i].header
-                        # add a new "key" that is just the VLT arm in use
-                        if "UVB" in hdr["extname"]:
-                            hdr["arm"] = "UVB"
-                        else:
-                            hdr["arm"] = "VIS"
-                        self.first_headers.append(hdulist[i].header) 
+                        self.first_headers.append(hdulist[i].header)
+                else: # grab the first data extension header
+                    self.primary_headers.append(hdulist[0].header)
+                    self.first_headers.append(hdulist[1].header)
+
         self.targname = targname
         self.targ_ra, self.targ_dec, self.coord_epoch = self.get_coords()
         self.hlspname = hlspname
@@ -78,7 +75,7 @@ class Ullyses(KeyBlender):
 # Python 3.9 compliant if/else version of match case
         if self.hlsp_type == "lcogt":
             self.telescope = "LCOGT"
-        elif self.hlsp_type == "xsu":
+        elif self.hlsp_type == "xsu" or self.hlsp_type == "penellope":
             self.telescope = "VLT"
         elif self.hlsp_type == "drizzled":
             self.telescope = "HST"
@@ -111,7 +108,7 @@ class Ullyses(KeyBlender):
         csvs, metadata_dfs = parse_csv.parse_database_csv("all")
         ull_alias = match_aliases.match_aliases(self.targname, "target_name_ullyses")
         found = False
-        for df in metadata_dfs: 
+        for df in metadata_dfs:
             df['target_name_ullyses'] = df['target_name_ullyses'].str.upper()
             row = df.loc[df.target_name_ullyses == ull_alias]
             if len(row) == 1:
@@ -148,9 +145,14 @@ class Ullyses(KeyBlender):
             self.hdutables = []
             for i in range(1, self.nextend):
                 self.hdutables.append(self.make_xsu_data_ext(i))
-            self.make_xsu_prov_ext()
+            self.make_vlt_prov_ext("XSU")
+        elif self.hlsp_type == "penellope":
+            self.make_penellope_hdr0()
+            self.hdutables = self.make_penellope_data_ext()
+            self.make_vlt_prov_ext("PEN")
+        else:
+            print(f"Unrecognized hlsp type to make headers: {self.hlsp_type}")
 
-        
     def write_file(self):
         if self.hlsp_type == "spectral":
             pass
@@ -167,10 +169,13 @@ class Ullyses(KeyBlender):
             ext2 = self.hdu2
             prov = self.prov_hdu
             hdulist = fits.HDUList([primary, ext1, ext2, prov])
-        elif self.hlsp_type == "xsu":
+        elif self.hlsp_type == "xsu" or self.hlsp_type == "penellope":
             primary = fits.PrimaryHDU(header=self.hdr0)
             prov = self.prov_hdu
             hdulist = fits.HDUList([primary] + self.hdutables + [prov])
+        else:
+            print(f"Unrecognized hlsp type to write the file: {self.hlsp_type}")
+
         hdulist.writeto(self.hlspname, overwrite=self.overwrite)
         print(f"Wrote {self.hlspname}")
 
@@ -219,13 +224,13 @@ class Ullyses(KeyBlender):
         minwave = self.combine_keys("minwave", "min")
         maxwave = self.combine_keys("maxwave", "max")
         centrwv = ((maxwave - minwave)/2.) + minwave
-        hdr0['CENTRWV'] = (centrwv, 'Central wavelength of the data') 
+        hdr0['CENTRWV'] = (centrwv, 'Central wavelength of the data')
         hdr0.add_blank(after='REFERENC')
         hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')
         hdr0['MINWAVE'] = (minwave, 'Minimum wavelength in spectrum')
         hdr0['MAXWAVE'] = (maxwave, 'Maximum wavelength in spectrum')
-    
-        self.hdr0 = hdr0 
+
+        self.hdr0 = hdr0
 
 
     def make_imaging_hdr0(self):
@@ -275,10 +280,10 @@ class Ullyses(KeyBlender):
         hdr0['HLSP_LVL'] = (self.level, 'ULLYSES HLSP Level')
         hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
-        hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')  
-    
+        hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')
+
         self.hdr0 = hdr0
-    
+
 
     def make_lcogt_timeseries_hdr0(self):
         hdr0 = fits.Header()
@@ -319,69 +324,121 @@ class Ullyses(KeyBlender):
         hdr0['HLSP_LVL'] = (self.level, 'ULLYSES HLSP Level')
         hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
         hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
-        hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')  
+        hdr0['REFERENC'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of primary paper')
         # CENTRWV?
 
         self.hdr0 = hdr0
-    
-    
+
+
     def make_xsu_hdr0(self):
         hdr0 = fits.Header()
         hdr0['NEXTEND'] = self.nextend
+        hdr0['FITS_VER'] = 'Definition of the Flexible Image Transport System (FITS) v4.0 https://fits.gsfc.nasa.gov/standard40/fits_standard40aa-le.pdf'
         hdr0['FITS_SW'] = (f'astropy.io.fits v {astropy.__version__}', 'FITS file creation software')
         hdr0['ORIGIN'] =  ("XSHOOTING-ULLYSES", 'FITS file originator')
         hdr0['DATE'] = (f'{str(datetime.date.today())}', 'Date this file was written')
         hdr0['FILENAME'] = (os.path.basename(self.hlspname), 'Name of this file')
-        hdr0['TELESCOP'] = (self.combine_keys("telescop", "multi"), 'Telescope used to acquire data')
-        hdr0['INSTRUME'] = (self.combine_keys("instrume", "multi") , 'Instrument used to acquire data')
+        hdr0['TELESCOP'] = (self.combine_keys("telescop", "multi", dict_key="XSU"), 'Telescope used to acquire data')
+        hdr0['INSTRUME'] = (self.combine_keys("instrume", "multi", dict_key="XSU") , 'Instrument used to acquire data')
         hdr0.add_blank('', after='TELESCOP')
         hdr0.add_blank('              / SCIENCE INSTRUMENT CONFIGURATION', before='INSTRUME')
-        hdr0['DETECTOR'] = (self.combine_keys("detector", "multi"), 'Detector or channel used to acquire data')
-        hdr0['DISPERSR'] = (self.combine_keys("opt_elem", "multi"), 'Identifier of disperser')
+        hdr0['DETECTOR'] = (self.combine_keys("detector", "multi", dict_key="XSU"), 'Detector or channel used to acquire data')
+        hdr0['DISPERSR'] = (self.combine_keys("opt_elem", "multi", dict_key="XSU"), 'Identifier of disperser')
         minwave = 3000
         maxwave = 10202
         cenwave = 6601
-        hdr0['CENWAVE'] = (cenwave, 'Central wavelength setting for disperser')
-        hdr0['APERTURE'] = (self.combine_keys("aperture"), 'Identifier of entrance aperture')
+        hdr0['CENWAVE'] = (self.combine_keys("cenwave", "multi", dict_key="XSU"), 'Central wavelength setting for disperser')
+        hdr0['APERTURE'] = (self.combine_keys("aperture", dict_key="XSU"), 'Identifier of entrance aperture')
         hdr0['S_REGION'] = (self.obs_footprint(), 'Region footprint')
         hdr0['OBSMODE'] = ("ACCUM", 'Instrument operating mode (ACCUM | TIME-TAG)')
         hdr0['TARGNAME'] = (self.targname, 'Target Name')
         hdr0.add_blank(after='OBSMODE')
         hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
         hdr0['G_EPOCH'] =  (self.coord_epoch,  'Epoch of GAIA coordinates')
-        hdr0['RADESYS'] = (self.combine_keys("radesys", "multi"), 'World coordinate reference frame')
+        hdr0['RADESYS'] = (self.combine_keys("radesys", "multi", dict_key="XSU"), 'World coordinate reference frame')
         hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
         hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
-        hdr0['PROPOSID'] = (self.combine_keys("proposid"), 'Program identifier')                              
-        hdr0.add_blank(after='TARG_DEC')                                                                         
-        hdr0.add_blank('           / XSHOOTU PROVENANCE INFORMATION', before='PROPOSID')                         
+        hdr0['PROPOSID'] = (self.combine_keys("proposid", dict_key="XSU"), 'Program identifier')
+        hdr0.add_blank(after='TARG_DEC')
+        hdr0.add_blank('           / XSHOOTU PROVENANCE INFORMATION', before='PROPOSID')
         hdr0['CREATOR'] = ('XSHOOTING-ULLYSES Team', 'Creator of FITS file')
-        hdr0['XSU_VER'] = (self.combine_keys("dr_num"), 'XSHOOTING-ULLYSES data release identifier')
-        hdr0['XSU_DATE'] = (self.combine_keys("dr_date"), 'XSHOOTING-ULLYSES data release date')
-# need to define this
+        hdr0['XSU_VER'] = (self.combine_keys("dr_num", dict_key="XSU"), 'XSHOOTING-ULLYSES data release identifier')
+        hdr0['XSU_DATE'] = (self.combine_keys("dr_date", dict_key="XSU"), 'XSHOOTING-ULLYSES data release date')
         xsu_ref1 = "https://ui.adsabs.harvard.edu/abs/2023A&A...675A.154V"
-        xsu_ref2 = "TBD"
+        xsu_ref2 = "https://arxiv.org/abs/2402.16987"
         hdr0['XSUREF1'] = (xsu_ref1, 'Bibliographic ID of XSHOOTING-ULLYSES paper 1')
         hdr0['XSUREF2'] = (xsu_ref2, 'Bibliographic ID of XSHOOTING-ULLYSES paper 2')
         hdr0['CAL_VER'] = (f'ULLYSES Cal {self.cal_ver}', 'HLSP processing software version')
         hdr0.add_blank(after='XSUREF2')
-        hdr0.add_blank('           / ULLYSES PROVENANCE INFORMATION', before='CAL_VER')                          
-        hdr0['HLSPID'] = ('ULLYSES', 'Name ID of STScI HLSP collection')                                         
+        hdr0.add_blank('           / ULLYSES PROVENANCE INFORMATION', before='CAL_VER')
+        hdr0['HLSPID'] = ('ULLYSES', 'Name ID of STScI HLSP collection')
         hdr0['HSLPNAME'] = ('Hubble UV Legacy Library of Young Stars as Essential Standards', 'Name ID of STScI HLSP collection')
-        hdr0['HLSPLEAD'] = ('Julia Roman-Duval', 'Full name of ULLYSES HLSP project lead')                       
-        hdr0['HLSP_VER'] = (self.version, 'ULLYSES HLSP data release version identifier')                               
+        hdr0['HLSPLEAD'] = ('Julia Roman-Duval', 'Full name of ULLYSES HLSP project lead')
+        hdr0['HLSP_VER'] = (self.version, 'ULLYSES HLSP data release version identifier')
         hdr0['HLSP_LVL'] = (self.level, 'ULLYSES HLSP Level')
-        hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')                                         
-        hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')                  
+        hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
+        hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
         hdr0['ULL_REF'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of ULLYSES paper')
-        hdr0['CENTRWV'] = (cenwave, 'Central wavelength of the data')                                          
-        hdr0.add_blank(after='ULL_REF')                                                                          
-        hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')                                 
-        hdr0['MINWAVE'] = (minwave, 'Minimum wavelength in spectrum')                                          
+        hdr0['CENTRWV'] = (cenwave, 'Central wavelength of the data')
+        hdr0.add_blank(after='ULL_REF')
+        hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')
+        hdr0['MINWAVE'] = (minwave, 'Minimum wavelength in spectrum')
         hdr0['MAXWAVE'] = (maxwave, 'Maximum wavelength in spectrum')
-    
+
         self.hdr0 = hdr0
 
+    def make_penellope_hdr0(self):
+        hdr0 = fits.Header()
+        hdr0['NEXTEND'] = len(self.files) + 2 # 1 file per epoch + prov & primary
+        hdr0['FITS_VER'] = 'Definition of the Flexible Image Transport System (FITS) v4.0 https://fits.gsfc.nasa.gov/standard40/fits_standard40aa-le.pdf'
+        hdr0['FITS_SW'] = (f'astropy.io.fits v {astropy.__version__}', 'FITS file creation software')
+        hdr0['ORIGIN'] =  ("PENELLOPE", 'FITS file originator')
+        hdr0['DATE'] = (f'{str(datetime.date.today())}', 'Date this file was written')
+        hdr0['FILENAME'] = (os.path.basename(self.hlspname), 'Name of this file')
+        hdr0['TELESCOP'] = (self.combine_keys("telescop", "multi", dict_key="PEN"), 'Telescope used to acquire data')
+        hdr0['INSTRUME'] = (self.combine_keys("instrume", "multi", dict_key="PEN") , 'Instrument used to acquire data')
+        hdr0.add_blank('', after='TELESCOP')
+        hdr0.add_blank('              / SCIENCE INSTRUMENT CONFIGURATION', before='INSTRUME')
+        hdr0['DETECTOR'] = (self.combine_keys("detector", "multi", dict_key="PEN"), 'Detector or channel used to acquire data')
+        hdr0['DISPERSR'] = (self.combine_keys("opt_elem", "multi", dict_key="PEN"), 'Identifier of disperser')
+        minwave = 3000
+        maxwave = 24790
+        cenwave = (minwave + maxwave) // 2
+        hdr0['CENWAVE'] = (self.combine_keys("cenwave", "multi", dict_key="PEN"), 'Central wavelength setting for disperser')
+        hdr0['APERTURE'] = (self.combine_keys("aperture", dict_key="PEN"), 'Identifier of entrance aperture')
+        hdr0['S_REGION'] = (self.obs_footprint(), 'Region footprint')
+        hdr0['OBSMODE'] = ("ACCUM", 'Instrument operating mode (ACCUM | TIME-TAG)')
+        hdr0['TARGNAME'] = (self.targname, 'Target Name')
+        hdr0.add_blank(after='OBSMODE')
+        hdr0.add_blank('              / TARGET INFORMATION', before='TARGNAME')
+        hdr0['G_EPOCH'] =  (self.coord_epoch,  'Epoch of GAIA coordinates')
+        hdr0['RADESYS'] = (self.combine_keys("radesys", "multi", dict_key="PEN"), 'World coordinate reference frame')
+        hdr0['TARG_RA'] =  (self.targ_ra,  '[deg] Target right ascension')
+        hdr0['TARG_DEC'] =  (self.targ_dec,  '[deg] Target declination')
+        hdr0['PROPOSID'] = (self.combine_keys("proposid", dict_key="PEN"), 'Program identifier')
+        hdr0.add_blank(after='TARG_DEC')
+        hdr0.add_blank('           / PENELLOPE PROVENANCE INFORMATION', before='PROPOSID')
+        hdr0['CREATOR'] = ('PENELLOPE Team', 'Creator of FITS file')
+        pen_ref = "https://ui.adsabs.harvard.edu/abs/2021A%26A...650A.196M"
+        hdr0['PEN_REF'] = (pen_ref, 'Bibliographic ID of PENELLOPE survey paper')
+        hdr0['CAL_VER'] = (f'ULLYSES Cal {self.cal_ver}', 'HLSP processing software version')
+        hdr0.add_blank(after='PEN_REF')
+        hdr0.add_blank('           / ULLYSES PROVENANCE INFORMATION', before='CAL_VER')
+        hdr0['HLSPID'] = ('ULLYSES', 'Name ID of STScI HLSP collection')
+        hdr0['HSLPNAME'] = ('Hubble UV Legacy Library of Young Stars as Essential Standards', 'Name ID of STScI HLSP collection')
+        hdr0['HLSPLEAD'] = ('Julia Roman-Duval', 'Full name of ULLYSES HLSP project lead')
+        hdr0['HLSP_VER'] = (self.version, 'ULLYSES HLSP data release version identifier')
+        hdr0['HLSP_LVL'] = (self.level, 'ULLYSES HLSP Level')
+        hdr0['LICENSE'] = ('CC BY 4.0', 'License for use of these data')
+        hdr0['LICENURL'] = ('https://creativecommons.org/licenses/by/4.0/', 'Data license URL')
+        hdr0['ULL_REF'] = ('https://ui.adsabs.harvard.edu/abs/2020RNAAS...4..205R', 'Bibliographic ID of ULLYSES paper')
+        hdr0['CENTRWV'] = (cenwave, 'Central wavelength of the data')
+        hdr0.add_blank(after='ULL_REF')
+        hdr0.add_blank('           / ARCHIVE SEARCH KEYWORDS', before='CENTRWV')
+        hdr0['MINWAVE'] = (minwave, 'Minimum wavelength in spectrum')
+        hdr0['MAXWAVE'] = (maxwave, 'Maximum wavelength in spectrum')
+
+        self.hdr0 = hdr0
 
     def make_spectral_hdr1(self):
         hdr1 = fits.Header()
@@ -405,9 +462,9 @@ class Ullyses(KeyBlender):
         hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
         hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
         hdr1['XPOSURE'] = (self.combine_keys("exptime", "sum"), '[s] Sum of exposure durations')
-    
+
         self.hdr1 = hdr1
-                                                                                                                           
+
     def make_imaging_hdr1(self):
         hdr1 = fits.Header()
         hdr1['EXTNAME'] = ('SCIENCE', 'Image array')
@@ -430,9 +487,9 @@ class Ullyses(KeyBlender):
         hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
         hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
         hdr1['XPOSURE'] = (self.combine_keys("exptime", "sum", "WFC3"), '[s] Sum of exposure durations')
-    
+
         self.hdr1 = hdr1
-    
+
 
     def make_lcogt_timeseries_data_ext(self):
         hdr1 = fits.Header()
@@ -456,7 +513,7 @@ class Ullyses(KeyBlender):
         hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
         hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
         hdr1['XPOSURE'] = (self.combine_keys("exptime", "sum", "LCOGT"), '[s] Sum of exposure durations')
-    
+
         self.hdr1 = hdr1
 
         nrows = len(self.photdf["mjdstart"])
@@ -477,11 +534,11 @@ class Ullyses(KeyBlender):
         columns = []
         columns.append(fits.Column(name='MJDSTART', format=str(nrows)+'D', unit='Day'))
         columns.append(fits.Column(name='MJDEND', format=str(nrows)+'D', unit='Day'))
-        columns.append(fits.Column(name='WAVELENGTH', format=str(ncols)+'E', 
+        columns.append(fits.Column(name='WAVELENGTH', format=str(ncols)+'E',
                                    unit='Angstrom'))
-        columns.append(fits.Column(name='FLUX', format=str(npixels)+'E', 
+        columns.append(fits.Column(name='FLUX', format=str(npixels)+'E',
                                    dim=array_dimensions, unit='erg /s /cm**2 /Angstrom'))
-        columns.append(fits.Column(name='ERROR', format=str(npixels)+'E', 
+        columns.append(fits.Column(name='ERROR', format=str(npixels)+'E',
                                    dim=array_dimensions, unit='erg /s /cm**2 /Angstrom'))
         cd = fits.ColDefs(columns)
         table1 = fits.BinTableHDU.from_columns(cd, header=hdr1, nrows=1)
@@ -515,20 +572,20 @@ class Ullyses(KeyBlender):
         hdr1['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
         hdr1['MJD-END'] = (mjd_end, 'MJD of last exposure end')
         hdr1['XPOSURE'] = (self.combine_keys("exptime", "sum", "WFC3"), '[s] Sum of exposure durations')
-        
+
         data1 = fits.getdata(self.files[0], 1)
 
         self.hdr1 = hdr1
         self.data1 = data1
-        self.hdu1 = fits.ImageHDU(data1, header=hdr1) 
-    
+        self.hdu1 = fits.ImageHDU(data1, header=hdr1)
+
 
     def make_xsu_data_ext(self, ext):
         with fits.open(self.files[0]) as hdulist:
             hdr = hdulist[ext].header
             data = hdulist[ext].data
             extname = hdulist[ext].name
-        
+
         for item in hdr.keys():
             pass
         lastkey = item
@@ -538,24 +595,103 @@ class Ullyses(KeyBlender):
         hdr.add_blank('              / FITS TIME COORDINATE KEYWORDS', before='TIMESYS')
         hdr['TIMEUNIT'] = ('s', 'Time unit for durations')
         hdr['TREFPOS'] = ('GEOCENTER', 'Time reference position')
-        all_comments = self.combine_keys("comment", "comment")
+        all_comments = self.combine_keys("comment", "comment", dict_key="XSU")
         for comment in all_comments:
             hdr1['COMMENT'] = (comment, "Calibration and/or quality comment")
-        mjd_beg = self.combine_keys("expstart", "min")
-        mjd_end = self.combine_keys("expend", "max")
+        mjd_beg = self.combine_keys("expstart", "min", dict_key="XSU")
+        mjd_end = self.combine_keys("expend", "max", dict_key="XSU")
         dt_beg = Time(mjd_beg, format="mjd").datetime
         dt_end = Time(mjd_end, format="mjd").datetime
         hdr['DATE-BEG'] = (dt.strftime(dt_beg, "%Y-%m-%dT%H:%M:%S"), 'Date-time of first observation start')
         hdr['DATE-END'] = (dt.strftime(dt_end, "%Y-%m-%dT%H:%M:%S"), 'Date-time of last observation end')
         hdr['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
         hdr['MJD-END'] = (mjd_end, 'MJD of last exposure end')
-        hdr['XPOSURE'] = (self.combine_keys("exptime", "sum"), '[s] Sum of exposure durations')
+        hdr['XPOSURE'] = (self.combine_keys("exptime", "sum", dict_key="XSU"), '[s] Sum of exposure durations')
         hdr.add_blank(after='XPOSURE')
-        
+
         table = fits.BinTableHDU(data, header=hdr)
         return table
 
-    
+    def make_penellope_data_ext(self):
+
+        all_hdu = [] # to make a single file per target
+        all_extnames = []
+        for i, filename in enumerate(self.files):
+            # of the format flux_{targname}_{epN}_nir_tell_P3.fits where epN is
+            #   only there if there is more than one epoch and N is the epoch #
+            # we only want to know the telescope arm used, epoch, and if the spec
+            #   is telluric corrected
+            if len(self.files) > 3 and 'ep' not in filename:
+                # put "ep1" into files with multiple epochs without that label
+                extname = 'EP1_' + '_'.join(os.path.basename(filename).split('.fits')[0].split('_')[2:-1]).upper()
+            else:
+                extname = '_'.join(os.path.basename(filename).split('.fits')[0].split('_')[2:-1]).upper()
+
+            # set this manually so that the FILENAME in prov. ext picks it up
+            self.first_headers[i]['EXTNAME'] = extname
+
+            all_extnames.append(extname) # for sorting later with ep1 in
+
+            with fits.open(filename) as hdulist:
+                hdr = hdulist[0].header + hdulist[1].header # combine all info
+                data = hdulist[1].data # science extension
+
+            # change some of the data columns to match other ULLYSES HLSP formats
+            data['WAVE'] = data['WAVE'] * 10 # nm to A
+            data['FLUX'] = data['FLUX'] / 10 # nm to A
+            data['ERR'] = data['ERR'] / 10 # nm to A
+            data.columns['WAVE'].unit = 'Angstrom'
+            data.columns['FLUX'].unit = 'erg/s/cm**2/Angstrom'
+            data.columns['ERR'].unit = 'erg/s/cm**2/Angstrom'
+            data.columns['WAVE'].name = 'WAVELENGTH_AIR' # not in vacuum
+
+            # fill in more important keywords
+            lastkey = list(hdr.keys())[-1]
+            hdr['EXTNAME'] = (extname, 'Spectrum science arrays')
+            hdr['TIMESYS'] = ('UTC', 'Time system in use')
+            hdr.add_blank(after=lastkey)
+            hdr.add_blank('              / FITS TIME COORDINATE KEYWORDS', before='TIMESYS')
+            hdr['TIMEUNIT'] = ('s', 'Time unit for durations')
+            hdr['TREFPOS'] = ('GEOCENTER', 'Time reference position')
+            all_comments = self.combine_keys("comment", "comment", dict_key="PEN")
+            for comment in all_comments:
+                hdr1['COMMENT'] = (comment, "Calibration and/or quality comment")
+            mjd_beg = self.combine_keys("expstart", "min", dict_key="PEN")
+            mjd_end = self.combine_keys("expend", "max", dict_key="PEN")
+            dt_beg = Time(mjd_beg, format="mjd").datetime
+            dt_end = Time(mjd_end, format="mjd").datetime
+            hdr['DATE-BEG'] = (dt.strftime(dt_beg, "%Y-%m-%dT%H:%M:%S"), 'Date-time of first observation start')
+            hdr['DATE-END'] = (dt.strftime(dt_end, "%Y-%m-%dT%H:%M:%S"), 'Date-time of last observation end')
+            hdr['MJD-BEG'] = (mjd_beg, 'MJD of first exposure start')
+            hdr['MJD-END'] = (mjd_end, 'MJD of last exposure end')
+            hdr['XPOSURE'] = (self.combine_keys("exptime", "sum", dict_key="PEN"), '[s] Sum of exposure durations')
+            hdr.add_blank(after='XPOSURE')
+
+            # add the filename to the list of extensions
+            all_hdu.append(fits.BinTableHDU(data, header=hdr))
+
+        # sort the files in epoch order
+        epoch_ind = np.argsort(all_extnames)
+        epoch_hdu = np.array(all_hdu)[epoch_ind]
+
+        # next, sort them in wavelength order from blue -> red
+        #   UVB_1 -> VIS_1 -> NIR_1 -> UVB_2 -> VIS_2 -> NIR_2...etc.
+        order_dict = {'UVB' : 0, 'VIS' : 1, 'NIR' : 2}
+        wave_ind = []
+        for i, extname in enumerate(np.array(all_extnames)[epoch_ind]):
+            if 'EP' in extname:
+                arm = extname.split('_')[1]
+            else:
+                arm = extname.split('_')[0]
+
+            wave_ind.append(order_dict[arm])
+            # increment the dictionary for the next epoch (if there is one)
+            order_dict[arm] += 3
+
+        sorted_hdu = epoch_hdu[np.argsort(wave_ind)]
+
+        return list(sorted_hdu)
+
     def make_drizzled_wgt_ext(self):
         hdr2 = self.second_headers[0]
         del hdr2["ROOTNAME"]
@@ -563,37 +699,37 @@ class Ullyses(KeyBlender):
         hdr2["DRIZSCAL"] = (self.primary_headers[0]["D001SCAL"], "Drizzle: pixel size (arcsec) of output image")
         hdr2["DRIZISCL"] = (self.primary_headers[0]["D001ISCL"], "Drizzle: default IDCTAB pixel size(arcsec)")
         hdr2["DRIZPIXF"] = (self.primary_headers[0]["D001PIXF"], "Drizzle: linear size of drop")
-        
+
         data2 = fits.getdata(self.files[0], 2)
 
         self.hdr2 = hdr2
         self.data2 = data2
-        self.hdu2 = fits.ImageHDU(data2, header=hdr2) 
-          
+        self.hdu2 = fits.ImageHDU(data2, header=hdr2)
+
 
     def make_spectral_prov_ext(self):
         hdr = fits.Header()
         hdr['EXTNAME'] = ('PROVENANCE', 'Metadata for contributing observations')
         # set up the table columns
-        cfn = fits.Column(name='FILENAME', array=self.combine_keys("filename", "arr"), 
+        cfn = fits.Column(name='FILENAME', array=self.combine_keys("filename", "arr"),
             format='A40')
-        cpid = fits.Column(name='PROPOSID', array=self.combine_keys("proposid", "arr"), 
+        cpid = fits.Column(name='PROPOSID', array=self.combine_keys("proposid", "arr"),
             format='A32')
-        ctel = fits.Column(name='TELESCOPE', array=self.combine_keys("telescop", "arr"), 
+        ctel = fits.Column(name='TELESCOPE', array=self.combine_keys("telescop", "arr"),
             format='A32')
-        cins = fits.Column(name='INSTRUMENT', array=self.combine_keys("instrume", "arr"), 
+        cins = fits.Column(name='INSTRUMENT', array=self.combine_keys("instrume", "arr"),
             format='A32')
-        cdet = fits.Column(name='DETECTOR', array=self.combine_keys("detector", "arr"), 
+        cdet = fits.Column(name='DETECTOR', array=self.combine_keys("detector", "arr"),
             format='A32')
-        cdis = fits.Column(name='DISPERSER', array=self.combine_keys("opt_elem", "arr"), 
+        cdis = fits.Column(name='DISPERSER', array=self.combine_keys("opt_elem", "arr"),
             format='A32')
-        ccen = fits.Column(name='CENWAVE', array=self.combine_keys("cenwave", "arr"), 
+        ccen = fits.Column(name='CENWAVE', array=self.combine_keys("cenwave", "arr"),
             format='A32')
-        cap = fits.Column(name='APERTURE', array=self.combine_keys("aperture", "arr"), 
+        cap = fits.Column(name='APERTURE', array=self.combine_keys("aperture", "arr"),
             format='A32')
-        csr = fits.Column(name='SPECRES', array=self.combine_keys("specres", "arr"), 
+        csr = fits.Column(name='SPECRES', array=self.combine_keys("specres", "arr"),
             format='F8.1')
-        ccv = fits.Column(name='CAL_VER', array=self.combine_keys("cal_ver", "arr"), 
+        ccv = fits.Column(name='CAL_VER', array=self.combine_keys("cal_ver", "arr"),
             format='A32')
         mjd_begs = self.combine_keys("expstart", "arr")
         mjd_ends = self.combine_keys("expend", "arr")
@@ -611,27 +747,27 @@ class Ullyses(KeyBlender):
         self.prov_hdr = hdr
         self.prov_data = cd2
         self.prov_hdu = table2
-    
+
 
     def make_imaging_prov_ext(self):
         hdr = fits.Header()
         hdr['EXTNAME'] = ('PROVENANCE', 'Metadata for contributing observations')
         # set up the table columns
-        cfn = fits.Column(name='FILENAME', array=self.combine_keys("filename", "arr"), 
+        cfn = fits.Column(name='FILENAME', array=self.combine_keys("filename", "arr"),
             format='A40')
-        cpid = fits.Column(name='PROPOSID', array=self.combine_keys("proposid", "arr"), 
+        cpid = fits.Column(name='PROPOSID', array=self.combine_keys("proposid", "arr"),
             format='A32')
-        ctel = fits.Column(name='TELESCOPE', array=self.combine_keys("telescop", "arr"), 
+        ctel = fits.Column(name='TELESCOPE', array=self.combine_keys("telescop", "arr"),
             format='A32')
-        cins = fits.Column(name='INSTRUMENT', array=self.combine_keys("instrume", "arr"), 
+        cins = fits.Column(name='INSTRUMENT', array=self.combine_keys("instrume", "arr"),
             format='A32')
-        cdet = fits.Column(name='DETECTOR', array=self.combine_keys("detector", "arr"), 
+        cdet = fits.Column(name='DETECTOR', array=self.combine_keys("detector", "arr"),
             format='A32')
-        cfil = fits.Column(name='FILTER', array=self.combine_keys("filter", "arr"), 
+        cfil = fits.Column(name='FILTER', array=self.combine_keys("filter", "arr"),
             format='A32')
-        cap = fits.Column(name='APERTURE', array=self.combine_keys("aperture", "arr"), 
+        cap = fits.Column(name='APERTURE', array=self.combine_keys("aperture", "arr"),
             format='A32')
-        ccv = fits.Column(name='CAL_VER', array=self.combine_keys("cal_ver", "arr"), 
+        ccv = fits.Column(name='CAL_VER', array=self.combine_keys("cal_ver", "arr"),
             format='A32')
         mjd_begs = self.combine_keys("expstart", "arr", "WFC3")
         mjd_ends = self.combine_keys("expend", "arr", "WFC3")
@@ -647,7 +783,7 @@ class Ullyses(KeyBlender):
         self.prov_hdr = hdr
         self.prov_data = cd2
         self.prov_hdu = table2
-    
+
 
     def make_lcogt_timeseries_prov_ext(self):
         hdr = fits.Header()
@@ -656,21 +792,21 @@ class Ullyses(KeyBlender):
         files = [os.path.basename(x) for x in self.files]
         cfn = fits.Column(name='FILENAME', array=files,
             format='A40')
-        cpid = fits.Column(name='PROPOSID', array=self.combine_keys("proposid", "arr", "LCOGT"), 
+        cpid = fits.Column(name='PROPOSID', array=self.combine_keys("proposid", "arr", "LCOGT"),
             format='A32')
-        ctel = fits.Column(name='TELESCOPE', array=self.combine_keys("telescop", "arr", "LCOGT"), 
+        ctel = fits.Column(name='TELESCOPE', array=self.combine_keys("telescop", "arr", "LCOGT"),
             format='A32')
-        cins = fits.Column(name='INSTRUMENT', array=self.combine_keys("instrume", "arr", "LCOGT"), 
+        cins = fits.Column(name='INSTRUMENT', array=self.combine_keys("instrume", "arr", "LCOGT"),
             format='A32')
-        cdet = fits.Column(name='DETECTOR', array=self.combine_keys("detector", "arr", constant="LCOGT"), 
+        cdet = fits.Column(name='DETECTOR', array=self.combine_keys("detector", "arr", constant="LCOGT"),
             format='A32')
-        cfil = fits.Column(name='FILTER', array=self.combine_keys("filter", "arr", "LCOGT"), 
+        cfil = fits.Column(name='FILTER', array=self.combine_keys("filter", "arr", "LCOGT"),
             format='A32')
-        cap = fits.Column(name='APERTURE', array=self.combine_keys("aperture", "arr", constant="LCOGT"), 
+        cap = fits.Column(name='APERTURE', array=self.combine_keys("aperture", "arr", constant="LCOGT"),
             format='A32')
-        ccv = fits.Column(name='CAL_VER', array=self.combine_keys("cal_ver", "arr", "LCOGT"), 
+        ccv = fits.Column(name='CAL_VER', array=self.combine_keys("cal_ver", "arr", "LCOGT"),
             format='A32')
-        
+
         mjd_begs = self.photdf["mjdstart"].to_numpy()
         mjd_ends = self.photdf["mjdend"].to_numpy()
         mjd_mids = (mjd_ends + mjd_begs) / 2.
@@ -699,7 +835,7 @@ class Ullyses(KeyBlender):
 
         hdr['EXTNAME'] = ('PROVENANCE', 'Metadata for contributing observations')
         # set up the table columns
-        cfn = fits.Column(name='FILENAME', array=data["filename"][inds], 
+        cfn = fits.Column(name='FILENAME', array=data["filename"][inds],
             format='A40')
         cpid = fits.Column(name='PROPOSID', array=data["proposid"][inds],
             format='A32')
@@ -716,7 +852,7 @@ class Ullyses(KeyBlender):
         ccv = fits.Column(name='CAL_VER', array=data["cal_ver"][inds],
             format='A32')
         mjd_begs = data["expstart"][inds]
-        mjd_ends = data["expend"][inds] 
+        mjd_ends = data["expend"][inds]
         mjd_mids = (mjd_ends + mjd_begs) / 2.
         cdb = fits.Column(name='MJD_BEG', array=mjd_begs, format='F15.9', unit='d')
         cdm = fits.Column(name='MJD_MID', array=mjd_mids, format='F15.9', unit='d')
@@ -725,47 +861,71 @@ class Ullyses(KeyBlender):
 
         cd2 = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cfil, cap, ccv, cdb, cdm, cde, cexp])
         table2 = fits.BinTableHDU.from_columns(cd2, header=hdr)
-        
+
         self.prov_hdr = hdr
         self.prov_data = cd2
         self.prov_hdu = table2
 
-        
-    def make_xsu_prov_ext(self):
+
+    def make_vlt_prov_ext(self, project):
         hdr = fits.Header()
         hdr['EXTNAME'] = ('PROVENANCE', 'Metadata for contributing observations')
+
         # set up the table columns
-        cfn = fits.Column(name='FILENAME', array=self.combine_keys("filename", "arr"), 
+        cfn = fits.Column(name='FILENAME', array=self.combine_keys("filename", "arr", dict_key=project),
             format='A40')
-        cpid = fits.Column(name='PROPOSID', array=self.combine_keys("proposid", "arr"), 
+        cpid = fits.Column(name='PROPOSID', array=self.combine_keys("proposid", "arr", dict_key=project),
             format='A32')
-        ctel = fits.Column(name='TELESCOPE', array=self.combine_keys("telescop", "arr"), 
+        ctel = fits.Column(name='TELESCOPE', array=self.combine_keys("telescop", "arr", dict_key=project),
             format='A32')
-        cins = fits.Column(name='INSTRUMENT', array=self.combine_keys("instrume", "arr"), 
+        cins = fits.Column(name='INSTRUMENT', array=self.combine_keys("instrume", "arr", dict_key=project),
             format='A32')
-        cdet = fits.Column(name='DETECTOR', array=self.combine_keys("detector", "arr"), 
+        cdet = fits.Column(name='DETECTOR', array=self.combine_keys("detector", "arr", dict_key=project),
             format='A32')
-        cdis = fits.Column(name='DISPERSER', array=self.combine_keys("opt_elem", "arr"), 
+        cdis = fits.Column(name='DISPERSER', array=self.combine_keys("opt_elem", "arr", dict_key=project),
             format='A32')
-        ccen = fits.Column(name='CENWAVE', array=self.combine_keys("cenwave", "arr"), 
+        ccen = fits.Column(name='CENWAVE', array=self.combine_keys("cenwave", "arr", dict_key=project),
             format='A32')
-        cap = fits.Column(name='APERTURE', array=self.combine_keys("aperture", "arr"), 
+        cap = fits.Column(name='APERTURE', array=self.combine_keys("aperture", "arr", dict_key=project),
             format='A32')
-        csr = fits.Column(name='SPECRES', array=self.combine_keys("specres", "arr"), 
+        csr = fits.Column(name='SPECRES', array=self.combine_keys("specres", "arr", dict_key=project),
             format='F8.1')
-        ccv = fits.Column(name='CAL_VER', array=self.combine_keys("cal_ver", "arr"), 
+        ccv = fits.Column(name='CAL_VER', array=self.combine_keys("cal_ver", "arr", dict_key=project),
             format='A32')
-        mjd_begs = self.combine_keys("expstart", "arr")
-        mjd_ends = self.combine_keys("expend", "arr")
+        mjd_begs = self.combine_keys("expstart", "arr", dict_key=project)
+        mjd_ends = self.combine_keys("expend", "arr", dict_key=project)
         mjd_mids = (mjd_ends + mjd_begs) / 2.
         cdb = fits.Column(name='MJD_BEG', array=mjd_begs, format='F15.9', unit='d')
         cdm = fits.Column(name='MJD_MID', array=mjd_mids, format='F15.9', unit='d')
         cde = fits.Column(name='MJD_END', array=mjd_ends, format='F15.9', unit='d')
-        cexp = fits.Column(name='XPOSURE', array=self.combine_keys("exptime", "arr"), format='F15.9', unit='s')
-        cmin = fits.Column(name='MINWAVE', array=self.combine_keys("minwave", "arr"), format='F9.4', unit='Angstrom')
-        cmax = fits.Column(name='MAXWAVE', array=self.combine_keys("maxwave", "arr"), format='F9.4', unit='Angstrom')
+        cexp = fits.Column(name='XPOSURE', array=self.combine_keys("exptime", "arr", dict_key=project), format='F15.9', unit='s')
+        cmin = fits.Column(name='MINWAVE', array=self.combine_keys("minwave", "arr", dict_key=project), format='F9.4', unit='Angstrom')
+        cmax = fits.Column(name='MAXWAVE', array=self.combine_keys("maxwave", "arr", dict_key=project), format='F9.4', unit='Angstrom')
 
-        cdp = fits.ColDefs([cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv, cdb, cdm, cde, cexp, cmin ,cmax])
+        if project == "PEN": # sort the prov. to match the ext order. Already is for XSU
+            ## sort the provenance by MJD start time & in wavelength order blue -> red
+            time_sort = np.argsort(cdb.array) # indices
+            order_dict = {'UVB' : 0, 'VIS' : 1, 'NIR' : 2}
+
+            # find the index for the wavelngths using the disperser info
+            wave_ind = []
+            for i, arm in enumerate(cdis.array[time_sort]):
+                wave_ind.append(order_dict[arm])
+                # increment the dictionary for the next epoch (if there is one)
+                order_dict[arm] += 3 # UV, VIS, NIR
+            # sort each of the columns using these indices
+            col_in_order = [cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv,
+                            cdb, cdm, cde, cexp, cmin, cmax]
+            sorted_coldef = []
+
+            for col in col_in_order:
+                col.array = col.array[time_sort][np.argsort(wave_ind)]
+                sorted_coldef.append(col)
+        else: # XSU
+            sorted_coldef = [cfn, cpid, ctel, cins, cdet, cdis, ccen, cap, csr, ccv,
+                            cdb, cdm, cde, cexp, cmin, cmax]
+
+        cdp = fits.ColDefs(sorted_coldef)
         provtable = fits.BinTableHDU.from_columns(cdp, header=hdr)
 
         self.prov_hdr = hdr
@@ -799,11 +959,10 @@ class Ullyses(KeyBlender):
 
     def mag_to_flux(self, mags, filts):
         """
-        Vega magnitude V zero points from Bessell et al. (1998) 
+        Vega magnitude V zero points from Bessell et al. (1998)
         AB magnitude i' zero points from http://svo2.cab.inta-csic.es/svo/theory/fps3/index.php?mode=browse&gname=SLOAN&asttype=
         """
         zpts = {"V": 363.1e-11, "ip": 1.27e-9} # Flambda zero points
         filt_zpts = np.array([zpts[x] for x in filts])
         flux = (10 ** (-mags / 2.5)) * filt_zpts
         return flux
-
